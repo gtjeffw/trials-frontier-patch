@@ -8,7 +8,10 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d"
+    "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d",
+    "patched_executable_with": {
+      "local-services": "036b0d6c5b2e150b030bd716f2bd144ba629e0debded349b5f55f13b97a78890"
+    }
   },
   "encryption": {
     "cryptoff": 28672,
@@ -1415,6 +1418,211 @@
       ],
       "function": "Gfx::TextureManager::bindTexture(Gfx::Texture*, int)",
       "reason": "Some texture slots are reserved but never set up because their pack (the downloadable TrialsTexturesDL.dat) is gone; e.g. tr::BgRenderer::renderBackDrop on tracks whose backdrop uses such textures (desert rocks etc.). bindTexture lazily loads via the Texture's vtable and crashed on the null vtable (KERN_INVALID_ADDRESS at 0, seen loading a level with the restored iPad profile). If the vtable is null, skip loading and still call TEXTURE_HW::bind on the empty hardware texture (binds nothing), so the object is just invisible. Cave in the Mach-O header padding after the gem caves."
+    },
+    {
+      "id": "local-services-loopback-only-cave",
+      "group": "local-services",
+      "vmaddr": "0x100006e80",
+      "original": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "a90a40f9aa1640795f45007183010054ab0100100c0080d22d696c386e696c38bf010e6bc10000548c0500919f4500f141ffff5420008052c0035fd600008052c0035fd6687474703a2f2f3132372e302e302e313a000000",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "ldr x9, [x21, #0x10]   ; request URL bytes",
+        "ldrh w10, [x21, #0xa] ; URL length",
+        "cmp w10, #17; b.lo deny",
+        "compare 17 bytes with \"http://127.0.0.1:\"",
+        "mov w0, #1; ret",
+        "deny: mov w0, #0; ret",
+        "\"http://127.0.0.1:\""
+      ],
+      "function": "code cave for _NETWORK_makeRequest(mz::NetworkCoreIPhone*, mz::NetworkRequest*)",
+      "reason": "Only loopback traffic for the game's own HTTP layer. _NETWORK_makeRequest (every engine request: Ubiservices, game server, configuration, images, store, offers) used getNetworkType() as its gate; this cave instead allows the request only if its URL starts with \"http://127.0.0.1:\", independent of the offline group. Anything else fails locally exactly as with no network (nativeGotError 5). This is the guarantee that re-enabled online code paths cannot reach the internet."
+    },
+    {
+      "id": "local-services-loopback-only-hook",
+      "group": "local-services",
+      "vmaddr": "0x1001dcb1c",
+      "original": "ac370694",
+      "replacement": "d9a8f897",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "bl 0x100006e80"
+      ],
+      "function": "_NETWORK_makeRequest(mz::NetworkCoreIPhone*, mz::NetworkRequest*)",
+      "reason": "Only loopback traffic for the game's own HTTP layer. _NETWORK_makeRequest (every engine request: Ubiservices, game server, configuration, images, store, offers) used getNetworkType() as its gate; this cave instead allows the request only if its URL starts with \"http://127.0.0.1:\", independent of the offline group. Anything else fails locally exactly as with no network (nativeGotError 5). This is the guarantee that re-enabled online code paths cannot reach the internet."
+    },
+    {
+      "id": "local-services-dns-guard-cave",
+      "group": "local-services",
+      "vmaddr": "0x100006d00",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "800100b4a90100100a0080d20b686a382c696a387f010c6bc10000544a0500916cffff35f06700b0105240f900021fd600018052c0035fd63132372e302e302e31000000",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "cbz x0, deny",
+        "compare host with \"127.0.0.1\" (incl. NUL)",
+        "adrp x16, 0x100d03000; ldr x16, [x16, #0xa0]; br x16  ; real getaddrinfo (GOT)",
+        "deny: mov w0, #8; ret  ; EAI_NONAME",
+        "\"127.0.0.1\""
+      ],
+      "function": "code cave for the _getaddrinfo symbol stub",
+      "reason": "Hard stop for every other network stack in the executable that resolves names itself: libcurl (Ubisoft mobile login library: account/ticket POSTs, network time; content checks), the ubiservices C++ SDK sockets, GCDAsyncUdpSocket, SNTP. The getaddrinfo symbol stub jumps to a cave that calls the real getaddrinfo only for the host \"127.0.0.1\" and returns EAI_NONAME (8) for anything else, so no DNS lookup or connection to another host can start. (NSURLSession/NSURLConnection resolve inside CFNetwork; the engine path is covered by the loopback-only hook, the SDK paths by the privacy group.)"
+    },
+    {
+      "id": "local-services-dns-guard-hook",
+      "group": "local-services",
+      "vmaddr": "0x100ae1604",
+      "original": "101100d0",
+      "replacement": "bf95d417",
+      "original_asm": [
+        "adrp x16, 0x100d03000  ; _getaddrinfo stub"
+      ],
+      "replacement_asm": [
+        "b 0x100006d00"
+      ],
+      "function": "_getaddrinfo symbol stub (__TEXT,__stubs)",
+      "reason": "Hard stop for every other network stack in the executable that resolves names itself: libcurl (Ubisoft mobile login library: account/ticket POSTs, network time; content checks), the ubiservices C++ SDK sockets, GCDAsyncUdpSocket, SNTP. The getaddrinfo symbol stub jumps to a cave that calls the real getaddrinfo only for the host \"127.0.0.1\" and returns EAI_NONAME (8) for anything else, so no DNS lookup or connection to another host can start. (NSURLSession/NSURLConnection resolve inside CFNetwork; the engine path is covered by the loopback-only hook, the SDK paths by the privacy group.)"
+    },
+    {
+      "id": "local-services-ubiservices-base",
+      "group": "local-services",
+      "vmaddr": "0x100bc834e",
+      "original": "68747470733a2f2f7075626c69632d75626973657276696365732e7562692e636f6d00",
+      "replacement": "687474703a2f2f3132372e302e302e313a373937390000000000000000000000000000",
+      "original_asm": [
+        "\"https://public-ubiservices.ubi.com\""
+      ],
+      "replacement_asm": [
+        "\"http://127.0.0.1:7979\" (NUL padded)"
+      ],
+      "function": "C string: Ubiservices base used as \"%s/v1/applications/%s/configuration\", \"%s/v1/profiles/sessions\", \"%s/v1/profiles/%s\", \"%s/v2/profiles/me/friends\", ...",
+      "reason": "Point the account service at the local server. Its configuration response supplies the game-server URL (sandbox \"triag_ip_lnch61_a_ws\"), so the game server needs no patch."
+    },
+    {
+      "id": "local-services-mobile-login-url",
+      "group": "local-services",
+      "vmaddr": "0x100c78804",
+      "original": "68747470733a2f2f6170692d75626973657276696365732e7562692e636f6d2f76322f70726f66696c65732f73657373696f6e7300",
+      "replacement": "687474703a2f2f3132372e302e302e313a373937392f76322f70726f66696c65732f73657373696f6e730000000000000000000000",
+      "original_asm": [
+        "\"https://api-ubiservices.ubi.com/v2/profiles/sessions\""
+      ],
+      "replacement_asm": [
+        "\"http://127.0.0.1:7979/v2/profiles/sessions\" (NUL padded)"
+      ],
+      "function": "C string behind _ubiserviceURL / _ubiserviceURL_UAT (Ubisoft mobile login library, libcurl)",
+      "reason": "The silent mobile login creates a device account and gets a session ticket with POST <url> \"{}\" and \"Authorization: UbiMobile_v1 t=<base64>\"; answered by the local server."
+    },
+    {
+      "id": "local-services-mobile-login-url-uat",
+      "group": "local-services",
+      "vmaddr": "0x100c787cb",
+      "original": "68747470733a2f2f7561742d6170692d75626973657276696365732e7562692e636f6d2f76322f70726f66696c65732f73657373696f6e7300",
+      "replacement": "687474703a2f2f3132372e302e302e313a373937392f76322f70726f66696c65732f73657373696f6e73000000000000000000000000000000",
+      "original_asm": [
+        "\"https://uat-api-ubiservices.ubi.com/v2/profiles/sessions\""
+      ],
+      "replacement_asm": [
+        "\"http://127.0.0.1:7979/v2/profiles/sessions\" (NUL padded)"
+      ],
+      "function": "C string behind _ubiserviceURL / _ubiserviceURL_UAT (Ubisoft mobile login library, libcurl)",
+      "reason": "The silent mobile login creates a device account and gets a session ticket with POST <url> \"{}\" and \"Authorization: UbiMobile_v1 t=<base64>\"; answered by the local server."
+    },
+    {
+      "id": "local-services-network-time-url",
+      "group": "local-services",
+      "vmaddr": "0x100b9676c",
+      "original": "687474703a2f2f67616d656366672d6d6f622e7562692e636f6d2f70726f66696c652f3f65706f63683d3100",
+      "replacement": "687474703a2f2f3132372e302e302e313a373937392f70726f66696c652f3f65706f63683d31000000000000",
+      "original_asm": [
+        "\"http://gamecfg-mob.ubi.com/profile/?epoch=1\""
+      ],
+      "replacement_asm": [
+        "\"http://127.0.0.1:7979/profile/?epoch=1\" (NUL padded)"
+      ],
+      "function": "C string used by __ubimobile_networkTime_thread",
+      "reason": "The mobile login library takes the time from this response's \"Server-Time:\" header before creating an account."
+    },
+    {
+      "id": "local-services-online-OnlineUbiservices-getApplicationConfiguration",
+      "group": "local-services",
+      "vmaddr": "0x1003164b4",
+      "original": "46510194",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::OnlineUbiservices::getApplicationConfiguration",
+      "reason": "Treat as online so the game can fetch the app configuration (game-server URL) from the local server. Requests still go only to 127.0.0.1 (loopback-only hook)."
+    },
+    {
+      "id": "local-services-online-OnlineAuthentication-login",
+      "group": "local-services",
+      "vmaddr": "0x1002ddce8",
+      "original": "39330294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::OnlineAuthentication::login",
+      "reason": "Treat as online so the game can allow logging in to the local server. Requests still go only to 127.0.0.1 (loopback-only hook)."
+    },
+    {
+      "id": "local-services-online-OnlineAuthentication-update",
+      "group": "local-services",
+      "vmaddr": "0x1002ddc7c",
+      "original": "54330294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::OnlineAuthentication::update",
+      "reason": "Treat as online so the game can renew the session ticket with the local server. Requests still go only to 127.0.0.1 (loopback-only hook)."
+    },
+    {
+      "id": "local-services-online-OnlineCore-checkGameServerConnection",
+      "group": "local-services",
+      "vmaddr": "0x1001dae70",
+      "original": "d73e0694",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::OnlineCore::checkGameServerConnection",
+      "reason": "Treat as online so the game can gate of every game-server request (leaderboards, ghosts). Requests still go only to 127.0.0.1 (loopback-only hook)."
+    },
+    {
+      "id": "local-services-online-MenuzComponentLeaderboardList-update",
+      "group": "local-services",
+      "vmaddr": "0x10033936c",
+      "original": "98c50094",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentLeaderboardList::update",
+      "reason": "Treat as online so the game can leaderboard list (FRIENDS/GLOBAL) loads instead of showing the offline state. Requests still go only to 127.0.0.1 (loopback-only hook)."
     }
   ],
   "plist_patches": [
@@ -1448,5 +1656,9 @@
   "dlc_content_alias_slots": [
     "TrialsContentOfferDL.dat"
   ],
-  "dlc_content_alias_note": "TrialsContentExtraDL_Moon.dat (bundled, holds /gen/3d/env/moon/bg/dome.b3d needed by /resource/moon_00_bg.txt; BgRenderer treats a missing mesh as fatal) is not in the 12-name content table. The game opens TrialsContentOfferDL.dat from Library/Caches/DLC by fixed name and that pack (store offers) is lost, so it is used as an alias slot."
+  "dlc_content_alias_note": "TrialsContentExtraDL_Moon.dat (bundled, holds /gen/3d/env/moon/bg/dome.b3d needed by /resource/moon_00_bg.txt; BgRenderer treats a missing mesh as fatal) is not in the 12-name content table. The game opens TrialsContentOfferDL.dat from Library/Caches/DLC by fixed name and that pack (store offers) is lost, so it is used as an alias slot.",
+  "optional_groups": {
+    "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group."
+  },
+  "local_services_port": 7979
 }

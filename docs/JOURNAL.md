@@ -382,3 +382,33 @@ later an in-app loopback server). Static analysis only.
     (GhostQueryObject::queryGhostShared 0x1002d8244)
   - `resultservice/v1/replaydata?track_id=<id>`, `userstorage/v2/content/<type>/<id>/payload`,
     `resultservice/v1/enhancestats/track<id>`, `match/v1/robot?…`
+
+## 2026-10-09 — `local-services` patch group (opt-in) + local server prototype
+
+- Of the 115 `getNetworkType` call sites, 62 were already forced online (gameplay); the other 53 are ads, analytics,
+  store, offers, support, images, DL content and the online stack. Instead of turning the network check on
+  globally, the new opt-in group `local-services` (spec `optional_groups`; `apply_patches.py --with local-services`)
+  forces only the online-stack sites it needs and adds two hard guards:
+  - `local-services-loopback-only-*`: `_NETWORK_makeRequest` (every engine HTTP request) calls a cave
+    (0x100006e80) instead of `getNetworkType`; the request proceeds only if its URL starts with
+    `http://127.0.0.1:`. Also covers the 62 gameplay sites forced earlier.
+  - `local-services-dns-guard-*`: the `_getaddrinfo` stub (0x100ae1604) branches to a cave (0x100006d00) that calls
+    the real function (GOT 0x100d030a0) only for host `127.0.0.1` and returns EAI_NONAME otherwise. Covers libcurl
+    (mobile login library), the ubiservices C++ SDK sockets, GCDAsyncUdpSocket and SNTP.
+  - Redirects (same-length C strings): Ubiservices base, the mobile login URL (+UAT) and the network-time URL →
+    `http://127.0.0.1:7979`. The game-server URL comes from our configuration response.
+  - Forced online: `OnlineUbiservices::getApplicationConfiguration`, `OnlineAuthentication::login/update`,
+    `OnlineCore::checkGameServerConnection`, `MenuzComponentLeaderboardList::update`.
+- Mistake caught: the first DNS cave was placed at 0x100006f00, inside `__text` (which starts at 0x100006ee8), and
+  the spec recorded the overwritten code as "original". `apply_patches.py` now refuses any "(zero padding)" cave
+  that is not all zeros or ends past the `__text` start (`macho.text_section_offset`).
+- Default build unchanged (sha256 28f0738…); `--with local-services` build recorded under
+  `sha256.patched_executable_with`.
+- Mobile login details: account creation and ticket both `POST /v2/profiles/sessions` body `{}` with
+  `Authorization: UbiMobile_v1 t=<base64>`; creation requires `"environment":"Prod"` and `nameOnPlatform`; the
+  ticket reply needs `ticket`, `profileId`, `nameOnPlatform`. Network time = `Server-Time:` header (epoch seconds,
+  atof). Accounts are stored in the keychain as `ubiacNN`.
+- `server/local_services.py`: stdlib HTTP server on 127.0.0.1:7979 that logs every request and answers
+  configuration, network time and sessions (profile id/name read from the container's player.bin); everything else is
+  404 + `UNHANDLED`. `scripts/netwatch.py`: polls `lsof` for the game process and marks non-loopback sockets `LEAK`.
+  Baseline (default build, running): no sockets at all.

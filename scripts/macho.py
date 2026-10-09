@@ -24,6 +24,21 @@ def encryption_info(data):
     raise ValueError("no LC_ENCRYPTION_INFO_64")
 
 
+def text_section_offset(data):
+    """File offset of the __TEXT,__text section (code caves must end before it)."""
+    _, _, _, _, ncmds = struct.unpack_from("<5I", data, 0)
+    off = 32
+    for _ in range(ncmds):
+        cmd, size = struct.unpack_from("<2I", data, off)
+        if cmd == 0x19:  # LC_SEGMENT_64
+            nsects = struct.unpack_from("<I", data, off + 64)[0]
+            for i in range(nsects):
+                s = off + 72 + 80 * i
+                if data[s:s + 16].rstrip(b"\0") == b"__text" and data[s + 16:s + 32].rstrip(b"\0") == b"__TEXT":
+                    return struct.unpack_from("<I", data, s + 48)[0]
+        off += size
+    raise ValueError("no __TEXT,__text section")
+
 def apply_decrypted_page(data, page):
     """Return a copy of `data` with the encrypted range replaced by `page` and cryptid set to 0."""
     out = bytearray(data)
