@@ -2,11 +2,16 @@
 
 Usage: python3 -I build_ipa.py <TrialsFrontier.app from device> <patched executable> <out.ipa>
        [--spec patches/trials-frontier-7.9.0.json] [--groups g,g] [--with g,g]
+       [--inapp <dir with libTFLocalServices.dylib>] [--avatars <dir of <profileId>.png>]
+       [--world-records wrrider.json --world-record-ids ids.json]
 
 With --spec, the spec's "plist_patches" (optionally limited to --groups) are applied to the bundle's plists;
 plists are re-serialised as sorted binary plists so the output stays reproducible. "content_patches" edit files
 inside the bundle's own datapacks (scripts/datapack.py); like executable patches, those in "optional_groups" apply
-only with --with (or when named in --groups).
+only with --with (or when named in --groups). "bundle_files" add files to the app for the selected groups: the
+embedded-server group adds Frameworks/libTFLocalServices.dylib from --inapp (built by scripts/build_inapp.py). With
+embedded-server, --avatars and --world-records/--world-record-ids add the player's own extras to the app's
+LocalServices/ folder (read by the in-app server; never part of this repository).
 
 The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) is dropped and the
 executable is replaced. Zip entries are sorted, stored uncompressed, with fixed timestamps and permissions,
@@ -34,8 +39,9 @@ def opt(name):
 
 
 spec_path, groups, extra = opt("--spec"), opt("--groups"), opt("--with")
+inapp, avatars, wr, wr_ids = opt("--inapp"), opt("--avatars"), opt("--world-records"), opt("--world-record-ids")
 app_dir, exe_path, out = sys.argv[1:4]
-plist_edits, content_patches = {}, {}
+plist_edits, content_patches, extra_files = {}, {}, {}
 if spec_path:
     spec = json.load(open(spec_path))
     selected = set(groups.split(",")) if groups else None
@@ -55,6 +61,19 @@ if spec_path:
     for cp in spec.get("content_patches", []):
         if wanted(cp["group"]):
             content_patches.setdefault(cp["pack"], []).append(cp)
+    for bf in spec.get("bundle_files", []):
+        if wanted(bf["group"]):
+            if not inapp:
+                sys.exit(f"group {bf['group']} needs --inapp <dir> (scripts/build_inapp.py output)")
+            extra_files[bf["path"]] = (os.path.join(inapp, bf["from_inapp"]), bf.get("mode") == "755")
+    if extra_files and (avatars or wr):
+        if avatars:
+            for name in sorted(os.listdir(avatars)):
+                if name.endswith(".png"):
+                    extra_files["LocalServices/avatars/" + name] = (os.path.join(avatars, name), False)
+        if wr and wr_ids:
+            extra_files["LocalServices/wrrider.json"] = (wr, False)
+            extra_files["LocalServices/ids.json"] = (wr_ids, False)
 app_name = os.path.basename(os.path.normpath(app_dir))
 exe_name = "TrialsFrontier"
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
@@ -71,7 +90,7 @@ for root, dirs, files in os.walk(app_dir):
             continue
         rel = os.path.normpath(os.path.join(rel_root, name))
         entries.append(rel)
-entries.sort()
+entries = sorted(set(entries) | set(extra_files))
 
 
 def add(z, arcname, data, executable):
@@ -93,6 +112,10 @@ with zipfile.ZipFile(out, "w") as z:
             pl.update(plist_edits[rel])
             add(z, arc, plistlib.dumps(pl, fmt=plistlib.FMT_BINARY, sort_keys=True), False)
             print(f"patched {rel}: {plist_edits[rel]}")
+        elif rel in extra_files:
+            src, executable = extra_files[rel]
+            add(z, arc, open(src, "rb").read(), executable)
+            print(f"added {rel}")
         elif rel in content_patches:
             pack = open(os.path.join(app_dir, rel), "rb").read()
             for cp in content_patches[rel]:

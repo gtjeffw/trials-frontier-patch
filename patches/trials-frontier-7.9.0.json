@@ -12,7 +12,8 @@
     "patched_executable_with": {
       "local-services": "a46fb1b82021895c1fab9be9f95c6c942536ef28db94afdc04ac00bc8b6b02e3",
       "local-services,open-all-levels": "1626b079fc43dfefad95808d0f484b7d3c41a7186b0478d6971e039e3775ed65",
-      "local-services,open-all-levels,orphan-levels": "2a5086272b7734dba5815325152ae10cb5b59230bd4a08597ef1cf730a061048"
+      "local-services,open-all-levels,orphan-levels": "2a5086272b7734dba5815325152ae10cb5b59230bd4a08597ef1cf730a061048",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "81f6703a0272f6e841f72248b28d5c7a64626dbd21a96dcf91b0d9bc1c179f6f"
     }
   },
   "encryption": {
@@ -1719,6 +1720,36 @@
       ],
       "function": "tr::UpgradeManager::getBikeReadyCountForTier(int, bool)",
       "reason": "Bike tier 255 marks the four PvP special tracks (GlobalSettings PVP_Special_Tracks = 1211,1212,1233,1258) as 'any bike': IngameStateSelectBike::showBikes(255) lists every bike and LevelManager::isCorrectBikeTier accepts any bike, but UpgradeManager::getBikeReadyCountForTier(255) only counts bikes whose own tier is 255, so MenuzStateMap::startLevel (and LoadingStateLevel::update, IngameStateHUD::restartWorld) find no bike; the map then shows the 'need a tier N bike' text at index +254 (an unrelated 'watch the ad' string). The cave returns the sum of the ready counts for tiers 0-2 when asked for 255 (special tier-255 bikes counted once via the bool argument); other tiers run the original code (first instruction relocated)."
+    },
+    {
+      "id": "embedded-server-load-command",
+      "group": "embedded-server",
+      "vmaddr": "0x100001c68",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "0c00000050000000180000000200000000000100000001004065786563757461626c655f706174682f4672616d65776f726b732f6c696254464c6f63616c53657276696365732e64796c696200000000",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "LC_LOAD_DYLIB cmdsize 80: name @executable_path/Frameworks/libTFLocalServices.dylib, timestamp 2, version 1.0.0, compat 1.0.0"
+      ],
+      "function": "Mach-O load commands",
+      "reason": "Adds LC_LOAD_DYLIB @executable_path/Frameworks/libTFLocalServices.dylib after the 65 original load commands (the header padding 0x1c68-0x6ee8 is all zero; PlayCover appends its own PlayTools LC_LOAD_DYLIB after this one, the code caves start at 0x6b00). dyld runs the library's constructor before main, which starts the local services (Documents/LocalServices). The app has to be re-signed (PlayCover does it on install; sideloading tools sign Frameworks/ too)."
+    },
+    {
+      "id": "embedded-server-header-counts",
+      "group": "embedded-server",
+      "vmaddr": "0x100000010",
+      "original": "41000000481c0000",
+      "replacement": "42000000981c0000",
+      "original_asm": [
+        "mach_header_64.ncmds = 65, sizeofcmds = 0x1c48"
+      ],
+      "replacement_asm": [
+        "ncmds = 66, sizeofcmds = 0x1c98"
+      ],
+      "function": "Mach-O header",
+      "reason": "Adds LC_LOAD_DYLIB @executable_path/Frameworks/libTFLocalServices.dylib after the 65 original load commands (the header padding 0x1c68-0x6ee8 is all zero; PlayCover appends its own PlayTools LC_LOAD_DYLIB after this one, the code caves start at 0x6b00). dyld runs the library's constructor before main, which starts the local services (Documents/LocalServices). The app has to be re-signed (PlayCover does it on install; sideloading tools sign Frameworks/ too)."
     }
   ],
   "plist_patches": [
@@ -1758,7 +1789,8 @@
     "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped.",
     "open-all-levels": "Opt-in (build with --with open-all-levels). Every named level inside the map circle is shown on the map, using the game's own developer function Map::cheatOpenAllLevels: event, season, X-Games and Bunker tracks that can no longer be unlocked. Levels with event rules may behave oddly.",
     "orphan-levels": "Opt-in (build with --with orphan-levels). Gives the six levels parked off the map at (-10000,-10000) a place in the main map's fogged area east of the eastern sea route (x 1230, artwork but no levels): Sine City, Hill Climb, Bunnyhop (hidden Bunker tracks), Rigged Roadway, Roadway (Agent event), Collapsed Orchard (Rodeo). They show up once opened, or with open-all-levels.",
-    "dev-levels": "Opt-in (build with --with dev-levels; best with open-all-levels). Six unnamed developer/test levels that ship with the game (their level files are in the LevelPack1/2 packs) get a display name '<name> (dev)' and a spot in the fogged area east of the eastern sea route, below the orphan levels."
+    "dev-levels": "Opt-in (build with --with dev-levels; best with open-all-levels). Six unnamed developer/test levels that ship with the game (their level files are in the LevelPack1/2 packs) get a display name '<name> (dev)' and a spot in the fogged area east of the eastern sea route, below the orphan levels.",
+    "embedded-server": "Opt-in, with local-services (build with --with local-services,embedded-server and build_ipa.py --inapp <dir with libTFLocalServices.dylib>). The game loads the native local services (inapp/, built by scripts/build_inapp.py) from its Frameworks folder and serves itself on 127.0.0.1:7979: nothing runs outside the app, on macOS (PlayCover) or iOS. Without this group, local-services expects an external server (server/local_services.py or tfserver) for development."
   },
   "local_services_port": 7979,
   "content_patches": [
@@ -2226,6 +2258,14 @@
         }
       ],
       "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    }
+  ],
+  "bundle_files": [
+    {
+      "group": "embedded-server",
+      "path": "Frameworks/libTFLocalServices.dylib",
+      "from_inapp": "libTFLocalServices.dylib",
+      "mode": "755"
     }
   ]
 }
