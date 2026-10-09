@@ -68,6 +68,19 @@ def store_item_price(text, item_id, price_hard):
     return text[:start] + new_block + text[end:]
 
 
+def level_position(text, level_id, x, y):
+    """Give a level in /conf/levels.txt a map position: the level object with "ID":level_id must currently be parked
+    at (-10000, -10000) (outside LevelMetaData::isAvailableOnMap's 8000-unit circle)."""
+    m = list(re.finditer(r'\{[^{}]*"ID":\s*%d\s*,[^{}]*\}' % level_id, text))
+    if len(m) != 1:
+        raise ValueError("level %d found %d times" % (level_id, len(m)))
+    obj = m[0].group(0)
+    new, n = re.subn(r'"X":\s*-10000\s*,(\s*)"Y":\s*-10000', '"X":%d,\\1"Y":%d' % (x, y), obj)
+    if n != 1:
+        raise ValueError("level %d is not parked at (-10000, -10000)" % level_id)
+    return text[:m[0].start()] + new + text[m[0].end():]
+
+
 def apply_content_patch(pack, patch):
     """Apply one spec "content_patches" entry to the pack bytes; returns the new pack bytes."""
     h = game_hash(patch["file"])
@@ -75,6 +88,8 @@ def apply_content_patch(pack, patch):
     for edit in patch["edits"]:
         if edit["op"] == "store_item_price":
             text = store_item_price(text, edit["item_id"], edit["price_hard"])
+        elif edit["op"] == "level_position":
+            text = level_position(text, edit["level_id"], edit["x"], edit["y"])
         else:
             raise ValueError("unknown content edit %r" % edit["op"])
     return replace_file(pack, h, text.encode("utf-8"))

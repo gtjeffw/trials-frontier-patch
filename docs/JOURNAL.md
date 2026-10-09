@@ -517,3 +517,19 @@ later an in-app loopback server). Static analysis only.
 - `Map::init(MenuzStateMap*, bool)` calls the developer function `Map::cheatOpenAllLevels` (reveal every on-map level
   with a name localization) only when its bool is set: `tbz w20, #0` at 0x1002ce6bc. Opt-in group
   `open-all-levels` replaces it with `nop`.
+
+## 2026-10-09 — Map fog and tiles; opt-in `orphan-levels`
+
+- Map layer = levels.txt `L` (LevelMetaData+0x2d4; 0 main map: 206 levels, 1 ferry island: 176); `Map::revealMarker`
+  only reveals markers of the current layer.
+- Background tiles `/MENUZ/MAP/LAYER_<L>/MAP_BG_<row>_<col>.PNG` (Map::initTileData; grid 5×7 → 7×8 once the mission
+  in GlobalSetting `DLContent_Lock_MissionId` is solved). 512 units each, tile (r, c) at x = −1792 + 512c,
+  y = −768 + 512r (Map::render constants 0x100af7bd0/7bcc/0x100ae69b4). Art present: main map rows 0–4 × cols 0–6
+  (maptiles packs + textures.dat), ferry 5×5; the rest of the 7×8 grid has no art in 7.9.0.
+- Fog of war (`Map::renderOffscreenFogOfWar`): an offscreen mask lit by a 300-unit soft circle at each revealed
+  marker (state 1/2) and village; a per-tile flag (Map+0x7be, index x/512+4, y/512+2) picks plain vs. fog shader.
+  So fog lifts wherever a revealed marker sits. With every level revealed the main map's column 6 (x 1280–1792; the
+  user's "right strip") and the top-left corner stay fogged though they have art (y grows downward, as on screen).
+- Opt-in group `orphan-levels` (content patch on `/conf/levels.txt`, new `level_position` op in
+  `scripts/datapack.py`): Sine City, Hill Climb, Bunnyhop, Rigged Roadway, Roadway, Collapsed Orchard move from
+  (−10000, −10000) to x 1530, y −560…1190 (350 apart). Top-left corner kept free for the unnamed test levels.
