@@ -573,3 +573,15 @@ later an in-app loopback server). Static analysis only.
   start-up, so every JSON reply was `{}`; kept for the process lifetime now.
 - The Python server's default store moved to `Documents/LocalServices` (same as in-app; a store in
   `Library/LocalServices` is moved once).
+
+## 2026-10-09 — Embedded server running in the game (PlayCover)
+
+- Opt-in group `embedded-server`: LC_LOAD_DYLIB `@executable_path/Frameworks/libTFLocalServices.dylib` (80 bytes at
+  0x1c68, after the 65 original load commands; header ncmds 65→66, sizeofcmds 0x1c48→0x1c98). `build_ipa.py`
+  adds spec `bundle_files` for selected groups (`--inapp <dir>`), plus the player's own `--avatars` and optional
+  `--world-records/--world-record-ids` into the app's `LocalServices/`.
+- PlayCover installs it, signs the library ad hoc and appends its PlayTools load command after ours. On launch the
+  game process itself listens on 127.0.0.1:7979; the store moved from Library/LocalServices to
+  Documents/LocalServices with everything in it (2759 results, 493 ghosts, 501 riders); login, configuration and the
+  usual start-up requests are answered; netwatch: loopback only. The Python server is now only for development
+  (build without `embedded-server`).
