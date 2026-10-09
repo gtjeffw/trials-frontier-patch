@@ -330,3 +330,12 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   content packs are only otherwise opened from Library/Caches/DLC by three fixed names. The installer now puts such
   packs under a free "alias slot" name from the spec (`dlc_content_alias_slots`: `TrialsContentOfferDL.dat`, whose real
   pack — store offers — is lost); a real pack supplied via `--dlc-from` takes precedence. Game starts cleanly with it.
+
+## 2026-10-09 — Level files decoded; environments per level
+
+- Level files use the default `SaveFile` Protection (0x100aed960: seed 0x97, mult 0x1F49) + 16-byte header (+ zlib);
+  body = chunk stream with LE u32 tags: `TRGO`, `HEAD` (0x20-byte LevelHeader: u16 version 3..30, byte 4 = object/
+  environment pool, byte 6 = variant), `META` (source level name), `VISU`, `PHYS`, `TRIG`, `JOIN`, `BLOB`, `EFCT`.
+- `scripts/level_info.py`: every level with its environment and pack. 382 levels: desert 83, city 68, village 53,
+  cave 42, swamp 42, snow 48, happy 46, moon 0. Flower Hills (1152) is `swamp_02` — explains the black level.
+  No level uses `snow_01` (the only environment whose `_bg.txt` is missing) or `moon_00` (event-only).
