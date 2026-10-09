@@ -22,4 +22,21 @@ e.g. a menu or an optional unlock command.
 - Touch scaling per axis (float) so any window size / full screen works without the 1366×1024 PlayCover setting.
 - Name the 30 June-2017 event ghosts (needs 5.2.0-era event data; not archived as far as we know).
 - Check the old iPhone X for a surviving Library/Caches/DLC (would restore lost event art via `--dlc-from`).
-- Offline leaderboards / own-ghost racing (see discussion of a local ghost/leaderboard service).
+- ~~Offline leaderboards / own-ghost racing~~ — done via the opt-in `local-services` group + `server/local_services.py`.
+
+## Local services: personal top five, other riders
+
+- **Top five per track (FRIENDS tab).** The save and the original service kept only one best per leaderboard, so
+  history starts now. Have the local server switch on "submit every run" (GlobalSettings 0xd69745a5 = 1, checked in
+  `IngameStatePostRace::sendToOnlineLeaderboard`; delivered via the targeting configuration — format still to be
+  decoded) and keep the five best runs per track. Show them on FRIENDS as the player plus stand-in riders
+  "<name> #2" … "#5" (the leaderboard parser drops repeated profile ids, so each needs its own id and a
+  `/v1/profiles` name). Only the best run has a ghost (the game keeps one ghost file per leaderboard and uploads only
+  after `"updated"`), so #2–#5 are times without a ghost.
+- **GLOBAL tab: the player's single best among other riders.** Candidates: 2019 world records from
+  dutscher/trialstrackmap `database/wr/wrrider.json` (MIT; ~360 tracks × iOS/Android × normal/donkey/crazy, rider
+  name, bike, faults, time) and its git history (2015–2019 snapshots). World records only, so roughly 2–6 entries per
+  track, no ghosts. tf.lforo.com top-10 lists have no licence (ask the owner first). Ask the user before downloading;
+  keep third-party data out of the repo unless included with attribution.
+- Decide whether the player also appears on FRIENDS when other riders are imported (user preference: yes, with the
+  top five there and only the single best on GLOBAL, since GLOBAL auto-scrolls to the player's best).
