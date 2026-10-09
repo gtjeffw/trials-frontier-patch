@@ -45,6 +45,45 @@ def opt(name, flag=False, default=None):
     return False if flag else default
 
 
+ARCH = {12: "armv7 (32-bit)", 0x0100000C: "arm64"}
+
+
+def macho_info(path):
+    """(cpu type, uuid) of a thin Mach-O; for a fat file, the cpu types of its slices and None."""
+    data = open(path, "rb").read(65536)
+    if struct.unpack_from(">I", data, 0)[0] == 0xCAFEBABE:
+        n = struct.unpack_from(">I", data, 4)[0]
+        return [struct.unpack_from(">I", data, 8 + 20 * i)[0] for i in range(n)], None
+    magic, cpu, _, _, ncmds = struct.unpack_from("<5I", data, 0)
+    if magic != 0xFEEDFACF and magic != 0xFEEDFACE:
+        return None, None
+    off = 32 if magic == 0xFEEDFACF else 28
+    for _ in range(ncmds):
+        cmd, size = struct.unpack_from("<2I", data, off)
+        if cmd == 0x1B:  # LC_UUID
+            u = data[off + 8:off + 24].hex().upper()
+            return cpu, f"{u[:8]}-{u[8:12]}-{u[12:16]}-{u[16:20]}-{u[20:]}"
+        off += size
+    return cpu, None
+
+
+def check_executable(path, spec):
+    cpu, uuid = macho_info(path)
+    if isinstance(cpu, list):
+        arches = ", ".join(ARCH.get(c, hex(c)) for c in cpu)
+        if 0x0100000C in cpu:
+            sys.exit(f"{path}: universal executable ({arches}); extract the arm64 slice first: "
+                     f"lipo -thin arm64 -output <file> {path}, then pass it with --decrypted")
+    if cpu != 0x0100000C:
+        arch = ", ".join(ARCH.get(c, hex(c)) for c in cpu) if isinstance(cpu, list) else ARCH.get(cpu, "unknown")
+        sys.exit(f"{path}: {arch} executable; the patches are for the arm64 build of {spec['version']} "
+                 f"(Mach-O UUID {spec['macho_uuid']}). App Store copies are thinned per device: use the copy from a "
+                 f"64-bit iPhone/iPad (the content packs of other copies are the same; pass your arm64 executable "
+                 f"with --decrypted)")
+    if uuid != spec["macho_uuid"]:
+        sys.exit(f"{path}: Mach-O UUID {uuid}, expected {spec['macho_uuid']} (TrialsFrontier {spec['version']}, arm64)")
+
+
 def cryptid(path):
     data = open(path, "rb").read(65536)
     _, _, _, _, ncmds = struct.unpack_from("<5I", data, 0)
@@ -59,8 +98,8 @@ def cryptid(path):
 
 def run(cmd, dry):
     print("+ " + " ".join(cmd))
-    if not dry:
-        subprocess.run(cmd, check=True)
+    if not dry and subprocess.run(cmd).returncode != 0:
+        sys.exit(f"failed: {os.path.basename(cmd[2])} (see the message above)")
 
 
 def main():
@@ -84,12 +123,13 @@ def main():
     os.makedirs(work, exist_ok=True)
 
     exe = os.path.join(app, spec["executable"])
+    check_executable(decrypted or exe, spec)
     patched = os.path.join(work, "TrialsFrontier.patched")
     cmd = PY + [os.path.join(ROOT, "scripts", "apply_patches.py"), SPEC]
-    if cryptid(exe) == 0:
-        cmd += [exe, patched]
-    elif decrypted:
+    if decrypted:
         cmd += [decrypted, patched]
+    elif cryptid(exe) == 0:
+        cmd += [exe, patched]
     elif page:
         cmd += [exe, patched, "--page", page]
     else:

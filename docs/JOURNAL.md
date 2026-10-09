@@ -595,3 +595,16 @@ later an in-app loopback server). Static analysis only.
   installed one (ipa sha256 c1b6f0a8…, including the freshly compiled library); `external` and `none` from the
   encrypted executable + page give the recorded executable hashes (a46fb1b…, 28f0738…).
 - README rewritten for the current state (quick start, options, local services, development, getting the files).
+
+## 2026-10-09 — A public 7.9.0 copy: same packs, 32-bit executable
+
+- The only publicly posted 7.9.0 iOS copy found (details kept private) is decrypted
+  (`cryptid 0`, no `SC_Info`) but its executable is a universal file with only an **armv7** slice (UUID
+  7E096C5A-…), dumped from a 32-bit device. App Store copies are thinned per device: the developer's iPad copy has
+  only arm64 (UUID D1B9B883-…, the one the patches target) and device-specific `Assets.car`.
+- All 42 `.dat` content packs are byte-identical to the iPad copy (441 of 445 files identical; different:
+  executable, `Assets.car`, `Info.plist`, `_CodeSignature/CodeResources`).
+- `build.py` now checks the executable before patching (architecture incl. universal files, Mach-O UUID) and fails
+  with a clear message instead of a traceback; an explicit `--decrypted` takes priority over the app's own
+  unencrypted executable. Public `.app` + own arm64 executable → the same patched executable (81f6703…) and the same
+  content edits; the package differs from the own-copy build only in the artwork/plist/signature files above.
