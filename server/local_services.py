@@ -15,7 +15,8 @@ Listens on 127.0.0.1 only. The patched game sends every request here (see docs/J
 Every request is logged; anything not handled yet is answered 404 and marked UNHANDLED so it can be implemented.
 The player's profile id and name are read from the container's Documents/player.bin unless given.
 
-Results and ghosts live in a store (--data, default <container>/Library/LocalServices: store.json + ghosts/<id>.bin),
+Results and ghosts live in a store (--data, default <container>/Documents/LocalServices, as for the in-app server
+inapp/: store.json + ghosts/<id>.bin + avatars/; a store in Library/LocalServices is moved there once),
 seeded on start from the save's score table and the player's own ghost_<hash>_<leaderboard>.bin files. As with the
 original service, a submitted result (resultservice/v1/enhancestats/...) is "updated" only if it beats the stored
 one (fewer faults, then less time); the game uploads a ghost only after such a reply, and the store keeps one ghost
@@ -316,7 +317,7 @@ class Services:
         return {}
 
     def leaderboard(self, name, query):
-        entries = sorted(self.board(name).items(), key=lambda kv: ((kv[1]["data"] & 0xFF), kv[1]["drivetime"]))
+        entries = sorted(self.board(name).items(), key=lambda kv: ((kv[1]["data"] & 0xFF), kv[1]["drivetime"], kv[0]))
         rows = [{"player": pid, "rank": i + 1, "stats": {k: v for k, v in st.items() if k != "source"}}
                 for i, (pid, st) in enumerate(entries)]
         total = len(rows)
@@ -362,7 +363,7 @@ class Services:
     def ghosts_for(self, profile, track):
         out = [(int(cid), g) for cid, g in self.store["ghosts"].items() if g["profile"] == profile and g.get("payload", True)
                and (g["track_id"] == track or g["track_id"] & 0xFFFF == track)]
-        return sorted(out, key=lambda x: (x[1]["track_id"] != track, x[1]["metadata"].get("drive_time") or 1 << 31))
+        return sorted(out, key=lambda x: (x[1]["track_id"] != track, x[1]["metadata"].get("drive_time") or 1 << 31, x[0]))
 
     def replay_id(self, body):
         req = json.loads(body or b"{}")
@@ -588,7 +589,12 @@ def main():
     container = opt("--container", DEFAULT_CONTAINER)
     port = int(opt("--port", "7979"))
     services = Services(container, port, opt("--profile-id"), opt("--name"), opt("--log"), opt("--avatars"))
-    services.load_store(opt("--data", os.path.join(container, "Library", "LocalServices")))
+    data = opt("--data")
+    if not data:  # same place as the in-app server: Documents/LocalServices (move a store left in Library once)
+        data, old = os.path.join(container, "Documents", "LocalServices"), os.path.join(container, "Library", "LocalServices")
+        if not os.path.exists(data) and os.path.isdir(old):
+            os.rename(old, data)
+    services.load_store(data)
     wr, wr_ids = opt("--world-records"), opt("--world-record-ids")
     if wr and wr_ids and not services.store.get("world_records_imported"):
         services.import_world_records(wr, wr_ids)

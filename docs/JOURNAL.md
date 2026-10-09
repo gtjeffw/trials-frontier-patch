@@ -552,3 +552,24 @@ later an in-app loopback server). Static analysis only.
   tables (LOCF: 'LOCF', u8 1, u32 count, unsorted {u32 hash, u16 len, text}; new op `add_strings`) so
   `cheatOpenAllLevels` reveals them, and move from their shared spots into the column.
 - Layout for all twelve: zigzag x 1180/1290, y −230 + 90 per row (orphans rows 0–5, dev rows 6–11).
+
+## 2026-10-09 — Native local services (inapp/), parity with the Python server
+
+- `inapp/` holds the same services in plain Objective-C (ARC; Foundation, CommonCrypto, zlib only):
+  `TFSave` (save/ghost/robot formats, getHashCode, uuid5), `TFHTTP` (loopback HTTP/1.1 server, thread per
+  connection, keep-alive; route table of (method, full-match regex) → handler), `TFServices` (store, imports, core
+  routes, quiet catch-all), `TFLocalServices` (start-up; listens at once, requests wait until the store is loaded),
+  `TFEntry` (dylib constructor: Documents/LocalServices, log `server.log`, optional world-record and avatar files
+  from the app bundle's `LocalServices/`), `cli/tfserver.m` (macOS command-line build for tests/development).
+- Feature modules (`TFServiceModule`, listed in `TFLocalServicesModules()`) register routes after the core and
+  before the "not offered" catch-all — the place for a future daily robot-challenge module.
+- `scripts/build_inapp.py`: `libTFLocalServices.dylib` (arm64, iOS 15+, install name
+  `@executable_path/Frameworks/…`) and `tfserver` (macOS). Builds without warnings.
+- `tests/test_parity.py`: runs both servers on a copy of the player's Documents, sends 36 scripted requests
+  (login, leaderboards in all query forms, results worse/better/batch, ghost search/download/upload/refusal/metadata,
+  names, avatars, quiet and unhandled routes) and compares status + body (timestamps and port ignored) and the final
+  stores: PASS. Both servers now break ties explicitly (leaderboards by profile id, ghosts by content id).
+- Bug found by the first smoke test: route handlers held the services object weakly and nothing else kept it after
+  start-up, so every JSON reply was `{}`; kept for the process lifetime now.
+- The Python server's default store moved to `Documents/LocalServices` (same as in-app; a store in
+  `Library/LocalServices` is moved once).
