@@ -41,6 +41,14 @@ python3 -I scripts/build_ipa.py <TrialsFrontier.app> <work>/TrialsFrontier.patch
 
 Each step verifies sha256 values from the spec, so the same inputs always give the same output.
 
+Patches are grouped: `compat` (needed to run on macOS/PlayCover without the dead content bucket), `privacy`
+(ads, cross-promotion), `offline` (no Ubisoft/RedLynx services). `--groups compat,privacy` builds without the
+offline group, e.g. for a future fan server.
+
+Keyboard controls: install `playcover/trials-frontier-keymap.plist` as
+`~/Library/Containers/io.playcover.PlayCover/Keymapping/com.ubisoft.redlynx.trialsfrontier.plist` and enable
+Keymapping for the app. PlayCover needs a custom resolution of 1366×1024 for now.
+
 ## Status
 
 Runs in PlayCover through the tutorial with a 1366×1024 custom window. Known issues and progress are in

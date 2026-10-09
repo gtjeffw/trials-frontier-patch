@@ -194,3 +194,14 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   xCoord/yCoord fractions, size in percent): ↑/W throttle, ↓/S brake, ←/A lean back, →/D lean forward,
   Space restart (tap = checkpoint, hold = full reset; PlayCover holds the touch while the key is down),
   Esc pause. Requires Keymapping enabled for the app in PlayCover.
+
+## 2026-10-09 — Leaderboards; patch groups
+
+- Keyboard controls confirmed working in PlayCover (keymap file is only read at game launch).
+- Post-race "Leaderboards" shows "You're disconnected from Ubisoft…": `tr::LeaderboardManager` only shows
+  server-fed, cached boards (`requestLeaderboard`, `addToCache`, `hasDataAvailableFor`); there is no local-only
+  view, so pretending to be online would give an empty board. Left as is.
+- Idea for later: fill the leaderboard cache locally (own best + saved `robot_ghost` opponents); a fan server would
+  plug in at the same place.
+- Patches now carry a `group` (`compat`, `privacy`, `offline`) and `apply_patches.py --groups` selects them, so a
+  future fan-server build can swap the `offline` group without touching the others.

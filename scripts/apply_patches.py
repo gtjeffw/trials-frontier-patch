@@ -1,6 +1,6 @@
 """Apply the byte patches from a patch spec to the decrypted TrialsFrontier executable.
 
-Usage: python3 -I apply_patches.py <spec.json> <executable in> <executable out> [--only id,id]
+Usage: python3 -I apply_patches.py <spec.json> <executable in> <executable out> [--only id,id] [--groups g,g]
 
 Input may be the decrypted executable, or the encrypted one plus --page <page.bin> from a private helper.
 Every input and patch site is checked against the spec (sha256 / original bytes) before anything is written,
@@ -23,7 +23,7 @@ def opt(name):
     return None
 
 
-page_path, only = opt("--page"), opt("--only")
+page_path, only, groups = opt("--page"), opt("--only"), opt("--groups")
 spec_path, src, dst = sys.argv[1:4]
 spec = json.load(open(spec_path))
 data = open(src, "rb").read()
@@ -38,8 +38,11 @@ if sha256(data) != spec["sha256"]["decrypted_executable"]:
 base = int(spec["text_vmaddr_base"], 16)
 out = bytearray(data)
 selected = set(only.split(",")) if only else None
+selected_groups = set(groups.split(",")) if groups else None
 for p in spec["patches"]:
     if selected and p["id"] not in selected:
+        continue
+    if selected_groups and p.get("group") not in selected_groups:
         continue
     off = int(p["vmaddr"], 16) - base
     old, new = bytes.fromhex(p["original"]), bytes.fromhex(p["replacement"])
@@ -54,5 +57,5 @@ os.chmod(dst, 0o755)
 digest = sha256(bytes(out))
 expected = spec["sha256"].get("patched_executable")
 print(f"wrote {dst} sha256={digest}")
-if not selected and expected and digest != expected:
+if not selected and not selected_groups and expected and digest != expected:
     sys.exit(f"patched sha256 does not match the spec ({expected})")

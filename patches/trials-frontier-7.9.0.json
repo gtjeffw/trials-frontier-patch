@@ -15,9 +15,15 @@
     "cryptsize": 4096
   },
   "text_vmaddr_base": "0x100000000",
+  "groups": {
+    "compat": "Required to run outside a team-signed iPhone/iPad install (PlayCover/macOS) and without the dead content bucket.",
+    "privacy": "Stops ad and cross-promotion SDKs (and their network traffic). Independent of any server.",
+    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears."
+  },
   "patches": [
     {
       "id": "bundle-seed-id-constant",
+      "group": "compat",
       "vmaddr": "0x100adb2a0",
       "original": "60000034160080d2",
       "replacement": "d6140090d6e23091",
@@ -34,6 +40,7 @@
     },
     {
       "id": "ads-sdk-init-disabled",
+      "group": "privacy",
       "vmaddr": "0x1001d4534",
       "original": "ffc302d1",
       "replacement": "c0035fd6",
@@ -48,6 +55,7 @@
     },
     {
       "id": "ads-no-interstitials",
+      "group": "privacy",
       "vmaddr": "0x1001d5170",
       "original": "ff8301d1f85f02a9",
       "replacement": "00008052c0035fd6",
@@ -64,6 +72,7 @@
     },
     {
       "id": "ads-no-reward-videos",
+      "group": "privacy",
       "vmaddr": "0x1001d4cd0",
       "original": "fa67bba9f85f01a9",
       "replacement": "00008052c0035fd6",
@@ -80,6 +89,7 @@
     },
     {
       "id": "dl-content-always-ready",
+      "group": "compat",
       "vmaddr": "0x1001b384c",
       "original": "fc6fbaa9fa6701a9",
       "replacement": "20008052c0035fd6",
@@ -96,6 +106,7 @@
     },
     {
       "id": "screen-size-from-native-bounds",
+      "group": "compat",
       "vmaddr": "0x1001313e4",
       "original": "886c009018b942f9e10318aa74c22694886c009019bd42f9e10319aa70c226941600781ee00317aae10318aa6cc22694e10319aa6ac226943700781e",
       "replacement": "886c009018b942f919bd42f9216d00b0215044f972c226945600781e7700781e1f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d5",
@@ -138,6 +149,7 @@
     },
     {
       "id": "offline-mode",
+      "group": "offline",
       "vmaddr": "0x10036a9cc",
       "original": "ff4301d1f65702a9",
       "replacement": "00008052c0035fd6",
@@ -154,6 +166,7 @@
     },
     {
       "id": "crosspromo-init-disabled",
+      "group": "privacy",
       "vmaddr": "0x1002f6bb0",
       "original": "ff4301d1",
       "replacement": "c0035fd6",
@@ -168,6 +181,7 @@
     },
     {
       "id": "crosspromo-no-interstitial",
+      "group": "privacy",
       "vmaddr": "0x1002f72ac",
       "original": "ff0303d1",
       "replacement": "c0035fd6",
@@ -182,6 +196,7 @@
     },
     {
       "id": "crosspromo-no-more-games",
+      "group": "privacy",
       "vmaddr": "0x1002f7290",
       "original": "e8031f32",
       "replacement": "c0035fd6",
@@ -196,6 +211,7 @@
     },
     {
       "id": "nickname-plain-keyboard",
+      "group": "offline",
       "vmaddr": "0x1001a5778",
       "original": "f44fbea9",
       "replacement": "c0035fd6",
@@ -210,6 +226,7 @@
     },
     {
       "id": "nickname-no-prefill-prefix",
+      "group": "offline",
       "vmaddr": "0x1002bdda4",
       "original": "014800b021e80291",
       "replacement": "c14a009021800a91",
