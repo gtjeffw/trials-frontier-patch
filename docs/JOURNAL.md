@@ -536,3 +536,9 @@ later an in-app loopback server). Static analysis only.
 - Adjusted after user screenshots (≈0.6 px per map unit; Rotten Railway, Smelting Pots, Daredevil Paradise as
   references): at the camera's right limit the right-hand UI panel covers x > ~1370, so the orphans moved to x 1230,
   y −200…750 (190 apart), inside the fogged area east of the eastern sea route.
+- Test: the orphans appear; Roadway and Collapsed Orchard start; Sine City, Hill Climb, Bunnyhop and Rigged Roadway
+  show "watch the ad and get free gems". They have bike tier B = 255: `LevelManager::isCorrectBikeTier` treats that
+  as any bike, but `MenuzStateMap::startLevel` needs `getBikeReadyCountForTier(B) > 0` (0 for 255) and otherwise
+  shows the "need a tier N bike" message at string index (first tier message + 254) — an unrelated string. These
+  were started by their event with a set bike. `orphan-levels` now also sets their B to 0 (new op
+  `level_bike_tier`), the tier of most difficulty-1 levels (90 of 117).

@@ -1812,9 +1812,37 @@
           "x": 1230,
           "y": 750,
           "name": "Collapsed Orchard"
+        },
+        {
+          "op": "level_bike_tier",
+          "level_id": 1211,
+          "old": 255,
+          "new": 0,
+          "name": "Sine City"
+        },
+        {
+          "op": "level_bike_tier",
+          "level_id": 1212,
+          "old": 255,
+          "new": 0,
+          "name": "Hill Climb"
+        },
+        {
+          "op": "level_bike_tier",
+          "level_id": 1233,
+          "old": 255,
+          "new": 0,
+          "name": "Bunnyhop"
+        },
+        {
+          "op": "level_bike_tier",
+          "level_id": 1258,
+          "old": 255,
+          "new": 0,
+          "name": "Rigged Roadway"
         }
       ],
-      "reason": "LevelMetaData::isAvailableOnMap is X^2+Y^2 < 8000^2; these six sit at (-10000,-10000). Main-map background tiles are 512 units, tile (row r, col c) at x = -1792 + 512c, y = -768 + 512r (Map::render), with art for rows 0-4, cols 0-6. The strip right of the eastern sea route (levels end near x 1100) has art but no levels, so it stays fogged (Map::renderOffscreenFogOfWar lights ~300 units around each revealed marker). Placed at x = 1230, y -200..750 (190 apart): a user screenshot (about 0.6 px per map unit) shows the right-hand UI panel covering x > ~1370 at the camera limit, so x 1530 would be hidden."
+      "reason": "LevelMetaData::isAvailableOnMap is X^2+Y^2 < 8000^2; these six sit at (-10000,-10000). Main-map background tiles are 512 units, tile (row r, col c) at x = -1792 + 512c, y = -768 + 512r (Map::render), with art for rows 0-4, cols 0-6. The strip right of the eastern sea route (levels end near x 1100) has art but no levels, so it stays fogged (Map::renderOffscreenFogOfWar lights ~300 units around each revealed marker). Placed at x = 1230, y -200..750 (190 apart): a user screenshot (about 0.6 px per map unit) shows the right-hand UI panel covering x > ~1370 at the camera limit, so x 1530 would be hidden. Four of them have bike tier B = 255 (\"any bike\" for LevelManager::isCorrectBikeTier), but MenuzStateMap::startLevel requires UpgradeManager::getBikeReadyCountForTier(B) > 0, which is 0 for 255, and then shows the \"need a tier N bike\" message with index (first tier message + 254): an unrelated string (\"watch the ad and get free gems\"). They were started by their event with a set bike, never from the map. Set B = 0, the tier of most difficulty-1 levels (90 of 117)."
     }
   ]
 }

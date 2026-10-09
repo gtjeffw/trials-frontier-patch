@@ -81,6 +81,17 @@ def level_position(text, level_id, x, y):
     return text[:m[0].start()] + new + text[m[0].end():]
 
 
+def level_bike_tier(text, level_id, old, new):
+    """Change a level's bike tier "B" in /conf/levels.txt (must currently be `old`)."""
+    m = list(re.finditer(r'\{[^{}]*"ID":\s*%d\s*,[^{}]*\}' % level_id, text))
+    if len(m) != 1:
+        raise ValueError("level %d found %d times" % (level_id, len(m)))
+    obj, n = re.subn(r'"B":\s*%d\s*,' % old, '"B":%d,' % new, m[0].group(0))
+    if n != 1:
+        raise ValueError("level %d has no bike tier %d" % (level_id, old))
+    return text[:m[0].start()] + obj + text[m[0].end():]
+
+
 def apply_content_patch(pack, patch):
     """Apply one spec "content_patches" entry to the pack bytes; returns the new pack bytes."""
     h = game_hash(patch["file"])
@@ -90,6 +101,8 @@ def apply_content_patch(pack, patch):
             text = store_item_price(text, edit["item_id"], edit["price_hard"])
         elif edit["op"] == "level_position":
             text = level_position(text, edit["level_id"], edit["x"], edit["y"])
+        elif edit["op"] == "level_bike_tier":
+            text = level_bike_tier(text, edit["level_id"], edit["old"], edit["new"])
         else:
             raise ValueError("unknown content edit %r" % edit["op"])
     return replace_file(pack, h, text.encode("utf-8"))
