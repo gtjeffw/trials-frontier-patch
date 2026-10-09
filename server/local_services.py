@@ -29,6 +29,7 @@ import sys
 import threading
 import time
 import uuid
+import zlib
 from urllib.parse import parse_qs, urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -81,6 +82,17 @@ def read_scores(raw):
             if f[9]:
                 scores[f[0]] = (f[8], f[9], f[11])
     return scores
+
+
+def ghost_drive_time(data):
+    """Drive time (ms) recorded in a ghost: 16-byte header (u32 version, checksum, size, 0) + zlib body;
+    version 3 bodies start with u32 bike id, u32 drive time; version 2 with the drive time. None if unreadable."""
+    try:
+        version = struct.unpack_from("<I", data, 0)[0]
+        body = zlib.decompress(data[16:])
+        return struct.unpack_from("<I", body, 4 if version >= 3 else 0)[0]
+    except (struct.error, zlib.error):
+        return None
 
 
 def read_profile(container):
@@ -156,8 +168,8 @@ class Services:
                 cid = self.new_id()
                 open(self.ghost_path(cid), "wb").write(data)
                 self.store["ghosts"][str(cid)] = {"profile": self.profile_id, "track_id": lb, "source": f,
-                                                  "metadata": {"track_id": lb, "drive_time": scores.get(lb, (0, 0, 0))[1],
-                                                               "size": len(data)}}
+                                                  "metadata": {"track_id": lb, "size": len(data), "drive_time":
+                                                               ghost_drive_time(data) or scores.get(lb, (0, 0, 0))[1]}}
                 seeded += 1
         self.save_store()
         self.note(f"store {data_dir}: {sum(len(b) for b in self.store['results'].values())} results, "
@@ -275,15 +287,32 @@ class Services:
         except ValueError:
             return {k: int(v) for k, v in re.findall(r'"(\w+)"\s*:\s*(-?\d+)', text)}
 
+    def best_time(self, track):
+        st = self.store["results"].get("track%d" % track, {}).get(self.profile_id)
+        return st["drivetime"] if st else None
+
+    def acceptable(self, track, drive_time):
+        """A ghost is stored only if it is the run behind the player's current best result for that leaderboard
+        (the game uploads only after the result service answered "updated"; its resync path re-sends the same run).
+        Without a stored result, accept it unless a faster ghost is already held."""
+        best = self.best_time(track)
+        if best is not None:
+            return drive_time == best
+        held = [g for _, g in self.ghosts_for(self.profile_id, track) if g["track_id"] == track]
+        return not held or drive_time <= (held[0]["metadata"].get("drive_time") or 1 << 31)
+
+    def ghost_content_for(self, track):
+        """GET resultservice/v1/replaydata?track_id=N: the player's existing ghost content for an exact leaderboard."""
+        hits = [cid for cid, g in self.ghosts_for(self.profile_id, track) if g["track_id"] == track]
+        return {"content_id": hits[0] if hits else 0}
+
     def add_ghost(self, body):
         meta = self.parse_metadata(body)
         track = meta.get("track_id", -1)
-        best = self.ghosts_for(self.profile_id, track)
-        cur = [h for h in best if h[1]["track_id"] == track]
-        if cur and meta.get("drive_time") and cur[0][1]["metadata"].get("drive_time", 1 << 31) < meta["drive_time"]:
-            self.note(f"   refused ghost track {track}: {meta['drive_time']} ms is slower than stored "
-                      f"{cur[0][1]['metadata']['drive_time']} ms")
-            return 409, {"errorCode": 409, "message": "a better ghost is stored"}
+        if meta.get("drive_time") and not self.acceptable(track, meta["drive_time"]):
+            self.note(f"   refused ghost track {track}: {meta['drive_time']} ms is not the current best "
+                      f"({self.best_time(track)} ms)")
+            return 409, {"errorCode": 409, "message": "not the current best run"}
         cid = self.new_id()
         with self.lock:
             self.store["ghosts"][str(cid)] = {"profile": self.profile_id, "track_id": track, "metadata": meta,
@@ -296,10 +325,17 @@ class Services:
         g = self.store["ghosts"].get(str(cid))
         if not g or g["profile"] != self.profile_id:
             return 404, {"errorCode": 404, "message": "unknown content"}
+        ms = ghost_drive_time(body)
+        if ms is not None and not self.acceptable(g["track_id"], ms):
+            self.note(f"   refused ghost payload for track {g['track_id']}: {ms} ms is not the current best "
+                      f"({self.best_time(g['track_id'])} ms)")
+            return 409, {"errorCode": 409, "message": "not the current best run"}
         with self.lock:
             open(self.ghost_path(cid), "wb").write(body)
             g["payload"] = True
             g["metadata"]["size"] = len(body)
+            if ms is not None:
+                g["metadata"]["drive_time"] = ms
             g.pop("source", None)
             # keep one ghost per profile and leaderboard: drop older contents for the same track
             for other, o in list(self.store["ghosts"].items()):
@@ -349,6 +385,8 @@ class Services:
         if method == "POST" and m:
             improved = any([self.submit(m.group(1), up) for up in self.parse_updates(body)])
             return 200, {}, {"result": {"updated": 1 if improved else 0}}
+        if method == "GET" and p == "/public/resultservice/v1/replaydata" and "track_id" in query:
+            return 200, {}, self.ghost_content_for(int(query["track_id"][0]))
         if method == "POST" and p == "/public/resultservice/v1/replay_id":
             return 200, {}, self.replay_id(body)
         if method == "GET" and p == "/public/userstorage/v2/search/ghost/get_ghost" or \

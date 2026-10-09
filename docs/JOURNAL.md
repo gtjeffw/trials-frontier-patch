@@ -442,3 +442,26 @@ later an in-app loopback server). Static analysis only.
 - Avatars: `getUserPicture` / `getDefaultUserPicture` URLs (Ubisoft CDN) redirected to
   `/avatars/<profileId>/default_146_146.png` and `/avatars/fallback_146_146.png`; the server serves
   `<--avatars dir>/<profileId>.png` / `fallback.png` (personal pictures stay outside the repo).
+
+## 2026-10-09 — Score reader fix; result submit and ghost upload
+
+- The Cave vanished from GLOBAL after login: the score-table reader required PlayerScores byte 0 = 0xff and a
+  non-zero leaderboard id. The game changes that byte after a race and, once logged in, adds a `global_stats` record
+  (id 0), so the real table (now 241 records at raw offset 19016) was rejected and a shorter false match used.
+  Fixed in the server and `scripts/extract_scores.py`: integrity copy only, choose the table with the most timed
+  records. The save itself was intact.
+- Server store (`<container>/Library/LocalServices/store.json` + `ghosts/<id>.bin`), seeded from the save and the
+  player's ghost files. Result submit `POST resultservice/v1/enhancestats/track<lb>` → `{"result":{"updated":0|1}}`
+  (better = fewer faults, then less time); `batch_update` → `{"status":[{"track_name":…}]}` (marks synced).
+- Ghost upload as the game does it (`OnlineGhostManager::submitGhost` → `GhostQueryObject::queryGhost(int)`):
+  `GET resultservice/v1/replaydata?track_id=<lb>` → `{"content_id":N}` (existing content → PUT payload to it) or 0
+  → `POST userstorage/v2/content/ghost` (metadata `{ "metadata" : {"track_id","drive_time","checksum","version"}}`)
+  → `{"contentId":N,…}` → `PUT …/content/ghost/N/payload` (ghost bytes) → `PUT …/content/ghost/N` (metadata).
+  First real PB (Vault Crawl, 72 F, 4:05.166) was accepted as NEW BEST but the upload stopped at the then-404
+  `replaydata`; fixed. The same request after `playerstats/v1/stats/track<lb>` is `OnlineGhostSync` re-sending a
+  local ghost whose time matches the server's.
+- Ghost acceptance: a payload is stored only if its drive time (ghost body: u32 bike, u32 drive time for version 3)
+  equals the player's current best result for that leaderboard, or (no result) is not slower than the held ghost.
+- PlayCover: Cmd+Q / closing the window does not end the process (relaunch resumes). True quit:
+  `pkill -x TrialsFrontier` (SIGTERM; the save decodes fine afterwards). One session stopped accepting clicks while
+  still rendering the map (cause unknown).
