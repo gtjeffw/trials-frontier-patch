@@ -10,7 +10,7 @@
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
     "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d",
     "patched_executable_with": {
-      "local-services": "036b0d6c5b2e150b030bd716f2bd144ba629e0debded349b5f55f13b97a78890"
+      "local-services": "fc6b5e89b024a6f05ad5a47a315a80d36979bcb31a353b41822faa3cef14cd7e"
     }
   },
   "encryption": {
@@ -1623,6 +1623,21 @@
       ],
       "function": "tr::MenuzComponentLeaderboardList::update",
       "reason": "Treat as online so the game can leaderboard list (FRIENDS/GLOBAL) loads instead of showing the offline state. Requests still go only to 127.0.0.1 (loopback-only hook)."
+    },
+    {
+      "id": "local-services-auto-login",
+      "group": "local-services",
+      "vmaddr": "0x1001d9ebc",
+      "original": "146969b8",
+      "replacement": "54008052",
+      "original_asm": [
+        "ldr w20, [x8, x9]   ; Player+0x6c74, login type (2 = silent mobile account)"
+      ],
+      "replacement_asm": [
+        "mov w20, #0x2"
+      ],
+      "function": "tr::OnlineCore::makeAutoLogin(bool)",
+      "reason": "After the configuration loads, makeAutoLogin only starts the silent mobile login if the save's login type is 2; Uplay-linked saves (type 3, e.g. a restored iPad profile) wait for the Uplay web login instead, which cannot work locally. Treat every save as a silent-login account so it logs in to the local server automatically. On success setAuthenticated(ticket, len, 3) stores login type 2 in the save; profile id and name come from the local server, which reads them from the same save."
     }
   ],
   "plist_patches": [
