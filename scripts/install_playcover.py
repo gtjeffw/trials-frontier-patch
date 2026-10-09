@@ -1,27 +1,17 @@
-"""Install a patched Trials Frontier .ipa into PlayCover and set up the extras it needs on macOS.
+"""Install a patched Trials Frontier .ipa into PlayCover.
 
 Usage: python3 -I install_playcover.py <spec.json> <TrialsFrontier.app> [--ipa patched.ipa] [--keymap keymap.plist]
-                                       [--dlc-from <folder with downloaded packs>] [--dry-run]
+                                       [--caches-dlc [--dlc-from <folder>]] [--dry-run]
 
-What it does (the game should be closed):
-  1. --ipa: hand the .ipa to PlayCover (`open -a PlayCover`), which installs and re-signs it.
-  2. Texture packs: every TrialsTexturesDL*.dat found anywhere in the user's .app that is NOT in the game's
-     built-in texture-pack table (read from the executable at the spec's "pack_tables" address) is copied to the
-     app container's Library/Caches/DLC, the only other place the game loads texture packs from
-     (tr::GlobalData::findFilePacks). Nothing is hard-coded to one copy of the game.
-  3. --dlc-from: packs the user saved from a device's Library/Caches/DLC (or elsewhere) are copied too, if the game
-     can load them from there: TrialsTexturesDL*.dat and the fixed names in the spec's "dlc_content_names".
-  4. Content packs (TrialsContent*.dat) in the bundle that are in neither the content table nor dlc_content_names
-     are never opened by this build. Each is installed under a free name from the spec's "dlc_content_alias_slots"
-     (names the game opens from the download folder whose real packs are lost), unless the user supplied a real pack
-     for that name via --dlc-from. Packs that do not fit are reported.
-  5. --keymap: install the PlayCover keymap.
-Re-run after the app's cache folder has been cleared.
+  --ipa:        hand the .ipa to PlayCover (`open -a PlayCover`), which installs and re-signs it (game closed).
+  --keymap:     install the PlayCover keymap (enable Keymapping for the app in PlayCover).
+  --caches-dlc: only for builds without the compat patch dlc-folder-in-bundle: copy the packs the game can only load
+                from its download folder (scripts/dlcpacks.py) into the app data's Library/Caches/DLC. Current builds
+                carry them inside the app (build_ipa.py puts them into TrialsFrontier.app/DLC).
 """
 import json
 import os
 import shutil
-import struct
 import subprocess
 import sys
 
@@ -43,65 +33,14 @@ def opt(name, flag=False):
     return False if flag else None
 
 
-def read_table(exe, vmaddr, count, prefix=""):
-    """Read `count` C-string pointers at vmaddr (unslid, __TEXT based at 0x100000000)."""
-    out = []
-    for i in range(count):
-        ptr = struct.unpack_from("<Q", exe, vmaddr - 0x100000000 + 8 * i)[0] & 0xFFFFFFFFFF
-        end = exe.index(b"\0", ptr - 0x100000000)
-        out.append(prefix + exe[ptr - 0x100000000:end].decode())
-    return out
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dlcpacks  # noqa: E402
 
-
-def is_texture_pack(path):
-    with open(path, "rb") as f:
-        head = f.read(12)
-    if len(head) < 12:
-        return False
-    zero, count, entry = struct.unpack("<3I", head)
-    return zero == 0 and entry == 24 and 0 < count < 100000
-
-
-ipa, keymap, dlc_from, dry = opt("--ipa"), opt("--keymap"), opt("--dlc-from"), opt("--dry-run", True)
+ipa, keymap, dlc_from = opt("--ipa"), opt("--keymap"), opt("--dlc-from")
+caches, dry = opt("--caches-dlc", True), opt("--dry-run", True)
 spec_path, app_dir = sys.argv[1:3]
 spec = json.load(open(spec_path))
-exe = open(os.path.join(app_dir, spec["executable"]), "rb").read()
-tables = spec["pack_tables"]
-tex_table = set(read_table(exe, int(tables["texture"]["vmaddr"], 16), tables["texture"]["count"], "TrialsTexturesDL"))
-content_table = set(read_table(exe, int(tables["content"]["vmaddr"], 16), tables["content"]["count"]))
-dlc_content = set(spec.get("dlc_content_names", []))
-
-copies, report, unloadable = [], [], []
-for root, _, files in os.walk(app_dir):
-    for name in sorted(files):
-        path = os.path.join(root, name)
-        if name.startswith("TrialsTexturesDL") and name.endswith(".dat") and name not in tex_table:
-            if not is_texture_pack(path):
-                report.append(f"skipped {path}: not a texture pack")
-            elif name not in {os.path.basename(c[1]) for c in copies}:
-                copies.append((path, name, "bundled texture pack missing from the game's table"))
-        elif (name.startswith("TrialsContent") and name.endswith(".dat") and name not in content_table
-              and name not in dlc_content and name not in {u[1] for u in unloadable}):
-            unloadable.append((path, name))
-
-if dlc_from:
-    for name in sorted(os.listdir(dlc_from)):
-        path = os.path.join(dlc_from, name)
-        if name.startswith("TrialsTexturesDL") and name.endswith(".dat") and is_texture_pack(path):
-            copies = [c for c in copies if c[1] != name] + [(path, name, "user-supplied downloaded texture pack")]
-        elif name in dlc_content:
-            copies.append((path, name, "user-supplied downloaded content pack"))
-        elif name.endswith(".dat"):
-            report.append(f"ignored {path}: the game does not load this name from the download folder")
-
-taken = {c[1] for c in copies}
-free = [n for n in spec.get("dlc_content_alias_slots", []) if n not in taken]
-for path, name in unloadable:
-    if free:
-        slot = free.pop(0)
-        copies.append((path, slot, f"{name} is not in the game's content table; installed under a lost download name"))
-    else:
-        report.append(f"cannot load {os.path.relpath(path, app_dir)}: not in the content table and no free slot")
+copies, report = dlcpacks.plan(spec, app_dir, dlc_from) if caches else ([], [])
 
 if ipa:
     print(f"install {ipa} via PlayCover")

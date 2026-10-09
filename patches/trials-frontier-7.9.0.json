@@ -8,12 +8,12 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d",
+    "patched_executable": "5f372089ac8ad791434d93209fd039624b29e160524bd60d25718fa46f71466b",
     "patched_executable_with": {
-      "local-services": "a46fb1b82021895c1fab9be9f95c6c942536ef28db94afdc04ac00bc8b6b02e3",
-      "local-services,open-all-levels": "1626b079fc43dfefad95808d0f484b7d3c41a7186b0478d6971e039e3775ed65",
-      "local-services,open-all-levels,orphan-levels": "2a5086272b7734dba5815325152ae10cb5b59230bd4a08597ef1cf730a061048",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "81f6703a0272f6e841f72248b28d5c7a64626dbd21a96dcf91b0d9bc1c179f6f"
+      "local-services": "cb73ce1914fbf01a66d99b55764f63ced744293430a3647c32ed8bf5667c48ed",
+      "local-services,open-all-levels": "8ec6e8a7c494dfaf8586be4c9d7698d4b219870dca10c3a2a637e0eec74d489a",
+      "local-services,open-all-levels,orphan-levels": "52631364c09311a9fcecae1e6848e8e90e365cf1ad6376731cc23447578d3c55",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "ca220a370ca1961c24f1e1688eabd9fab72c0b9c6e2f20dec715bc1ed614d22d"
     }
   },
   "encryption": {
@@ -1750,6 +1750,75 @@
       ],
       "function": "Mach-O header",
       "reason": "Adds LC_LOAD_DYLIB @executable_path/Frameworks/libTFLocalServices.dylib after the 65 original load commands (the header padding 0x1c68-0x6ee8 is all zero; PlayCover appends its own PlayTools LC_LOAD_DYLIB after this one, the code caves start at 0x6b00). dyld runs the library's constructor before main, which starts the local services (Documents/LocalServices). The app has to be re-signed (PlayCover does it on install; sideloading tools sign Frameworks/ too)."
+    },
+    {
+      "id": "dlc-folder-in-bundle-cave",
+      "group": "compat",
+      "vmaddr": "0x100006a00",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "fd7bbea9fd030091f35301a9887600f000b142f9c87500f0014140f9e96c2b94f30300aaa0010010be6d2b94e10300aae00313aae36c2b94c87500f0019942f9426b00d042603c91de6c2b94f35341a9fd7bc2a8c0035fd67265736f757263655061746800000000",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "x0 = objc_msgSend(NSBundle, mainBundle)",
+        "sel = sel_registerName(\"resourcePath\"); x0 = objc_msgSend(bundle, sel)",
+        "return objc_msgSend(x0, stringByAppendingString:, @\"/DLC\")",
+        "\"resourcePath\""
+      ],
+      "function": "code cave for __getSaveFilePath(mt::String const&, unsigned char) type 6",
+      "reason": "The game opens texture packs that are not in its built-in table, and downloaded content packs, only from its download folder: __getSaveFilePath type 6 = NSCachesDirectory + \"/DLC\" (tr::GlobalData::findFilePacks). iOS may purge Caches, the game's DLContentManager may delete files there, and a sideloaded app has no installer to put packs there. Make type 6 resolve to [[[NSBundle mainBundle] resourcePath] stringByAppendingString:@\"/DLC\"] instead (bundle: never purged, read-only); scripts/build_ipa.py puts the packs into TrialsFrontier.app/DLC (see bundle_dlc). The cave uses only references the game already has: NSBundle classref 0x100ed9560, selrefs mainBundle 0x100ec1080 and stringByAppendingString: 0x100ec1530, CFString @\"/DLC\" 0x100d70f18, stubs objc_msgSend 0x100ae1dc0 and sel_registerName 0x100ae2120 (for \"resourcePath\", which has no selref)."
+    },
+    {
+      "id": "dlc-folder-in-bundle-hook",
+      "group": "compat",
+      "vmaddr": "0x10010c898",
+      "original": "e2030032a0018052",
+      "replacement": "5ae8fb9715000014",
+      "original_asm": [
+        "orr w2, wzr, #0x1",
+        "mov w0, #0xd   ; NSSearchPathForDirectoriesInDomains(NSCachesDirectory, ...)"
+      ],
+      "replacement_asm": [
+        "bl 0x100006a00",
+        "b 0x10010c8f0"
+      ],
+      "function": "__getSaveFilePath(mt::String const&, unsigned char)",
+      "reason": "The game opens texture packs that are not in its built-in table, and downloaded content packs, only from its download folder: __getSaveFilePath type 6 = NSCachesDirectory + \"/DLC\" (tr::GlobalData::findFilePacks). iOS may purge Caches, the game's DLContentManager may delete files there, and a sideloaded app has no installer to put packs there. Make type 6 resolve to [[[NSBundle mainBundle] resourcePath] stringByAppendingString:@\"/DLC\"] instead (bundle: never purged, read-only); scripts/build_ipa.py puts the packs into TrialsFrontier.app/DLC (see bundle_dlc). The cave uses only references the game already has: NSBundle classref 0x100ed9560, selrefs mainBundle 0x100ec1080 and stringByAppendingString: 0x100ec1530, CFString @\"/DLC\" 0x100d70f18, stubs objc_msgSend 0x100ae1dc0 and sel_registerName 0x100ae2120 (for \"resourcePath\", which has no selref)."
+    },
+    {
+      "id": "dlc-folder-in-bundle-open-cave",
+      "group": "compat",
+      "vmaddr": "0x100006b00",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "fd7bbea9fd030091f35301a9bf220071a1010054887600f000b142f9c87500f0014140f9a76c2b94f30300aa200200107c6d2b94e10300aae00313aaa16c2b9409000014a0018052e1030032e203003220672b94c87500d0014547f9020080d2986c2b94f35341a9fd7bc2a8c0035fd67265736f757263655061746800000000",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "if (w21 == 8) x0 = [[NSBundle mainBundle] resourcePath]  (selector via sel_registerName)",
+        "else x0 = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, 1, 1) objectAtIndex:0]",
+        "\"resourcePath\""
+      ],
+      "function": "code cave for mt::file::File::getAbsolutePath(mt::String&, mt::String const&, FileSubtype) case 4/8",
+      "reason": "Second half of dlc-folder-in-bundle: packs found in the download folder are opened by DataPack::open -> openSaveFile(name, FileSubtype 8) -> mt::file::File::getAbsolutePath, whose case 8 builds NSCachesDirectory + \"/\" + \"DLC/\" + name itself (case 4, plain Caches, shares the code). Without this the game lists the bundled packs but cannot open them (\"Cannot open TrialsTexturesDL_chipshop_extra.dat\", then a crash). The cave returns [[NSBundle mainBundle] resourcePath] when the subtype (w21) is 8 and the original NSSearchPathForDirectoriesInDomains(NSCachesDirectory, ...)[0] otherwise."
+    },
+    {
+      "id": "dlc-folder-in-bundle-open-hook",
+      "group": "compat",
+      "vmaddr": "0x100031040",
+      "original": "e2030032a0018052",
+      "replacement": "b056ff9707000014",
+      "original_asm": [
+        "orr w2, wzr, #0x1",
+        "mov w0, #0xd"
+      ],
+      "replacement_asm": [
+        "bl 0x100006b00",
+        "b 0x100031060"
+      ],
+      "function": "mt::file::File::getAbsolutePath(mt::String&, mt::String const&, mt::file::File::FileSubtype)",
+      "reason": "Second half of dlc-folder-in-bundle: packs found in the download folder are opened by DataPack::open -> openSaveFile(name, FileSubtype 8) -> mt::file::File::getAbsolutePath, whose case 8 builds NSCachesDirectory + \"/\" + \"DLC/\" + name itself (case 4, plain Caches, shares the code). Without this the game lists the bundled packs but cannot open them (\"Cannot open TrialsTexturesDL_chipshop_extra.dat\", then a crash). The cave returns [[NSBundle mainBundle] resourcePath] when the subtype (w21) is 8 and the original NSSearchPathForDirectoriesInDomains(NSCachesDirectory, ...)[0] otherwise."
     }
   ],
   "plist_patches": [
@@ -2267,5 +2336,10 @@
       "from_inapp": "libTFLocalServices.dylib",
       "mode": "755"
     }
-  ]
+  ],
+  "bundle_dlc": {
+    "group": "compat",
+    "folder": "DLC",
+    "note": "build_ipa.py copies into the app's DLC/ folder every bundled TrialsTexturesDL*.dat that is not in the texture table, untabled content packs under a free dlc_content_alias_slots name, and the player's own downloaded packs (--dlc-from); the same selection install_playcover.py used for Library/Caches/DLC (scripts/dlcpacks.py)."
+  }
 }

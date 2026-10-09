@@ -3,7 +3,7 @@
 Usage: python3 -I build_ipa.py <TrialsFrontier.app from device> <patched executable> <out.ipa>
        [--spec patches/trials-frontier-7.9.0.json] [--groups g,g] [--with g,g]
        [--inapp <dir with libTFLocalServices.dylib>] [--avatars <dir of <profileId>.png>]
-       [--world-records wrrider.json --world-record-ids ids.json]
+       [--world-records wrrider.json --world-record-ids ids.json] [--dlc-from <folder>]
 
 With --spec, the spec's "plist_patches" (optionally limited to --groups) are applied to the bundle's plists;
 plists are re-serialised as sorted binary plists so the output stays reproducible. "content_patches" edit files
@@ -11,7 +11,9 @@ inside the bundle's own datapacks (scripts/datapack.py); like executable patches
 only with --with (or when named in --groups). "bundle_files" add files to the app for the selected groups: the
 embedded-server group adds Frameworks/libTFLocalServices.dylib from --inapp (built by scripts/build_inapp.py). With
 embedded-server, --avatars and --world-records/--world-record-ids add the player's own extras to the app's
-LocalServices/ folder (read by the in-app server; never part of this repository).
+LocalServices/ folder (read by the in-app server; never part of this repository). With the compat group, "bundle_dlc"
+fills the app's DLC/ folder (where the dlc-folder-in-bundle patch makes the game look for downloaded packs) with the
+packs selected by scripts/dlcpacks.py, plus the player's own downloaded packs from --dlc-from.
 
 The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) is dropped and the
 executable is replaced. Zip entries are sorted, stored uncompressed, with fixed timestamps and permissions,
@@ -28,6 +30,7 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import datapack  # noqa: E402
+import dlcpacks  # noqa: E402
 
 def opt(name):
     if name in sys.argv:
@@ -40,6 +43,7 @@ def opt(name):
 
 spec_path, groups, extra = opt("--spec"), opt("--groups"), opt("--with")
 inapp, avatars, wr, wr_ids = opt("--inapp"), opt("--avatars"), opt("--world-records"), opt("--world-record-ids")
+dlc_from = opt("--dlc-from")
 app_dir, exe_path, out = sys.argv[1:4]
 plist_edits, content_patches, extra_files = {}, {}, {}
 if spec_path:
@@ -66,7 +70,15 @@ if spec_path:
             if not inapp:
                 sys.exit(f"group {bf['group']} needs --inapp <dir> (scripts/build_inapp.py output)")
             extra_files[bf["path"]] = (os.path.join(inapp, bf["from_inapp"]), bf.get("mode") == "755")
-    if extra_files and (avatars or wr):
+    bd = spec.get("bundle_dlc")
+    if bd and wanted(bd["group"]):
+        copies, notes = dlcpacks.plan(spec, app_dir, dlc_from, exe_path)
+        for src, name, why in copies:
+            extra_files[f"{bd['folder']}/{name}"] = (src, False)
+            print(f"pack {bd['folder']}/{name}: {why}")
+        for line in notes:
+            print("note:", line)
+    if any(not k.startswith("DLC/") for k in extra_files) and (avatars or wr):
         if avatars:
             for name in sorted(os.listdir(avatars)):
                 if name.endswith(".png"):

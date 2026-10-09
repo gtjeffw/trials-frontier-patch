@@ -608,3 +608,20 @@ later an in-app loopback server). Static analysis only.
   with a clear message instead of a traceback; an explicit `--decrypted` takes priority over the app's own
   unencrypted executable. Public `.app` + own arm64 executable → the same patched executable (81f6703…) and the same
   content edits; the package differs from the own-copy build only in the artwork/plist/signature files above.
+
+## 2026-10-09 — Download folder inside the app (compat: dlc-folder-in-bundle)
+
+- Two path builders serve the download folder: `__getSaveFilePath` type 6 (listing, `GlobalData::findFilePacks`)
+  and `mt::file::File::getAbsolutePath` case 8 (opening: `DataPack::open` → `openSaveFile(name, subtype 8)`),
+  both NSCachesDirectory + "/DLC". First attempt patched only the listing: the game found the bundled packs but
+  could not open them ("Cannot open TrialsTexturesDL_chipshop_extra.dat", crash). (`File::create` resolves
+  subtypes 2/4/5/8 via getAbsolutePath; others as bundle resources via CFBundleCopyResourceURL.)
+- Caves (compat group): 0x100006a00 for type 6, 0x100006b00 for getAbsolutePath case 8 (other cases unchanged);
+  both return `[[NSBundle mainBundle] resourcePath]` (+ "/DLC"), using only existing references: NSBundle classref,
+  `mainBundle`/`stringByAppendingString:`/`objectAtIndex:` selrefs, CFString @"/DLC", stubs objc_msgSend,
+  sel_registerName ("resourcePath" has no selref), NSSearchPathForDirectoriesInDomains.
+- `scripts/dlcpacks.py` (selection formerly in install_playcover.py); `build_ipa.py` puts the packs into
+  `TrialsFrontier.app/DLC/` (spec `bundle_dlc`; `--dlc-from` for a player's own downloaded packs);
+  `install_playcover.py` copies to Library/Caches/DLC only with `--caches-dlc` (old builds).
+- Verified in PlayCover with Library/Caches/DLC moved aside: the game has all four packs open from the app's
+  `DLC/` (swamp, moon, chipshop_extra, Moon content as TrialsContentOfferDL.dat). Recorded hashes updated.
