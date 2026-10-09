@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "fc0d9df0107db02cc8b38d73de500614dca4d1e541f10e9151562b66f1a1da7b"
+    "patched_executable": "1957f228aa819ecf48ea782a5cbde1a11e1f74e35d7893e09ba368ae56f07dd3"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -1273,6 +1273,21 @@
       ],
       "function": "tr::AntiCheating::isValid()",
       "reason": "True only when anti-cheat is disabled or NTP time was confirmed online; offline it is never confirmed, which disables store items (StoreItem::isEnabled), upgrade/fuel timers (PlayerTimers), daily quests, mission timing, VIP and garage upgrades. Behave as the game's own 'disabled' setting: trust the local clock."
+    },
+    {
+      "id": "missions-no-dl-texture-gate",
+      "group": "compat",
+      "vmaddr": "0x1001f21b8",
+      "original": "881e0034",
+      "replacement": "1f2003d5",
+      "original_asm": [
+        "cbz w8, 0x1001f2588 ; skip mission"
+      ],
+      "replacement_asm": [
+        "nop"
+      ],
+      "function": "tr::MissionManager::addAvailableMissions(bool)",
+      "reason": "Missions with flag bit 2 (e.g. 171 'Home Sweet Home', the next story mission after the mechanic's) are skipped unless Gfx::TextureManager+0x2c > 0, which counts only textures from *downloaded* packs (TextureManager::initPack adds to it only for pack index > 21; the 21 bundled TrialsTexturesDL* packs are indices 1-21). The downloadable packs are gone with the content bucket, so the story stalls with no available missions. 7.9.0 bundles the texture packs; drop the gate. Only place that reads +0x2c."
     }
   ]
 }

@@ -237,3 +237,19 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   patches `gameplay-online-*`). `anticheat-trust-local-clock`: `isValid()` → true. All in group `offline`.
 - Call-site list: generated from the disassembly (`bl __ZN2mz14NetworkChecker14getNetworkTypeEv`), each verified
   to be a `bl` to 0x10036a9cc before patching.
+
+## 2026-10-09 — Story stall after the mechanic: downloaded-texture gate
+
+- After the mechanic's mission (repeated "mission complete" rewards in the saloon, then nothing to do): available
+  and active mission lists empty (`frida/dump_missions.js`; PlayerProgress = m_player+0x2300: available u16[64],
+  active records 0x3c × 64 at +0x80, solved flag bytes at m_player+0x3280).
+- Unlock rule `u,1,<id>` = `isRewardCollected(id)` (= solved and no longer in active/available lists), not "solved".
+  Next story mission 171 "Home Sweet Home" needs only 6's reward → satisfied.
+- `addAvailableMissions(bool)` skips missions with flag bit 2 unless `TextureManager+0x2c > 0`; that counter only
+  counts textures from downloaded packs (`initPack` index > 21). Bundled TrialsTexturesDL* packs are indices 1–21.
+  Downloaded packs are gone → story stalls. Patch `missions-no-dl-texture-gate` (compat): `cbz` → `nop`.
+- Saloon (`MenuzStateMissionHall::componentReleased`): collecting a completed mission's reward calls
+  `addMissionRewards` + `addRewardCollected` + `closeCompletedMission`, then the villager is given his next
+  mission. With 171 blocked he kept the finished mission, so claiming repeated the reward (likely explanation of
+  the repeated mechanic reward; same root cause).
+- The original game on a device whose cache was purged would hit the same "Download needed" + this stall today.
