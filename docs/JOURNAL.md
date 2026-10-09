@@ -533,3 +533,6 @@ later an in-app loopback server). Static analysis only.
 - Opt-in group `orphan-levels` (content patch on `/conf/levels.txt`, new `level_position` op in
   `scripts/datapack.py`): Sine City, Hill Climb, Bunnyhop, Rigged Roadway, Roadway, Collapsed Orchard move from
   (−10000, −10000) to x 1530, y −560…1190 (350 apart). Top-left corner kept free for the unnamed test levels.
+- Adjusted after user screenshots (≈0.6 px per map unit; Rotten Railway, Smelting Pots, Daredevil Paradise as
+  references): at the camera's right limit the right-hand UI panel covers x > ~1370, so the orphans moved to x 1230,
+  y −200…750 (190 apart), inside the fogged area east of the eastern sea route.
