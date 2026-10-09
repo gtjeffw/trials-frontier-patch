@@ -1,0 +1,24 @@
+# This repository must never contain game files, device data, or personal saves.
+# Keep all of that in a separate private workspace (see README).
+*.ipa
+*.app/
+*.dat
+*.tar
+*.deb
+*.ips
+*.raw
+player.bin
+ghost_*.bin
+robot_*.robot
+Manifest*.db
+Info.plist
+backup*/
+work/
+out/
+ghidra/*.gpr
+ghidra/*.rep/
+ghidra/*.lock*
+tools/ssh_config
+tools/known_hosts
+__pycache__/
+.DS_Store

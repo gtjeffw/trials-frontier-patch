@@ -1,0 +1,30 @@
+{
+  "game": "Trials Frontier",
+  "bundle_id": "com.ubisoft.redlynx.trialsfrontier",
+  "version": "7.9.0",
+  "executable": "TrialsFrontier",
+  "macho_uuid": "D1B9B883-E309-3B03-A4C7-9638F6621A0E",
+  "sha256": {
+    "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
+    "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
+    "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
+    "patched_executable": "9bdaa5714f1ae9ef91191924b1ba38741460a3bdb7867985a333f904a2c2ab6e"
+  },
+  "encryption": {
+    "cryptoff": 28672,
+    "cryptsize": 4096
+  },
+  "text_vmaddr_base": "0x100000000",
+  "patches": [
+    {
+      "id": "bundle-seed-id-constant",
+      "vmaddr": "0x100adb2a0",
+      "original": "60000034160080d2",
+      "replacement": "d6140090d6e23091",
+      "original_asm": ["cbz w0, 0x100adb2ac", "mov x22, #0x0"],
+      "replacement_asm": ["adrp x22, 0x100d73000", "add x22, x22, #0xc38"],
+      "function": "getBundleSeedID",
+      "reason": "Outside a team-signed iOS install (e.g. PlayCover) the keychain item has no kSecAttrAccessGroup, so getBundleSeedID calls -[NSString initWithString:nil] and throws during tr::UserTracker::sessionStart -> ubisoftDeviceUniqueId. Always return the existing constant @\"unknown\" (CFString at 0x100d73c38) instead; execution falls through to the function's normal cleanup/return at 0x100adb2a8."
+    }
+  ]
+}

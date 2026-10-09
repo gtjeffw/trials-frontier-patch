@@ -1,0 +1,11 @@
+# SSH to a jailbroken iOS device over USB. Copy to tools/ssh_config (ignored by git) and fill in paths.
+# Needs: iproxy 2222 22 -u <device udid>
+Host ipad
+    HostName 127.0.0.1
+    Port 2222
+    User mobile
+    IdentityFile ~/.ssh/<your key>
+    IdentitiesOnly yes
+    HostKeyAlias trials-ipad
+    UserKnownHostsFile <path to this repo>/tools/known_hosts
+    StrictHostKeyChecking accept-new
