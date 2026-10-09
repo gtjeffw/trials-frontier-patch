@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "121b57488fefba0edf0bfd0315fac5a84fe4749d64b63fcd0d656bdbcde2170d"
+    "patched_executable": "79fb0c048b5225abf488c19e908773253ac6a28a8376c6c273d00aa2eb888638"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -77,6 +77,22 @@
       ],
       "function": "tr::AdInterface::isAdsAvailableToShow(TR_VIDEO_ZONES)",
       "reason": "Always report no rewarded video available, so the game does not offer watch-an-ad rewards that can no longer work."
+    },
+    {
+      "id": "dl-content-always-ready",
+      "vmaddr": "0x1001b384c",
+      "original": "fc6fbaa9fa6701a9",
+      "replacement": "20008052c0035fd6",
+      "original_asm": [
+        "stp x28, x27, [sp, #-0x60]!",
+        "stp x26, x25, [sp, #0x10]"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1",
+        "ret"
+      ],
+      "function": "tr::DLContentManager::isDLReady()",
+      "reason": "Downloadable packs (TrialsContentDL.dat, TrialsContentDL2.dat, TrialsContentOfferDL.dat) came from https://s3.amazonaws.com/dlcontent_frontier_ios/<version>/info.json; that bucket no longer exists, and isDLReady() is false whenever the saved download state (Caches/dl_content.state) is empty. After the early mission set by DLContent_Lock_MissionId the game then blocks on 'Download needed - Please Wait'. Report content as ready; the game already tolerates the packs being absent (fresh installs run the tutorial without them). All callers (main menu, weekly challenge, daily reward, ad interface, command queue) go through this function."
     }
   ]
 }

@@ -108,3 +108,20 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
 - Hypothesis to test: the end-of-run interstitial (AdMob is still live) caused the view relayout that left only
   the bottom-left quarter visible after the map overview.
 - Patched executable sha256 121b5748…; .ipa reproducible (c7211d31…).
+
+## 2026-10-09 — "Download needed" bypass
+
+- After the tutorial the game blocked on "Download needed - Please Wait…".
+- `tr::AdInterface::dlContentOk()` requires `tr::DLContentManager::isDLReady()` once the mission named by
+  `DLContent_Lock_MissionId` is done. `isDLReady()` is false when the saved download list
+  (`Library/Caches/dl_content.state`) is empty, and each entry must match `MainApp::m_versionInt`
+  (so app updates and iOS cache purges invalidate it).
+- The list comes from `https://s3.amazonaws.com/dlcontent_frontier_ios/<version><ext>/info.json`
+  (`queryContent`); the bucket no longer exists (`NoSuchBucket`). Underscore bucket names can no longer be
+  registered, so the name cannot be taken over.
+- `GlobalData::initAdditionalDataPacks` loads 12 bundled extra packs plus `TrialsContentDL.dat`,
+  `TrialsContentDL2.dat`, `TrialsContentOfferDL.dat` from the download cache; those three are lost (the iPad's
+  Caches folder was purged; the iPhone's uncaptured ~9 MB might still hold them but is unreadable without a
+  jailbreak). The game tolerates them being absent.
+- Patch `dl-content-always-ready`: `isDLReady()` → `mov w0, #1; ret` (all 10 callers go through it).
+- Patched executable sha256 79fb0c04…; .ipa 4eeddc49….
