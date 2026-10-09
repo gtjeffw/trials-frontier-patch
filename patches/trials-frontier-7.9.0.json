@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "141b1086504e2fe23f589b24c7f4e4b0220f934ebb65cfb1a924b9259c825327"
+    "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -1378,6 +1378,43 @@
       ],
       "function": "C string used by MobileSDKAPI::msdk_internal_InitThread (and a global pointer at 0x100f29cc0)",
       "reason": "Ubisoft Mobile SDK's base URL. Its init also sets up local state (sqlite DB, IAP store data), so keep the init and point the URL at a closed local port so requests fail immediately. Same-length-or-shorter string, read-only use (passed as a parameter)."
+    },
+    {
+      "id": "missing-texture-guard-cave",
+      "group": "compat",
+      "vmaddr": "0x100006e40",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "880240f9c83a25b4080140f9e00314aa00013fd6e8030032881a00b9d0290114",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "ldr x8, [x20]",
+        "cbz x8, 0x10005159c",
+        "ldr x8, [x8]",
+        "mov x0, x20",
+        "blr x8",
+        "orr w8, wzr, #0x1",
+        "str w8, [x20, #0x18]",
+        "b 0x10005159c"
+      ],
+      "function": "code cave for Gfx::TextureManager::bindTexture(Gfx::Texture*, int)",
+      "reason": "Some texture slots are reserved but never set up because their pack (the downloadable TrialsTexturesDL.dat) is gone; e.g. tr::BgRenderer::renderBackDrop on tracks whose backdrop uses such textures (desert rocks etc.). bindTexture lazily loads via the Texture's vtable and crashed on the null vtable (KERN_INVALID_ADDRESS at 0, seen loading a level with the restored iPad profile). If the vtable is null, skip loading and still call TEXTURE_HW::bind on the empty hardware texture (binds nothing), so the object is just invisible. Cave in the Mach-O header padding after the gem caves."
+    },
+    {
+      "id": "missing-texture-guard-hook",
+      "group": "compat",
+      "vmaddr": "0x100051584",
+      "original": "880240f9",
+      "replacement": "2fd6fe17",
+      "original_asm": [
+        "ldr x8, [x20]"
+      ],
+      "replacement_asm": [
+        "b 0x100006e40"
+      ],
+      "function": "Gfx::TextureManager::bindTexture(Gfx::Texture*, int)",
+      "reason": "Some texture slots are reserved but never set up because their pack (the downloadable TrialsTexturesDL.dat) is gone; e.g. tr::BgRenderer::renderBackDrop on tracks whose backdrop uses such textures (desert rocks etc.). bindTexture lazily loads via the Texture's vtable and crashed on the null vtable (KERN_INVALID_ADDRESS at 0, seen loading a level with the restored iPad profile). If the vtable is null, skip loading and still call TEXTURE_HW::bind on the empty hardware texture (binds nothing), so the object is just invisible. Cave in the Mach-O header padding after the gem caves."
     }
   ],
   "plist_patches": [

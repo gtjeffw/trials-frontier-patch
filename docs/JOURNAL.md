@@ -291,3 +291,14 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   re-serialised as sorted binary for reproducibility): `facebook-no-auto-app-events` sets
   `FacebookAutoLogAppEventsEnabled = false` in Info.plist (privacy).
 - Result: in 30 s after launch the only lookup is 127.0.0.1 (the Mobile SDK's redirected base URL).
+
+## 2026-10-09 — Restored iPad profile; missing-texture crash guard
+
+- Swapped in the restored iPad profile (Documents: player.bin, 102 ghosts, 385 robot ghosts, friend cache,
+  screenshots; kept the Mac's msdk files). `Player::checkSavegameIntegrity` has no device check (repairs only).
+  Fresh profile backed up in the private workspace.
+- Starting a level crashed: `tr::BgRenderer::renderBackDrop` → `Gfx::TextureManager::bindTexture` on a texture slot
+  that was reserved but never set up (null vtable) because its pack (downloaded TrialsTexturesDL.dat) is gone;
+  likely the missing desert backdrop rocks.
+- Patch `missing-texture-guard` (compat): bindTexture's lazy-load call goes through a cave (0x100006e40) that skips
+  loading when the vtable is null and still calls `TEXTURE_HW::bind` (binds nothing) → object invisible, no crash.
