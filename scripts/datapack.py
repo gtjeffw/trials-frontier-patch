@@ -68,16 +68,16 @@ def store_item_price(text, item_id, price_hard):
     return text[:start] + new_block + text[end:]
 
 
-def level_position(text, level_id, x, y):
-    """Give a level in /conf/levels.txt a map position: the level object with "ID":level_id must currently be parked
-    at (-10000, -10000) (outside LevelMetaData::isAvailableOnMap's 8000-unit circle)."""
+def level_position(text, level_id, x, y, from_x=-10000, from_y=-10000):
+    """Move a level in /conf/levels.txt on the map: the level object with "ID":level_id must currently be at
+    (from_x, from_y) — by default parked at (-10000, -10000), outside LevelMetaData::isAvailableOnMap's circle."""
     m = list(re.finditer(r'\{[^{}]*"ID":\s*%d\s*,[^{}]*\}' % level_id, text))
     if len(m) != 1:
         raise ValueError("level %d found %d times" % (level_id, len(m)))
     obj = m[0].group(0)
-    new, n = re.subn(r'"X":\s*-10000\s*,(\s*)"Y":\s*-10000', '"X":%d,\\1"Y":%d' % (x, y), obj)
+    new, n = re.subn(r'"X":\s*%d\s*,(\s*)"Y":\s*%d(?!\d)' % (from_x, from_y), '"X":%d,\\1"Y":%d' % (x, y), obj)
     if n != 1:
-        raise ValueError("level %d is not parked at (-10000, -10000)" % level_id)
+        raise ValueError("level %d is not at (%d, %d)" % (level_id, from_x, from_y))
     return text[:m[0].start()] + new + text[m[0].end():]
 
 
@@ -92,15 +92,48 @@ def level_bike_tier(text, level_id, old, new):
     return text[:m[0].start()] + obj + text[m[0].end():]
 
 
+def add_strings(data, strings):
+    """Append (key, text) entries to a /gen/lang/<language>_strings.bin table: 'LOCF', u8 version, u32 count, then
+    count x {u32 getHashCode(key), u16 length incl. NUL, text}. Keys must not exist yet."""
+    if data[:4] != b"LOCF":
+        raise ValueError("not a LOCF string table")
+    count = struct.unpack_from("<I", data, 5)[0]
+    i, keys = 9, set()
+    for _ in range(count):
+        k, ln = struct.unpack_from("<IH", data, i)
+        keys.add(k)
+        i += 6 + ln
+    if i != len(data):
+        raise ValueError("unexpected string table layout")
+    out = bytearray(data)
+    for key, text in strings:
+        h = game_hash(key)
+        if h in keys:
+            raise ValueError("string %r already present" % key)
+        raw = text.encode("utf-8") + b"\0"
+        out += struct.pack("<IH", h, len(raw)) + raw
+    struct.pack_into("<I", out, 5, count + len(strings))
+    return bytes(out)
+
+
 def apply_content_patch(pack, patch):
     """Apply one spec "content_patches" entry to the pack bytes; returns the new pack bytes."""
     h = game_hash(patch["file"])
+    if patch.get("binary"):
+        data = read_file(pack, h)
+        for edit in patch["edits"]:
+            if edit["op"] == "add_strings":
+                data = add_strings(data, [(s["key"], s["text"]) for s in edit["strings"]])
+            else:
+                raise ValueError("unknown binary content edit %r" % edit["op"])
+        return replace_file(pack, h, data)
     text = read_file(pack, h).decode("utf-8")
     for edit in patch["edits"]:
         if edit["op"] == "store_item_price":
             text = store_item_price(text, edit["item_id"], edit["price_hard"])
         elif edit["op"] == "level_position":
-            text = level_position(text, edit["level_id"], edit["x"], edit["y"])
+            text = level_position(text, edit["level_id"], edit["x"], edit["y"],
+                                  edit.get("from_x", -10000), edit.get("from_y", -10000))
         elif edit["op"] == "level_bike_tier":
             text = level_bike_tier(text, edit["level_id"], edit["old"], edit["new"])
         else:

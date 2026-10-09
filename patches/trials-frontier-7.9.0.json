@@ -11,7 +11,8 @@
     "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d",
     "patched_executable_with": {
       "local-services": "a46fb1b82021895c1fab9be9f95c6c942536ef28db94afdc04ac00bc8b6b02e3",
-      "local-services,open-all-levels": "1626b079fc43dfefad95808d0f484b7d3c41a7186b0478d6971e039e3775ed65"
+      "local-services,open-all-levels": "1626b079fc43dfefad95808d0f484b7d3c41a7186b0478d6971e039e3775ed65",
+      "local-services,open-all-levels,orphan-levels": "2a5086272b7734dba5815325152ae10cb5b59230bd4a08597ef1cf730a061048"
     }
   },
   "encryption": {
@@ -1684,6 +1685,40 @@
       ],
       "function": "tr::Map::init(tr::MenuzStateMap*, bool)",
       "reason": "Map::init calls Map::cheatOpenAllLevels only when its bool argument is set (a developer switch). That function reveals the marker of every level with LevelMetaData::isAvailableOnMap (X^2+Y^2 < 8000^2) and a name localization, i.e. 370 of 382 levels (the 6 parked at -10000,-10000 and 6 unnamed test levels stay hidden). Always take that path. Markers only; progress, missions and the save are not changed (a level becomes permanently opened once it has a time)."
+    },
+    {
+      "id": "orphan-levels-any-bike-cave",
+      "group": "orphan-levels",
+      "vmaddr": "0x100006c00",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "3ffc0371e1020054fd7bbda9fd030091f35301a9f55b02a9f30300aa560000121400805215008052e00313aae103152ae203162a9b8b08949402000b16008052b5060011bf0e00710bffff54e003142af55b42a9f35341a9fd7bc3a8c0035fd6f85fbca9908b0814",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "cmp w1, #0xff; b.ne orig",
+        "save x19-x22, fp/lr",
+        "sum = 0; for tier in 0..2: sum += getBikeReadyCountForTier(this, tier, first ? arg2 : 0)",
+        "return sum",
+        "orig: stp x24, x23, [sp, #-0x40]!; b 0x100229aa4"
+      ],
+      "function": "code cave for tr::UpgradeManager::getBikeReadyCountForTier(int, bool)",
+      "reason": "Bike tier 255 marks the four PvP special tracks (GlobalSettings PVP_Special_Tracks = 1211,1212,1233,1258) as 'any bike': IngameStateSelectBike::showBikes(255) lists every bike and LevelManager::isCorrectBikeTier accepts any bike, but UpgradeManager::getBikeReadyCountForTier(255) only counts bikes whose own tier is 255, so MenuzStateMap::startLevel (and LoadingStateLevel::update, IngameStateHUD::restartWorld) find no bike; the map then shows the 'need a tier N bike' text at index +254 (an unrelated 'watch the ad' string). The cave returns the sum of the ready counts for tiers 0-2 when asked for 255 (special tier-255 bikes counted once via the bool argument); other tiers run the original code (first instruction relocated)."
+    },
+    {
+      "id": "orphan-levels-any-bike-hook",
+      "group": "orphan-levels",
+      "vmaddr": "0x100229aa0",
+      "original": "f85fbca9",
+      "replacement": "5874f717",
+      "original_asm": [
+        "stp x24, x23, [sp, #-0x40]!"
+      ],
+      "replacement_asm": [
+        "b 0x100006c00"
+      ],
+      "function": "tr::UpgradeManager::getBikeReadyCountForTier(int, bool)",
+      "reason": "Bike tier 255 marks the four PvP special tracks (GlobalSettings PVP_Special_Tracks = 1211,1212,1233,1258) as 'any bike': IngameStateSelectBike::showBikes(255) lists every bike and LevelManager::isCorrectBikeTier accepts any bike, but UpgradeManager::getBikeReadyCountForTier(255) only counts bikes whose own tier is 255, so MenuzStateMap::startLevel (and LoadingStateLevel::update, IngameStateHUD::restartWorld) find no bike; the map then shows the 'need a tier N bike' text at index +254 (an unrelated 'watch the ad' string). The cave returns the sum of the ready counts for tiers 0-2 when asked for 255 (special tier-255 bikes counted once via the bool argument); other tiers run the original code (first instruction relocated)."
     }
   ],
   "plist_patches": [
@@ -1722,7 +1757,8 @@
     "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group.",
     "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped.",
     "open-all-levels": "Opt-in (build with --with open-all-levels). Every named level inside the map circle is shown on the map, using the game's own developer function Map::cheatOpenAllLevels: event, season, X-Games and Bunker tracks that can no longer be unlocked. Levels with event rules may behave oddly.",
-    "orphan-levels": "Opt-in (build with --with orphan-levels). Gives the six levels parked off the map at (-10000,-10000) a place in the main map's fogged area east of the eastern sea route (x 1230, artwork but no levels): Sine City, Hill Climb, Bunnyhop (hidden Bunker tracks), Rigged Roadway, Roadway (Agent event), Collapsed Orchard (Rodeo). They show up once opened, or with open-all-levels."
+    "orphan-levels": "Opt-in (build with --with orphan-levels). Gives the six levels parked off the map at (-10000,-10000) a place in the main map's fogged area east of the eastern sea route (x 1230, artwork but no levels): Sine City, Hill Climb, Bunnyhop (hidden Bunker tracks), Rigged Roadway, Roadway (Agent event), Collapsed Orchard (Rodeo). They show up once opened, or with open-all-levels.",
+    "dev-levels": "Opt-in (build with --with dev-levels; best with open-all-levels). Six unnamed developer/test levels that ship with the game (their level files are in the LevelPack1/2 packs) get a display name '<name> (dev)' and a spot in the fogged area east of the eastern sea route, below the orphan levels."
   },
   "local_services_port": 7979,
   "content_patches": [
@@ -1774,75 +1810,422 @@
         {
           "op": "level_position",
           "level_id": 1211,
-          "x": 1230,
-          "y": -200,
+          "x": 1180,
+          "y": -230,
           "name": "Sine City"
         },
         {
           "op": "level_position",
           "level_id": 1212,
-          "x": 1230,
-          "y": -10,
+          "x": 1290,
+          "y": -140,
           "name": "Hill Climb"
         },
         {
           "op": "level_position",
           "level_id": 1233,
-          "x": 1230,
-          "y": 180,
+          "x": 1180,
+          "y": -50,
           "name": "Bunnyhop"
         },
         {
           "op": "level_position",
           "level_id": 1258,
-          "x": 1230,
-          "y": 370,
+          "x": 1290,
+          "y": 40,
           "name": "Rigged Roadway"
         },
         {
           "op": "level_position",
           "level_id": 1261,
-          "x": 1230,
-          "y": 560,
+          "x": 1180,
+          "y": 130,
           "name": "Roadway"
         },
         {
           "op": "level_position",
           "level_id": 1256,
-          "x": 1230,
-          "y": 750,
+          "x": 1290,
+          "y": 220,
           "name": "Collapsed Orchard"
-        },
-        {
-          "op": "level_bike_tier",
-          "level_id": 1211,
-          "old": 255,
-          "new": 0,
-          "name": "Sine City"
-        },
-        {
-          "op": "level_bike_tier",
-          "level_id": 1212,
-          "old": 255,
-          "new": 0,
-          "name": "Hill Climb"
-        },
-        {
-          "op": "level_bike_tier",
-          "level_id": 1233,
-          "old": 255,
-          "new": 0,
-          "name": "Bunnyhop"
-        },
-        {
-          "op": "level_bike_tier",
-          "level_id": 1258,
-          "old": 255,
-          "new": 0,
-          "name": "Rigged Roadway"
         }
       ],
-      "reason": "LevelMetaData::isAvailableOnMap is X^2+Y^2 < 8000^2; these six sit at (-10000,-10000). Main-map background tiles are 512 units, tile (row r, col c) at x = -1792 + 512c, y = -768 + 512r (Map::render), with art for rows 0-4, cols 0-6. The strip right of the eastern sea route (levels end near x 1100) has art but no levels, so it stays fogged (Map::renderOffscreenFogOfWar lights ~300 units around each revealed marker). Placed at x = 1230, y -200..750 (190 apart): a user screenshot (about 0.6 px per map unit) shows the right-hand UI panel covering x > ~1370 at the camera limit, so x 1530 would be hidden. Four of them have bike tier B = 255 (\"any bike\" for LevelManager::isCorrectBikeTier), but MenuzStateMap::startLevel requires UpgradeManager::getBikeReadyCountForTier(B) > 0, which is 0 for 255, and then shows the \"need a tier N bike\" message with index (first tier message + 254): an unrelated string (\"watch the ad and get free gems\"). They were started by their event with a set bike, never from the map. Set B = 0, the tier of most difficulty-1 levels (90 of 117)."
+      "reason": "LevelMetaData::isAvailableOnMap is X^2+Y^2 < 8000^2; these six sit at (-10000,-10000). Main-map background tiles are 512 units, tile (row r, col c) at x = -1792 + 512c, y = -768 + 512r (Map::render), with art for rows 0-4, cols 0-6. The strip right of the eastern sea route (levels end near x 1100) has art but no levels, so it stays fogged (Map::renderOffscreenFogOfWar lights ~300 units around each revealed marker). Placed in a two-column zigzag (x 1180/1290, y -230 + 90 per row; rows 0-5 here, 6-11 for dev-levels): a user screenshot (about 0.6 px per map unit) shows the right-hand UI panel covering x > ~1370 at the camera limit. The four PvP special tracks keep bike tier 255 (any bike); see orphan-levels-any-bike-*."
+    },
+    {
+      "id": "dev-levels-positions",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/conf/levels.txt",
+      "edits": [
+        {
+          "op": "level_position",
+          "level_id": 1190,
+          "from_x": 202,
+          "from_y": 799,
+          "x": 1180,
+          "y": 310,
+          "name": "Prod30 Maria 1"
+        },
+        {
+          "op": "level_position",
+          "level_id": 1218,
+          "from_x": -832,
+          "from_y": 572,
+          "x": 1290,
+          "y": 400,
+          "name": "Flat"
+        },
+        {
+          "op": "level_position",
+          "level_id": 1255,
+          "from_x": -832,
+          "from_y": 572,
+          "x": 1180,
+          "y": 490,
+          "name": "Prod45 Ukkis 1"
+        },
+        {
+          "op": "level_position",
+          "level_id": 1295,
+          "from_x": -141,
+          "from_y": 1342,
+          "x": 1290,
+          "y": 580,
+          "name": "Donkey lvl"
+        },
+        {
+          "op": "level_position",
+          "level_id": 1299,
+          "from_x": -141,
+          "from_y": 1342,
+          "x": 1180,
+          "y": 670,
+          "name": "Prod55 Maria 3"
+        },
+        {
+          "op": "level_position",
+          "level_id": 1312,
+          "from_x": -141,
+          "from_y": 1342,
+          "x": 1290,
+          "y": 760,
+          "name": "Prod58 Maria 5"
+        }
+      ],
+      "reason": "The six test levels share two map spots (-832,572 and -141,1342) and some lie under other markers; move them to rows 6-11 of the orphan column."
+    },
+    {
+      "id": "dev-levels-names-english",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/english_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-french",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/french_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-german",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/german_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-spanish",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/spanish_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-italian",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/italian_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-russian",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/russian_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-japanese",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/japanese_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "dev-levels-names-korean",
+      "group": "dev-levels",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/korean_strings.bin",
+      "binary": true,
+      "edits": [
+        {
+          "op": "add_strings",
+          "strings": [
+            {
+              "key": "Prod30 Maria 1",
+              "text": "Prod30 Maria 1 (dev)"
+            },
+            {
+              "key": "Flat",
+              "text": "Flat (dev)"
+            },
+            {
+              "key": "Prod45 Ukkis 1",
+              "text": "Prod45 Ukkis 1 (dev)"
+            },
+            {
+              "key": "Donkey lvl",
+              "text": "Donkey lvl (dev)"
+            },
+            {
+              "key": "Prod55 Maria 3",
+              "text": "Prod55 Maria 3 (dev)"
+            },
+            {
+              "key": "Prod58 Maria 5",
+              "text": "Prod58 Maria 5 (dev)"
+            }
+          ]
+        }
+      ],
+      "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
     }
   ]
 }

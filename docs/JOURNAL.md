@@ -542,3 +542,13 @@ later an in-app loopback server). Static analysis only.
   shows the "need a tier N bike" message at string index (first tier message + 254) — an unrelated string. These
   were started by their event with a set bike. `orphan-levels` now also sets their B to 0 (new op
   `level_bike_tier`), the tier of most difficulty-1 levels (90 of 117).
+- The four tier-255 orphans are the PvP special tracks (GlobalSettings `PVP_Special_Tracks` = 1211,1212,1233,1258;
+  also why the PvP init list always ends with them); 255 = any bike (`IngameStateSelectBike::showBikes(255)` lists
+  every bike). Replaced the tier-0 data edit with a cave (0x100006c00, hook at
+  `UpgradeManager::getBikeReadyCountForTier` 0x100229aa0): for tier 255 return the sum of the ready counts for tiers
+  0–2, which fixes `MenuzStateMap::startLevel`, `LoadingStateLevel::update` and `IngameStateHUD::restartWorld`.
+- Opt-in group `dev-levels`: six unnamed test levels (files present in LevelPack1/2: Prod30 Maria 1, Flat,
+  Prod45 Ukkis 1, Donkey lvl, Prod55 Maria 3, Prod58 Maria 5) get "<name> (dev)" in all eight `/gen/lang/*_strings.bin`
+  tables (LOCF: 'LOCF', u8 1, u32 count, unsorted {u32 hash, u16 len, text}; new op `add_strings`) so
+  `cheatOpenAllLevels` reveals them, and move from their shared spots into the column.
+- Layout for all twelve: zigzag x 1180/1290, y −230 + 90 per row (orphans rows 0–5, dev rows 6–11).
