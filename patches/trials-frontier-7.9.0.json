@@ -10,7 +10,8 @@
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
     "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d",
     "patched_executable_with": {
-      "local-services": "a46fb1b82021895c1fab9be9f95c6c942536ef28db94afdc04ac00bc8b6b02e3"
+      "local-services": "a46fb1b82021895c1fab9be9f95c6c942536ef28db94afdc04ac00bc8b6b02e3",
+      "local-services,open-all-levels": "1626b079fc43dfefad95808d0f484b7d3c41a7186b0478d6971e039e3775ed65"
     }
   },
   "encryption": {
@@ -1668,6 +1669,21 @@
       ],
       "function": "C string used by tr::OnlineUbiservices::getDefaultUserPicture",
       "reason": "Default profile picture from the local server instead of Ubisoft's CDN."
+    },
+    {
+      "id": "open-all-levels",
+      "group": "open-all-levels",
+      "vmaddr": "0x1002ce6bc",
+      "original": "74000036",
+      "replacement": "1f2003d5",
+      "original_asm": [
+        "tbz w20, #0x0, 0x1002ce6c8   ; Map::init(MenuzStateMap*, bool debugOpenAll)"
+      ],
+      "replacement_asm": [
+        "nop"
+      ],
+      "function": "tr::Map::init(tr::MenuzStateMap*, bool)",
+      "reason": "Map::init calls Map::cheatOpenAllLevels only when its bool argument is set (a developer switch). That function reveals the marker of every level with LevelMetaData::isAvailableOnMap (X^2+Y^2 < 8000^2) and a name localization, i.e. 370 of 382 levels (the 6 parked at -10000,-10000 and 6 unnamed test levels stay hidden). Always take that path. Markers only; progress, missions and the save are not changed (a level becomes permanently opened once it has a time)."
     }
   ],
   "plist_patches": [
@@ -1704,7 +1720,8 @@
   "dlc_content_alias_note": "TrialsContentExtraDL_Moon.dat (bundled, holds /gen/3d/env/moon/bg/dome.b3d needed by /resource/moon_00_bg.txt; BgRenderer treats a missing mesh as fatal) is not in the 12-name content table. The game opens TrialsContentOfferDL.dat from Library/Caches/DLC by fixed name and that pack (store offers) is lost, so it is used as an alias slot.",
   "optional_groups": {
     "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group.",
-    "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped."
+    "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped.",
+    "open-all-levels": "Opt-in (build with --with open-all-levels). Every named level inside the map circle is shown on the map, using the game's own developer function Map::cheatOpenAllLevels: event, season, X-Games and Bunker tracks that can no longer be unlocked. Levels with event rules may behave oddly."
   },
   "local_services_port": 7979,
   "content_patches": [

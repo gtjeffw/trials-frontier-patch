@@ -498,3 +498,22 @@ later an in-app loopback server). Static analysis only.
 - Datapack index entries are {unpacked size, offset (relative to the data area), name hash}; files are
   {u32 stored size, u8 compression, `de c0 de`} + data. `scripts/datapack.py` appends the edited file and repoints
   only its entry; verified: one index entry changed, all other files byte-identical, edited JSON strictly valid.
+
+## 2026-10-09 — Level audit; opt-in `open-all-levels`
+
+- Map placement: every level in `/conf/levels.txt` has X/Y; `LevelMetaData::isAvailableOnMap` = X²+Y² < 8000²
+  (constant 0x100af304c = 64e6). 376 of 382 are inside; 6 sit at (-10000,-10000): Sine City, Hill Climb, Bunnyhop
+  ("hidden bunker tracks"), Rigged Roadway, Roadway ("Agent"), Collapsed Orchard (Rodeo). Only three spots are
+  shared (two hold unnamed test levels, one two X-Games tracks at (-1,-1)); events did not replace existing spots.
+- Markers are revealed in `Map::init` for `PlayerProgress::getOpenedLevels` (daily-experience rewards, robot missions,
+  levels referenced by solved missions, levels with a score), `PlayerItems::getCraftingLevels` and purchased
+  additional level packs. Items 170–199 call `PlayerItems::addRewardedLevel` (bought/rewarded tracks: slots 850–999,
+  two u16 level ids per slot); items 200–219 are map pieces (slots 1001–1099: u16 level, u16 pieces).
+- Decoded save: PlayerItems starts at raw offset 0x914 (slot = ror(stored ^ 0xab1d4f5, 7); coins = slot 1).
+  `scripts/level_audit.py` classifies every level (raced / owned / pieces / hidden / off map / test level).
+  Player after buying the Special Track Pack ~15 times (it re-rolls six unowned tracks until none are left): 201
+  raced, 104 owned not raced, 1 with pieces (Dual Snowfest 2/10), 65 hidden (X-Games Minneapolis 38, Bunker tier 1
+  16, Petrol Falls 5, Dakar 2, Halloween #2 2, Cave Dweller, Dark Machine), 5 off map, 6 unnamed test levels.
+- `Map::init(MenuzStateMap*, bool)` calls the developer function `Map::cheatOpenAllLevels` (reveal every on-map level
+  with a name localization) only when its bool is set: `tbz w20, #0` at 0x1002ce6bc. Opt-in group
+  `open-all-levels` replaces it with `nop`.
