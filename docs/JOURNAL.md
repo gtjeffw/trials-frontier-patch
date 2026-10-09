@@ -141,3 +141,18 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   block rewritten in place; x24/x25 still hold the original selectors). With a 1366×1024 window this gives
   2732×2048, touch scale 2732/1366 = 2.
 - Patched executable sha256 ea88702c…; .ipa 9ddeb08b….
+
+## 2026-10-09 — Offline mode
+
+- Rendering confirmed fixed by `screen-size-from-native-bounds` (saloon character no longer cropped).
+- New-player nickname step = mission (`tr::MenuzMissionContentLoginName`, `tr::MenuzMissionTaskEnterName`).
+  The name is stored locally (`OnlineData::setSilentLoginName`, prefixed `#TF-` for online use) and the task is
+  solved locally (`MissionSolver::isTaskSolved`). Online use: `OnlineCore::onConfigurationLoaded` →
+  `activateSilentLogin` → `makeAutoLogin`, i.e. a Ubisoft profile `#TF-<nickname>`.
+- Server status (2026-10-09): `gamecfg-mob.ubi.com` → Houston gateway still serves the game config (gzip JSON:
+  gamesrv-mob, iap-mob, download-mob, profile/leaderboard endpoints); Ubisoft account services up;
+  `imotoheroz.redlynx.com:7003` no connection; `ingame-news.ubi.com` 404; DLC bucket gone.
+- Patch `offline-mode`: `mz::NetworkChecker::getNetworkType()` → 0 (no network). ~100 callers incl. login,
+  configuration, store, time service, offers, DL content. Watch for gameplay that is gated on connectivity
+  (daily rewards, VIP, special-event timers, `PlayerProgress::getOpenedLevels`).
+- `frida/trace_dns.js` logs hostnames resolved, to verify no Ubisoft traffic.

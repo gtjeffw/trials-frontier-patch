@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "ea88702c5d4752ce72ddc1a98c25933cf6d9b0db90f8324fe67ecdcdc7b68c27"
+    "patched_executable": "e10bf1f3744c208a7f7f93c6472584b37a37f5b733979ec92010c25968809e65"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -135,6 +135,22 @@
       ],
       "function": "-[AppTemplateAppDelegate application:didFinishLaunchingWithOptions:]",
       "reason": "The engine's screen size (mz::SystemInit::init -> 0x100f2ada0, used for UI layout and raw glScissor rectangles) comes from [[UIScreen mainScreen] currentMode].size, which is in pixels on iOS. PlayTools hooks UIScreenMode.size and, with a custom resolution, returns the window size in points, so scissor rectangles (Gfx::Transform::setScissor, e.g. in MenuzComponentScroller) cover only the bottom-left quarter of the 2x framebuffer. Read the size from [UIScreen mainScreen].nativeBounds instead (pixels on iOS; PlayTools reports window size x scale). The code already orders the two values as max/min, so nativeBounds' portrait orientation does not matter. x24/x25 still hold the currentMode/size selectors as before."
+    },
+    {
+      "id": "offline-mode",
+      "vmaddr": "0x10036a9cc",
+      "original": "ff4301d1f65702a9",
+      "replacement": "00008052c0035fd6",
+      "original_asm": [
+        "sub sp, sp, #0x50",
+        "stp x22, x21, [sp, #0x20]"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x0",
+        "ret"
+      ],
+      "function": "mz::NetworkChecker::getNetworkType()",
+      "reason": "Single source of 'is the network available' (SCNetworkReachability + a test NSURLConnection to apple.com), consulted ~100 times before any online action: OnlineAuthentication::login, OnlineConfiguration::getAnonymousConfiguration, OnlineCore::checkGameServerConnection, store, time service, offers, images, DL content. Ubisoft's config gateway (gamecfg-mob.ubi.com -> houston-services) still answers, and after the nickname step the game would run a 'silent login' that creates/links a Ubisoft profile '#TF-<nickname>'. Report no network so the game runs as it would on a device without connectivity; the RedLynx game server (imotoheroz.redlynx.com) and content bucket are gone anyway."
     }
   ]
 }

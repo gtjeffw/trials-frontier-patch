@@ -13,6 +13,8 @@ public class Decompile extends GhidraScript {
         DecompInterface ifc = new DecompInterface();
         ifc.openProgram(currentProgram);
         for (String arg : getScriptArgs()) {
+            arg = arg.trim();
+            if (arg.isEmpty()) continue;
             Function f = null;
             if (arg.startsWith("0x")) {
                 Address a = toAddr(arg);
