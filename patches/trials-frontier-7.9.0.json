@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "9bdaa5714f1ae9ef91191924b1ba38741460a3bdb7867985a333f904a2c2ab6e"
+    "patched_executable": "121b57488fefba0edf0bfd0315fac5a84fe4749d64b63fcd0d656bdbcde2170d"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -21,10 +21,62 @@
       "vmaddr": "0x100adb2a0",
       "original": "60000034160080d2",
       "replacement": "d6140090d6e23091",
-      "original_asm": ["cbz w0, 0x100adb2ac", "mov x22, #0x0"],
-      "replacement_asm": ["adrp x22, 0x100d73000", "add x22, x22, #0xc38"],
+      "original_asm": [
+        "cbz w0, 0x100adb2ac",
+        "mov x22, #0x0"
+      ],
+      "replacement_asm": [
+        "adrp x22, 0x100d73000",
+        "add x22, x22, #0xc38"
+      ],
       "function": "getBundleSeedID",
       "reason": "Outside a team-signed iOS install (e.g. PlayCover) the keychain item has no kSecAttrAccessGroup, so getBundleSeedID calls -[NSString initWithString:nil] and throws during tr::UserTracker::sessionStart -> ubisoftDeviceUniqueId. Always return the existing constant @\"unknown\" (CFString at 0x100d73c38) instead; execution falls through to the function's normal cleanup/return at 0x100adb2a8."
+    },
+    {
+      "id": "ads-sdk-init-disabled",
+      "vmaddr": "0x1001d4534",
+      "original": "ffc302d1",
+      "replacement": "c0035fd6",
+      "original_asm": [
+        "sub sp, sp, #0xb0"
+      ],
+      "replacement_asm": [
+        "ret"
+      ],
+      "function": "tr::AdInterface::initiOS()",
+      "reason": "Only place that reads the Ads_enabled / Interstitials_enabled settings and starts the ad SDKs (AdMob rewarded video + 'Trials Interstitial End Run' interstitial, Tapjoy, Domob). Returning immediately is equivalent to Ads_enabled = 0, a configuration the game supports; tr::AdInterface::init() is a tail call to it. Stops ad SDK network traffic and ad views under PlayCover."
+    },
+    {
+      "id": "ads-no-interstitials",
+      "vmaddr": "0x1001d5170",
+      "original": "ff8301d1f85f02a9",
+      "replacement": "00008052c0035fd6",
+      "original_asm": [
+        "sub sp, sp, #0x60",
+        "stp x24, x23, [sp, #0x20]"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x0",
+        "ret"
+      ],
+      "function": "tr::AdInterface::canShowInterstitial(TR_AD_LOCATION)",
+      "reason": "Decides from play counters alone and never checks that an ad SDK was initialised; always answer false so the game never attempts an interstitial (e.g. at the end of a run)."
+    },
+    {
+      "id": "ads-no-reward-videos",
+      "vmaddr": "0x1001d4cd0",
+      "original": "fa67bba9f85f01a9",
+      "replacement": "00008052c0035fd6",
+      "original_asm": [
+        "stp x26, x25, [sp, #-0x50]!",
+        "stp x24, x23, [sp, #0x10]"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x0",
+        "ret"
+      ],
+      "function": "tr::AdInterface::isAdsAvailableToShow(TR_VIDEO_ZONES)",
+      "reason": "Always report no rewarded video available, so the game does not offer watch-an-ad rewards that can no longer work."
     }
   ]
 }

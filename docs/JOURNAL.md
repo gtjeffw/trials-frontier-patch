@@ -93,3 +93,18 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   methods on them from hooks (deadlock). Do not heap-scan (`ObjC.chooseSync`) on the main queue (hang).
 - Detaching appears to leave the process crash-prone on the next C++ exception; stay attached per session.
 - iOS apps on macOS use `/System/iOSSupport/.../OpenGLES.framework`; hook its exports, not macOS OpenGL.
+
+## 2026-10-09 — Ads disabled
+
+- Ad/analytics SDKs in the build: Google AdMob (rewarded + interstitial), Tapjoy, Domob (China only),
+  AdColony, IronSource/Supersonic, AppLovin, HyprMX, Vungle, Facebook, Flurry, Upsight, AppsFlyer,
+  Crashlytics/Fabric, plus Ubisoft's own tracking (`tr::UserTracker`, `mz::DNAManager`).
+- The game's ad switchboard is `tr::AdInterface`. `Ads_enabled` (bundled config value 1) and
+  `Interstitials_enabled` (absent from config → default 1) are read only in `tr::AdInterface::initiOS()`,
+  which then starts AdMob ("Trials Interstitial End Run"), Tapjoy and Domob.
+- `canShowInterstitial` decides from play counters only (no SDK check), so it is patched too.
+- New patches: `ads-sdk-init-disabled` (initiOS → `ret`), `ads-no-interstitials`
+  (canShowInterstitial → false), `ads-no-reward-videos` (isAdsAvailableToShow → false).
+- Hypothesis to test: the end-of-run interstitial (AdMob is still live) caused the view relayout that left only
+  the bottom-left quarter visible after the map overview.
+- Patched executable sha256 121b5748…; .ipa reproducible (c7211d31…).
