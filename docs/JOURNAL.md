@@ -219,3 +219,21 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   load. Caves sit in the zero padding between the load commands and __text (0x100006e00/0x100006e20); PlayCover's
   inserted `LC_LOAD_DYLIB` (PlayTools) only extends the load commands to 0x1cc8. `ghidra/scripts/Unreferenced.java`
   was used to look for dead functions first (only 3, not trusted).
+
+## 2026-10-09 — Offline mode split: gameplay sees "online"
+
+- Symptoms with blanket offline-mode: no candy/collectibles in event levels; garage upgrades ("parts") refused;
+  fuel counter does not show unlimited.
+- `LoadingStateLevel::createGameWorld`: for each active mission, unless `online && AntiCheating::isValid()`, every
+  special-event sub-mission on the track is `disableActiveMissionTemporarily`'d → collectibles removed.
+  `SpecialEventManager::isCollectibleCollected` returns false offline.
+- `AntiCheating::isValid()` = disabled || NTP confirmed (`NetworkClock isNtpUpToDate`); offline it is never
+  confirmed. ~40 callers incl. `StoreItem::isEnabled`, `PlayerTimers`, daily quests, missions, VIP, garage.
+- Garage (`MenuzStateGarage::componentReleased`, cases 0x2b start / 0x36 finish upgrade) requires online and
+  (mission upgrade || isValid || bypass).
+- The 114 `getNetworkType` call sites were sorted: communication (login, config, store, offers, ads, images, DLC,
+  DNA, UPlay, leaderboards, support, review, share, header/profile buttons, dog house, options, PvP, weekly
+  challenge) stay offline; 62 gameplay sites in 33 functions now read online (`bl getNetworkType` → `mov w0, #1`,
+  patches `gameplay-online-*`). `anticheat-trust-local-clock`: `isValid()` → true. All in group `offline`.
+- Call-site list: generated from the disassembly (`bl __ZN2mz14NetworkChecker14getNetworkTypeEv`), each verified
+  to be a `bl` to 0x10036a9cc before patching.

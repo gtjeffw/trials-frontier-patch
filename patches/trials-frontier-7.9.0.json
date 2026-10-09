@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "639e3d9068b50ce580effda2cdccacde7c2d1a8927f34b585d103614ceb0e80a"
+    "patched_executable": "fc0d9df0107db02cc8b38d73de500614dca4d1e541f10e9151562b66f1a1da7b"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -327,6 +327,952 @@
       ],
       "function": "tr::PlayerItems::getItemCount(int)",
       "reason": "Unlimited gems. Item counts are stored obfuscated per slot (index = item*5 + sub; currencies are item 0: sub 0 fuel, 1 coins, 2 gems). Reads of slot 2 return 9999 (the game's own cap for capped items); other slots read as before. Spending still subtracts from the stored value, which no longer matters. The cave lives in the zero padding between the load commands and __text (0x100006e00; PlayCover's added LC_LOAD_DYLIB ends at 0x1cc8), so it does not depend on any other patch."
+    },
+    {
+      "id": "gameplay-online-VIPManager-activateMembership-1",
+      "group": "offline",
+      "vmaddr": "0x100012988",
+      "original": "11600d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::activateMembership",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-activateMembership-2",
+      "group": "offline",
+      "vmaddr": "0x100012990",
+      "original": "0f600d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::activateMembership",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-isMembershipValid-1",
+      "group": "offline",
+      "vmaddr": "0x100012abc",
+      "original": "c45f0d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::isMembershipValid",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-isMembershipValid-2",
+      "group": "offline",
+      "vmaddr": "0x100012ac4",
+      "original": "c25f0d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::isMembershipValid",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-checkVIPRewards-1",
+      "group": "offline",
+      "vmaddr": "0x100012d2c",
+      "original": "285f0d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::checkVIPRewards",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-checkVIPRewards-2",
+      "group": "offline",
+      "vmaddr": "0x100012d34",
+      "original": "265f0d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::checkVIPRewards",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-mayShowVIPInfoPopup-1",
+      "group": "offline",
+      "vmaddr": "0x10001315c",
+      "original": "1c5e0d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::mayShowVIPInfoPopup",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-VIPManager-mayShowVIPInfoPopup-2",
+      "group": "offline",
+      "vmaddr": "0x100013164",
+      "original": "1a5e0d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::VIPManager::mayShowVIPInfoPopup",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateOfferRetentionClaim-updateRemainingTime-1",
+      "group": "offline",
+      "vmaddr": "0x10001ceb4",
+      "original": "c6360d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateOfferRetentionClaim::updateRemainingTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateOfferRetentionClaim-updateRemainingTime-2",
+      "group": "offline",
+      "vmaddr": "0x10001cebc",
+      "original": "c4360d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateOfferRetentionClaim::updateRemainingTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateOfferRetentionClaim-claimRewards-1",
+      "group": "offline",
+      "vmaddr": "0x10001d180",
+      "original": "13360d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateOfferRetentionClaim::claimRewards",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateOfferRetentionClaim-claimRewards-2",
+      "group": "offline",
+      "vmaddr": "0x10001d188",
+      "original": "11360d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateOfferRetentionClaim::claimRewards",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventKtmTrackList-update-1",
+      "group": "offline",
+      "vmaddr": "0x10007aab4",
+      "original": "c6bf0b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventKtmTrackList::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventKtmTrackList-update-2",
+      "group": "offline",
+      "vmaddr": "0x10007aabc",
+      "original": "c4bf0b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventKtmTrackList::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-transitionEnter-1",
+      "group": "offline",
+      "vmaddr": "0x100090548",
+      "original": "21690b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::transitionEnter",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-transitionEnter-2",
+      "group": "offline",
+      "vmaddr": "0x1000905f4",
+      "original": "f6680b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::transitionEnter",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-updateMiniEventTime-1",
+      "group": "offline",
+      "vmaddr": "0x100093e44",
+      "original": "e25a0b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::updateMiniEventTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-updateMiniEventButton-1",
+      "group": "offline",
+      "vmaddr": "0x100094178",
+      "original": "155a0b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::updateMiniEventButton",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-controllerReleased-1",
+      "group": "offline",
+      "vmaddr": "0x100094514",
+      "original": "2e590b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::controllerReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-componentReleased-1",
+      "group": "offline",
+      "vmaddr": "0x100094840",
+      "original": "63580b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-componentReleased-2",
+      "group": "offline",
+      "vmaddr": "0x10009486c",
+      "original": "58580b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateMain-componentReleased-3",
+      "group": "offline",
+      "vmaddr": "0x100094890",
+      "original": "4f580b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateMain::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-DailyQuestManager-isOnline-1",
+      "group": "offline",
+      "vmaddr": "0x10009dc3c",
+      "original": "64330b94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::DailyQuestManager::isOnline",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateSlotMachine-buySpeedup-1",
+      "group": "offline",
+      "vmaddr": "0x1000c7278",
+      "original": "d58d0a94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateSlotMachine::buySpeedup",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateSlotMachine-buySpeedup-2",
+      "group": "offline",
+      "vmaddr": "0x1000c7280",
+      "original": "d38d0a94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateSlotMachine::buySpeedup",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateSlotMachine-onLeverPulled-1",
+      "group": "offline",
+      "vmaddr": "0x1000c7cb0",
+      "original": "478b0a94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateSlotMachine::onLeverPulled",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateSlotMachine-onLeverPulled-2",
+      "group": "offline",
+      "vmaddr": "0x1000c7cb8",
+      "original": "458b0a94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateSlotMachine::onLeverPulled",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-IngameStatePostRace-giveCoinsAndCollectibles-1",
+      "group": "offline",
+      "vmaddr": "0x100124cc4",
+      "original": "42170994",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::IngameStatePostRace::giveCoinsAndCollectibles",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-IngameStatePostRace-giveCoinsAndCollectibles-2",
+      "group": "offline",
+      "vmaddr": "0x100124ccc",
+      "original": "40170994",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::IngameStatePostRace::giveCoinsAndCollectibles",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateBoosterActivation-updateActiveBtnText-1",
+      "group": "offline",
+      "vmaddr": "0x100140ecc",
+      "original": "c0a60894",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateBoosterActivation::updateActiveBtnText",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateBoosterActivation-updateActiveBtnText-2",
+      "group": "offline",
+      "vmaddr": "0x100140ed4",
+      "original": "bea60894",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateBoosterActivation::updateActiveBtnText",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventKtm-updateCurrencyTimer-1",
+      "group": "offline",
+      "vmaddr": "0x100166d90",
+      "original": "0f0f0894",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventKtm::updateCurrencyTimer",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventKtm-updateCurrencyTimer-2",
+      "group": "offline",
+      "vmaddr": "0x100166d98",
+      "original": "0d0f0894",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventKtm::updateCurrencyTimer",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-SpecialEventManager-isCollectibleCollected-1",
+      "group": "offline",
+      "vmaddr": "0x10019d6ec",
+      "original": "b8340794",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::SpecialEventManager::isCollectibleCollected",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-SpecialEventManager-isCollectibleCollected-2",
+      "group": "offline",
+      "vmaddr": "0x10019d6f4",
+      "original": "b6340794",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::SpecialEventManager::isCollectibleCollected",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventMap-update-1",
+      "group": "offline",
+      "vmaddr": "0x1001a2798",
+      "original": "8d200794",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventMap::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventMap-update-2",
+      "group": "offline",
+      "vmaddr": "0x1001a27a0",
+      "original": "8b200794",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventMap::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MissionManager-updateMissionCooldownTime-1",
+      "group": "offline",
+      "vmaddr": "0x1001f49b0",
+      "original": "07d80594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MissionManager::updateMissionCooldownTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MissionManager-updateMissionCooldownTime-2",
+      "group": "offline",
+      "vmaddr": "0x1001f49b8",
+      "original": "05d80594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MissionManager::updateMissionCooldownTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MissionSolver-updateMissionsFinishLevel-1",
+      "group": "offline",
+      "vmaddr": "0x1001f9d1c",
+      "original": "2cc30594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MissionSolver::updateMissionsFinishLevel",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MissionSolver-updateMissionsFinishLevel-2",
+      "group": "offline",
+      "vmaddr": "0x1001f9d24",
+      "original": "2ac30594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MissionSolver::updateMissionsFinishLevel",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PlayerProgress-getOpenedLevels-1",
+      "group": "offline",
+      "vmaddr": "0x10020018c",
+      "original": "10aa0594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PlayerProgress::getOpenedLevels",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PlayerProgress-getOpenedLevels-2",
+      "group": "offline",
+      "vmaddr": "0x100200194",
+      "original": "0eaa0594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PlayerProgress::getOpenedLevels",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateGarage-componentReleased-1",
+      "group": "offline",
+      "vmaddr": "0x100221af0",
+      "original": "b7230594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateGarage::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateGarage-componentReleased-2",
+      "group": "offline",
+      "vmaddr": "0x100221af8",
+      "original": "b5230594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateGarage::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateGarage-componentReleased-3",
+      "group": "offline",
+      "vmaddr": "0x100221cd0",
+      "original": "3f230594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateGarage::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateGarage-componentReleased-4",
+      "group": "offline",
+      "vmaddr": "0x100221cd8",
+      "original": "3d230594",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateGarage::componentReleased",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventSinglePlayer-init-1",
+      "group": "offline",
+      "vmaddr": "0x1002ae820",
+      "original": "6bf00294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventSinglePlayer::init",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventSinglePlayer-init-2",
+      "group": "offline",
+      "vmaddr": "0x1002ae828",
+      "original": "69f00294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventSinglePlayer::init",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventSinglePlayer-update-1",
+      "group": "offline",
+      "vmaddr": "0x1002b0400",
+      "original": "73e90294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventSinglePlayer::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventSinglePlayer-update-2",
+      "group": "offline",
+      "vmaddr": "0x1002b0408",
+      "original": "71e90294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventSinglePlayer::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateDailyLoginReward-updateRemainingTime-1",
+      "group": "offline",
+      "vmaddr": "0x1002ca3dc",
+      "original": "7c810294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateDailyLoginReward::updateRemainingTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateDailyLoginReward-updateRemainingTime-2",
+      "group": "offline",
+      "vmaddr": "0x1002ca3e4",
+      "original": "7a810294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateDailyLoginReward::updateRemainingTime",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateDailyLoginReward-canShowNow-1",
+      "group": "offline",
+      "vmaddr": "0x1002cabec",
+      "original": "787f0294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateDailyLoginReward::canShowNow",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-PopupStateDailyLoginReward-canShowNow-2",
+      "group": "offline",
+      "vmaddr": "0x1002cabf4",
+      "original": "767f0294",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::PopupStateDailyLoginReward::canShowNow",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzMissionTaskTime-updateTimerValues-1",
+      "group": "offline",
+      "vmaddr": "0x1002f8730",
+      "original": "a7c80194",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzMissionTaskTime::updateTimerValues",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-LoadingStateLevel-createGameWorld-1",
+      "group": "offline",
+      "vmaddr": "0x1002fd568",
+      "original": "19b50194",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::LoadingStateLevel::createGameWorld",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-LoadingStateLevel-createGameWorld-2",
+      "group": "offline",
+      "vmaddr": "0x1002fd570",
+      "original": "17b50194",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::LoadingStateLevel::createGameWorld",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentStoreItemVIP-updateMembershipIntervalText-1",
+      "group": "offline",
+      "vmaddr": "0x10031ea48",
+      "original": "e12f0194",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentStoreItemVIP::updateMembershipIntervalText",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventBoosterContainer-update-1",
+      "group": "offline",
+      "vmaddr": "0x100372aa8",
+      "original": "c9dfff97",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventBoosterContainer::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzComponentSpecialEventBoosterContainer-update-2",
+      "group": "offline",
+      "vmaddr": "0x100372ab0",
+      "original": "c7dfff97",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzComponentSpecialEventBoosterContainer::update",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzMidnightCircuitParts-updateCurrentState-1",
+      "group": "offline",
+      "vmaddr": "0x100377c9c",
+      "original": "4ccbff97",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzMidnightCircuitParts::updateCurrentState",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "anticheat-trust-local-clock",
+      "group": "offline",
+      "vmaddr": "0x10014ff50",
+      "original": "e87100b008c15d39",
+      "replacement": "20008052c0035fd6",
+      "original_asm": [
+        "(prologue)"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1",
+        "ret"
+      ],
+      "function": "tr::AntiCheating::isValid()",
+      "reason": "True only when anti-cheat is disabled or NTP time was confirmed online; offline it is never confirmed, which disables store items (StoreItem::isEnabled), upgrade/fuel timers (PlayerTimers), daily quests, mission timing, VIP and garage upgrades. Behave as the game's own 'disabled' setting: trust the local clock."
     }
   ]
 }
