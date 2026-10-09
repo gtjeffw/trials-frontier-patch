@@ -484,3 +484,17 @@ later an in-app loopback server). Static analysis only.
   the save's own leaderboards. Imported with `--world-records/--world-record-ids` (2158 results); the data stays in the
   private recovery folder with its licence and source note, not in this repo. No ghosts for these.
 - FRIENDS asks only for the player's own id, so it shows just the player; GLOBAL shows everyone around the player.
+
+## 2026-10-09 — Opt-in `coins-for-gems` content patch
+
+- In 7.9.0 the coin packs are App Store products only: `/conf/store_2_coins.txt` (content.dat, hash a5e43c11)
+  lists `com.ubisoft.redlynx.trialsfrontier.caps1`–`caps6` (60k–5M coins, item IID 0 / IL 1) with no in-game price
+  (PH 0, PS 0), so the shop needs StoreKit and shows the network message. Gem packs `diamonds1`–`6`
+  (`/conf/store_1_gems.txt`) give 200, 450, 600, 1000, 2200, 5800 gems at the same price tiers.
+- Gem-priced items without an App Store ID already exist (track packs, PH 400/600) and are bought in-game
+  (`StoreItemManager::tryPurchaseItem` → `purchaseItem`). The opt-in group `coins-for-gems` (spec
+  `content_patches`, `build_ipa.py --with coins-for-gems`) empties the six IDs and sets PH to the matching gem-pack
+  amount.
+- Datapack index entries are {unpacked size, offset (relative to the data area), name hash}; files are
+  {u32 stored size, u8 compression, `de c0 de`} + data. `scripts/datapack.py` appends the edited file and repoints
+  only its entry; verified: one index entry changed, all other files byte-identical, edited JSON strictly valid.

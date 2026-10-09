@@ -1703,7 +1703,49 @@
   ],
   "dlc_content_alias_note": "TrialsContentExtraDL_Moon.dat (bundled, holds /gen/3d/env/moon/bg/dome.b3d needed by /resource/moon_00_bg.txt; BgRenderer treats a missing mesh as fatal) is not in the 12-name content table. The game opens TrialsContentOfferDL.dat from Library/Caches/DLC by fixed name and that pack (store offers) is lost, so it is used as an alias slot.",
   "optional_groups": {
-    "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group."
+    "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group.",
+    "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped."
   },
-  "local_services_port": 7979
+  "local_services_port": 7979,
+  "content_patches": [
+    {
+      "id": "coins-for-gems",
+      "group": "coins-for-gems",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/conf/store_2_coins.txt",
+      "edits": [
+        {
+          "op": "store_item_price",
+          "item_id": "com.ubisoft.redlynx.trialsfrontier.caps1",
+          "price_hard": 200
+        },
+        {
+          "op": "store_item_price",
+          "item_id": "com.ubisoft.redlynx.trialsfrontier.caps2",
+          "price_hard": 450
+        },
+        {
+          "op": "store_item_price",
+          "item_id": "com.ubisoft.redlynx.trialsfrontier.caps3",
+          "price_hard": 600
+        },
+        {
+          "op": "store_item_price",
+          "item_id": "com.ubisoft.redlynx.trialsfrontier.caps4",
+          "price_hard": 1000
+        },
+        {
+          "op": "store_item_price",
+          "item_id": "com.ubisoft.redlynx.trialsfrontier.caps5",
+          "price_hard": 2200
+        },
+        {
+          "op": "store_item_price",
+          "item_id": "com.ubisoft.redlynx.trialsfrontier.caps6",
+          "price_hard": 5800
+        }
+      ],
+      "reason": "Coin packs caps1-6 (60k, 150k, 360k, 750k, 1.65M, 5M coins) have no in-game price (PH 0, PS 0) and an App Store product ID, so the shop needs StoreKit and shows the network message. With the ID emptied and a hard (gem) price set they are bought like the gem-priced track packs (StoreItemManager::tryPurchaseItem -> purchaseItem). Gem prices = gems in the gem pack of the same tier (diamonds1-6: 200, 450, 600, 1000, 2200, 5800). The edited file is appended to the pack and only its index entry is repointed (scripts/datapack.py)."
+    }
+  ]
 }

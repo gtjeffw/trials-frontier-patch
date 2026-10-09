@@ -1,10 +1,12 @@
 """Build a reproducible .ipa from an original TrialsFrontier.app bundle and a patched executable.
 
 Usage: python3 -I build_ipa.py <TrialsFrontier.app from device> <patched executable> <out.ipa>
-       [--spec patches/trials-frontier-7.9.0.json] [--groups g,g]
+       [--spec patches/trials-frontier-7.9.0.json] [--groups g,g] [--with g,g]
 
 With --spec, the spec's "plist_patches" (optionally limited to --groups) are applied to the bundle's plists;
-plists are re-serialised as sorted binary plists so the output stays reproducible.
+plists are re-serialised as sorted binary plists so the output stays reproducible. "content_patches" edit files
+inside the bundle's own datapacks (scripts/datapack.py); like executable patches, those in "optional_groups" apply
+only with --with (or when named in --groups).
 
 The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) is dropped and the
 executable is replaced. Zip entries are sorted, stored uncompressed, with fixed timestamps and permissions,
@@ -19,6 +21,9 @@ import stat
 import sys
 import zipfile
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import datapack  # noqa: E402
+
 def opt(name):
     if name in sys.argv:
         i = sys.argv.index(name)
@@ -28,15 +33,28 @@ def opt(name):
     return None
 
 
-spec_path, groups = opt("--spec"), opt("--groups")
+spec_path, groups, extra = opt("--spec"), opt("--groups"), opt("--with")
 app_dir, exe_path, out = sys.argv[1:4]
-plist_edits = {}
+plist_edits, content_patches = {}, {}
 if spec_path:
+    spec = json.load(open(spec_path))
     selected = set(groups.split(",")) if groups else None
-    for pp in json.load(open(spec_path)).get("plist_patches", []):
-        if selected and pp["group"] not in selected:
-            continue
-        plist_edits.setdefault(pp["file"], {}).update(pp["set"])
+    optional = set(spec.get("optional_groups", {}))
+    with_groups = set(extra.split(",")) if extra else set()
+    if with_groups - optional:
+        sys.exit(f"--with: not an optional group: {', '.join(sorted(with_groups - optional))}")
+
+    def wanted(group):
+        if group in optional:
+            return group in with_groups or bool(selected and group in selected)
+        return not selected or group in selected
+
+    for pp in spec.get("plist_patches", []):
+        if wanted(pp["group"]):
+            plist_edits.setdefault(pp["file"], {}).update(pp["set"])
+    for cp in spec.get("content_patches", []):
+        if wanted(cp["group"]):
+            content_patches.setdefault(cp["pack"], []).append(cp)
 app_name = os.path.basename(os.path.normpath(app_dir))
 exe_name = "TrialsFrontier"
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
@@ -75,6 +93,12 @@ with zipfile.ZipFile(out, "w") as z:
             pl.update(plist_edits[rel])
             add(z, arc, plistlib.dumps(pl, fmt=plistlib.FMT_BINARY, sort_keys=True), False)
             print(f"patched {rel}: {plist_edits[rel]}")
+        elif rel in content_patches:
+            pack = open(os.path.join(app_dir, rel), "rb").read()
+            for cp in content_patches[rel]:
+                pack = datapack.apply_content_patch(pack, cp)
+                print(f"patched {rel}: {cp['id']} ({cp['file']})")
+            add(z, arc, pack, False)
         else:
             src = os.path.join(app_dir, rel)
             add(z, arc, open(src, "rb").read(), bool(os.stat(src).st_mode & 0o111))

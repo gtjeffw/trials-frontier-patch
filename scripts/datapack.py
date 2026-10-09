@@ -1,0 +1,80 @@
+"""Read and minimally rewrite Trials Frontier datapacks (.dat), e.g. data/TrialsMobile/content.dat.
+
+Layout (datapack::DataPack): u32 magic, u32 count, u32 entry_size (12); count x entry {u32 unpacked_size,
+u32 offset, u32 name_hash}; the data area starts at 12 + count * 12 and offsets are relative to it. Each file:
+u32 stored_size, u8 compression (1 = zlib, 0 = raw), 3 bytes (de c0 de), then the stored bytes.
+
+replace_file() appends the new file at the end and repoints only its own entry, so every other byte of the pack is
+unchanged (deterministic for a given input).
+"""
+import re
+import struct
+import zlib
+
+
+def game_hash(s):
+    """mt::String::getHashCode, used for datapack file names."""
+    b = s.encode()
+    n, x = len(b), 0
+    for c in b:
+        c = c - 256 if c > 127 else c
+        x = (x + n * c) & 0xFFFFFFFF
+        n = ((n & 0xFFFF) * 18000 + (n >> 16)) & 0xFFFFFFFF
+    return x
+
+
+def _index(pack):
+    magic, count, esize = struct.unpack_from("<3I", pack, 0)
+    if esize != 12:
+        raise ValueError("unexpected datapack entry size %d" % esize)
+    return 12 + count * esize, [(12 + i * esize,) + struct.unpack_from("<3I", pack, 12 + i * esize) for i in range(count)]
+
+
+def read_file(pack, name_hash):
+    base, entries = _index(pack)
+    for _, size, off, h in entries:
+        if h == name_hash:
+            stored, comp = struct.unpack_from("<IB", pack, base + off)
+            body = pack[base + off + 8:base + off + 8 + stored]
+            return zlib.decompress(body) if comp == 1 else body
+    raise KeyError("%08x not in pack" % name_hash)
+
+
+def replace_file(pack, name_hash, body):
+    base, entries = _index(pack)
+    for pos, _, off, h in entries:
+        if h == name_hash:
+            _, comp, *tag = struct.unpack_from("<IBBBB", pack, base + off)
+            stored = zlib.compress(body, 9) if comp == 1 else body
+            new_off = len(pack) - base
+            out = bytearray(pack) + struct.pack("<IBBBB", len(stored), comp, *tag) + stored
+            struct.pack_into("<2I", out, pos, len(body), new_off)
+            return bytes(out)
+    raise KeyError("%08x not in pack" % name_hash)
+
+
+def store_item_price(text, item_id, price_hard):
+    """Turn an App Store item of a store config (JSON with CRLF) into a gem-priced in-game item: empty its "ID"
+    (no IAP product) and set the first "PH" of its "P" price list. The item must occur exactly once."""
+    anchor = '"ID": "%s"' % item_id
+    if text.count(anchor) != 1:
+        raise ValueError("%s found %d times" % (item_id, text.count(anchor)))
+    start = text.index(anchor)
+    end = text.find('"FTS"', start)
+    block = text[start:end]
+    new_block, n = re.subn(r'"PH":\s*0\b', '"PH": %d' % price_hard, block.replace(anchor, '"ID": ""', 1), count=1)
+    if n != 1:
+        raise ValueError("no zero hard price in %s" % item_id)
+    return text[:start] + new_block + text[end:]
+
+
+def apply_content_patch(pack, patch):
+    """Apply one spec "content_patches" entry to the pack bytes; returns the new pack bytes."""
+    h = game_hash(patch["file"])
+    text = read_file(pack, h).decode("utf-8")
+    for edit in patch["edits"]:
+        if edit["op"] == "store_item_price":
+            text = store_item_price(text, edit["item_id"], edit["price_hard"])
+        else:
+            raise ValueError("unknown content edit %r" % edit["op"])
+    return replace_file(pack, h, text.encode("utf-8"))
