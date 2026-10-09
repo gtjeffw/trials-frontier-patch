@@ -52,6 +52,13 @@ synthesising touches. Needs: static analysis of where the touch buttons become t
 analog/tilt lean path exists for sticks), a way to keep touch working alongside, and a key/button mapping UI or
 config file.
 
+## Before publishing
+
+- Earlier commits of `docs/JOURNAL.md` name the developer's own profile and two other players (scrubbed from the
+  current files): rewrite history or publish from a fresh repository. Re-run a search for personal identifiers
+  (profile ids, player names, device ids, local paths) over all tracked files.
+- Choose a licence.
+
 ## Other open items
 
 - Touch scaling per axis (float) so any window size / full screen works without the 1366×1024 PlayCover setting.
