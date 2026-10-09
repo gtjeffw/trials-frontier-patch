@@ -1379,5 +1379,16 @@
       "function": "C string used by MobileSDKAPI::msdk_internal_InitThread (and a global pointer at 0x100f29cc0)",
       "reason": "Ubisoft Mobile SDK's base URL. Its init also sets up local state (sqlite DB, IAP store data), so keep the init and point the URL at a closed local port so requests fail immediately. Same-length-or-shorter string, read-only use (passed as a parameter)."
     }
+  ],
+  "plist_patches": [
+    {
+      "id": "facebook-no-auto-app-events",
+      "group": "privacy",
+      "file": "Info.plist",
+      "set": {
+        "FacebookAutoLogAppEventsEnabled": false
+      },
+      "reason": "Facebook SDK auto-logs app activation (graph.facebook.com) when the app becomes active, independent of the removed FBSDKApplicationDelegate call. Facebook's documented opt-out key."
+    }
   ]
 }

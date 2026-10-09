@@ -36,7 +36,8 @@ contain account ids and other players' names).
 ```
 python3 -I scripts/apply_patches.py patches/trials-frontier-7.9.0.json \
     <TrialsFrontier.app>/TrialsFrontier <work>/TrialsFrontier.patched --page <work>/page.bin
-python3 -I scripts/build_ipa.py <TrialsFrontier.app> <work>/TrialsFrontier.patched <work>/TrialsFrontier-patched.ipa
+python3 -I scripts/build_ipa.py <TrialsFrontier.app> <work>/TrialsFrontier.patched <work>/TrialsFrontier-patched.ipa \
+    --spec patches/trials-frontier-7.9.0.json
 ```
 
 Each step verifies sha256 values from the spec, so the same inputs always give the same output.

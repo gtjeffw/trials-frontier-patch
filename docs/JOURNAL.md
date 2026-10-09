@@ -286,3 +286,8 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
     and IAP store data.
   - `_getCountryFromServer` is only called from `_initCrossPromo` (already disabled).
 - New helper `ghidra/scripts/FuncInfo.java` (containing function + callers for an address).
+- After installing: Facebook still resolved graph.facebook.com — its SDK (4.x/5.x) auto-logs app activation
+  independently of the removed start call. New spec section `plist_patches` (applied by `build_ipa.py --spec`, plist
+  re-serialised as sorted binary for reproducibility): `facebook-no-auto-app-events` sets
+  `FacebookAutoLogAppEventsEnabled = false` in Info.plist (privacy).
+- Result: in 30 s after launch the only lookup is 127.0.0.1 (the Mobile SDK's redirected base URL).
