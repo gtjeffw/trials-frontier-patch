@@ -181,3 +181,15 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
 - Replaced by: `nickname-plain-keyboard` (`useSilentLoginKeyboard` → `ret`; ordinary name keyboard, no prefix
   handling, no 3-letter/bad-word validation) and `nickname-no-prefill-prefix` (pre-fill reads "" via
   adrp/add to 0x100c152a0; copied into a std::string, so safe). The "#TF-" literal is back to original.
+
+## 2026-10-09 — Nickname works; keyboard controls
+
+- Nickname "entered via the in-game keyboard" works offline; Mac `player.bin` decodes (version 114, 29,096 bytes)
+  and contains the name. No new lookups beyond the startup ones.
+- The game has no GameController support, so keyboard play uses PlayCover keymapping (keys → touches).
+- HUD buttons (fractions of the screen): throttle (0.921, 0.884), brake (0.779, 0.893), lean back (0.079, 0.893),
+  lean forward (0.214, 0.903), restart (0.932, 0.065), pause (0.049, 0.060). The game tracks 2 touches, enough
+  for throttle + lean.
+- `scripts/make_keymap.py` writes `playcover/trials-frontier-keymap.plist` (PlayCover Keymap 2.0.0: HID key codes,
+  xCoord/yCoord fractions, size in percent): ↑/W throttle, ↓/S brake, ←/A lean back, →/D lean forward,
+  R restart, P pause. Requires Keymapping enabled for the app in PlayCover.
