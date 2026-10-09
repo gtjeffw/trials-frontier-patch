@@ -31,6 +31,18 @@ risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purg
 3. **File sharing** (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`) so users can copy save, ghosts and
    store off the device (the only protection against deleting the app).
 
+## Robot challenge module (daily "beat this rider")
+
+The game still asks `GET /public/match/v1/robot?track_name=track<lb>&range=1&offset=<n>` (about once a minute on the
+map) and `match/v1/robot_v2?track_name=…&score=…&range=…` (mission ghosts). Known so far (static):
+`MatchMaking::parseMatchMakingResponse` reads `pid`; `parseMatchMakingResult` reads `player`, `drivetime`, `upgrades`,
+`data`, `score_value`, `replay_id`; the ghost then comes from `resultservice/v1/robot_replaydata?track_id=&time=&player=`
+(`GhostQueryObject::queryRobotGhost`) and is saved as `robot_ghost-<getHashCode(player)>-<lb>.robot`, with name and
+picture fetched through `/v1/profiles` and the avatar URL (`OnlineRobotMission::onGhostReceived`).
+Plan: a `TFRobots` module (inapp/, listed in `TFLocalServicesModules()`) + the same in the Python server, choosing an
+opponent ghost from the store near the player's best (`range`/`offset`), from the 383 imported opponents or any
+future ghost collection imported as riders. Decode the exact response nesting before implementing.
+
 ## Native keyboard and game-controller input (backburner)
 
 The PlayCover fix is the joystick keymap (`scripts/make_keymap.py`, one virtual finger per thumb). Later, for every
