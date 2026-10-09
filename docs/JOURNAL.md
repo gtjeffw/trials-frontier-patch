@@ -268,3 +268,21 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   content (web/ad URLs, gamepad icons, SDK friends UI, editor paths); ~45 cosmetic/event art (outfit icons for riders
   14/16/18/22/28/53, coin variants, event teasers: Rodeo, Treasure Hunt, KTM, PvP, daily quest, New Year's offer);
   a few world props (crate, village time capsule, desert rocks, KTM banner/poster).
+
+## 2026-10-09 — Remaining startup traffic (static analysis)
+
+- Sources of the startup lookups seen with `frida/trace_dns.js`:
+  - Crashlytics: `[Fabric with:@[Crashlytics]]` at 0x1001313c8 in `didFinishLaunching` → `nop` (privacy).
+  - Facebook SDK: `[[FBSDKApplicationDelegate sharedInstance] application:didFinishLaunchingWithOptions:]` at
+    0x100131768 → `nop` (privacy).
+  - Google Mobile Ads self-initialises at load; `-[GADNetwork enableRadioAccessTechnologyChecking]` (imp
+    0x10077b160, found via `otool -oV` ObjC metadata) resolves www.google.com → `ret` (privacy).
+  - Ubisoft geolocation: `[self requestIpLocation]` at 0x1001314cc (gamecfg-mob/profile → houston geoip; used by the
+    GDPR popup's country) → `nop` (offline).
+  - Houston: `tr::HoustonEnvironmentService::requestHoustonParameters` (from `MenuzStateMain::transitionEnter`, via
+    the game's HTTP stack; gateway still answers) → `ret` (offline).
+  - Ubisoft Mobile SDK (`MobileSDKAPI::Init::CommonInit` → `msdk_internal_InitThread`) base URL
+    "https://gamecfg-mob.ubi.com/" → "https://127.0.0.1:9/" (offline). Init kept: it also sets up the local sqlite DB
+    and IAP store data.
+  - `_getCountryFromServer` is only called from `_initCrossPromo` (already disabled).
+- New helper `ghidra/scripts/FuncInfo.java` (containing function + callers for an address).

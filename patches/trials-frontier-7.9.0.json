@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "1957f228aa819ecf48ea782a5cbde1a11e1f74e35d7893e09ba368ae56f07dd3"
+    "patched_executable": "141b1086504e2fe23f589b24c7f4e4b0220f934ebb65cfb1a924b9259c825327"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -1288,6 +1288,96 @@
       ],
       "function": "tr::MissionManager::addAvailableMissions(bool)",
       "reason": "Missions with flag bit 2 (e.g. 171 'Home Sweet Home', the next story mission after the mechanic's) are skipped unless Gfx::TextureManager+0x2c > 0, which counts only textures from *downloaded* packs (TextureManager::initPack adds to it only for pack index > 21; the 21 bundled TrialsTexturesDL* packs are indices 1-21). The downloadable packs are gone with the content bucket, so the story stalls with no available missions. 7.9.0 bundles the texture packs; drop the gate. Only place that reads +0x2c."
+    },
+    {
+      "id": "crashlytics-disabled",
+      "group": "privacy",
+      "vmaddr": "0x1001313c8",
+      "original": "7ec22694",
+      "replacement": "1f2003d5",
+      "original_asm": [
+        "bl objc_msgSend ; [Fabric with:@[Crashlytics]]"
+      ],
+      "replacement_asm": [
+        "nop"
+      ],
+      "function": "-[AppTemplateAppDelegate application:didFinishLaunchingWithOptions:]",
+      "reason": "Do not start Fabric/Crashlytics (contacts settings.crashlytics.com and uploads crash/analytics data). Return value unused."
+    },
+    {
+      "id": "facebook-sdk-disabled",
+      "group": "privacy",
+      "vmaddr": "0x100131768",
+      "original": "96c12694",
+      "replacement": "1f2003d5",
+      "original_asm": [
+        "bl objc_msgSend ; [[FBSDKApplicationDelegate sharedInstance] application:didFinishLaunchingWithOptions:]"
+      ],
+      "replacement_asm": [
+        "nop"
+      ],
+      "function": "-[AppTemplateAppDelegate application:didFinishLaunchingWithOptions:]",
+      "reason": "Do not start the Facebook SDK (contacts graph.facebook.com at launch). Return value unused."
+    },
+    {
+      "id": "google-ads-no-network-monitor",
+      "group": "privacy",
+      "vmaddr": "0x10077b160",
+      "original": "ff0303d1",
+      "replacement": "c0035fd6",
+      "original_asm": [
+        "sub sp, sp, #0xc0"
+      ],
+      "replacement_asm": [
+        "ret"
+      ],
+      "function": "-[GADNetwork enableRadioAccessTechnologyChecking]",
+      "reason": "Google Mobile Ads initialises itself at load and starts network monitoring (resolves www.google.com) even though the game's ads are disabled. Void method; return immediately."
+    },
+    {
+      "id": "ubisoft-geoip-disabled",
+      "group": "offline",
+      "vmaddr": "0x1001314cc",
+      "original": "3dc22694",
+      "replacement": "1f2003d5",
+      "original_asm": [
+        "bl objc_msgSend ; [self requestIpLocation]"
+      ],
+      "replacement_asm": [
+        "nop"
+      ],
+      "function": "-[AppTemplateAppDelegate application:didFinishLaunchingWithOptions:]",
+      "reason": "Do not request the IP-based location (http://gamecfg-mob.ubi.com/profile/?epoch=1 -> geoip-0-prod.houston-services.ubi.com) at launch; used only for the GDPR popup's country. Return value unused."
+    },
+    {
+      "id": "houston-parameters-disabled",
+      "group": "offline",
+      "vmaddr": "0x1002d4b40",
+      "original": "fc6fbea9",
+      "replacement": "c0035fd6",
+      "original_asm": [
+        "stp x28, x27, [sp, #-0x20]!"
+      ],
+      "replacement_asm": [
+        "ret"
+      ],
+      "function": "tr::HoustonEnvironmentService::requestHoustonParameters()",
+      "reason": "Requested from MenuzStateMain::transitionEnter via the game's own HTTP stack (https://gamecfg-mob.ubi.com/?product=101... -> gateway-0-prod.houston-services.ubi.com, which still answers). Void; return immediately."
+    },
+    {
+      "id": "msdk-base-url-localhost",
+      "group": "offline",
+      "vmaddr": "0x100c66f02",
+      "original": "68747470733a2f2f67616d656366672d6d6f622e7562692e636f6d2f00",
+      "replacement": "68747470733a2f2f3132372e302e302e313a392f000000000000000000",
+      "original_asm": [
+        "\"https://gamecfg-mob.ubi.com/\""
+      ],
+      "replacement_asm": [
+        "\"https://127.0.0.1:9/\" (NUL padded)"
+      ],
+      "function": "C string used by MobileSDKAPI::msdk_internal_InitThread (and a global pointer at 0x100f29cc0)",
+      "reason": "Ubisoft Mobile SDK's base URL. Its init also sets up local state (sqlite DB, IAP store data), so keep the init and point the URL at a closed local port so requests fail immediately. Same-length-or-shorter string, read-only use (passed as a parameter)."
     }
   ]
 }
