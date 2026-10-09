@@ -125,3 +125,19 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   jailbreak). The game tolerates them being absent.
 - Patch `dl-content-always-ready`: `isDLReady()` → `mov w0, #1; ret` (all 10 callers go through it).
 - Patched executable sha256 79fb0c04…; .ipa 4eeddc49….
+
+## 2026-10-09 — Scissor cropping fixed at the source
+
+- At the saloon a character was cropped. Geometry monitor: window/view/layer/viewport constant. GL clip
+  tracer: `glScissor(0,0,1366,1025)` from `Gfx::Transform::pushScissor/setScissor` (via
+  `mz::MenuzComponentScroller::render`) on a 2732×2048 framebuffer → only the bottom-left quarter survives
+  (same symptom as the earlier post-map cropping).
+- The engine screen size (0x100f2ada0, set in `mz::SystemInit::init`) comes from
+  `[[UIScreen mainScreen] currentMode].size` in `didFinishLaunching`. On iOS that is pixels. PlayTools hooks
+  `UIScreenMode.size` (`hook_size` → `PlayScreen.sizeAspectRatio`) and with a custom resolution returns the
+  window size in points (1366×1024); with the default resolution it returned 2732×2048. `nativeBounds`
+  (also hooked) consistently reports window × scale.
+- Patch `screen-size-from-native-bounds`: read the size from `[UIScreen mainScreen].nativeBounds` (15-instruction
+  block rewritten in place; x24/x25 still hold the original selectors). With a 1366×1024 window this gives
+  2732×2048, touch scale 2732/1366 = 2.
+- Patched executable sha256 ea88702c…; .ipa 9ddeb08b….

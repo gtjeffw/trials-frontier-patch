@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "79fb0c048b5225abf488c19e908773253ac6a28a8376c6c273d00aa2eb888638"
+    "patched_executable": "ea88702c5d4752ce72ddc1a98c25933cf6d9b0db90f8324fe67ecdcdc7b68c27"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -93,6 +93,48 @@
       ],
       "function": "tr::DLContentManager::isDLReady()",
       "reason": "Downloadable packs (TrialsContentDL.dat, TrialsContentDL2.dat, TrialsContentOfferDL.dat) came from https://s3.amazonaws.com/dlcontent_frontier_ios/<version>/info.json; that bucket no longer exists, and isDLReady() is false whenever the saved download state (Caches/dl_content.state) is empty. After the early mission set by DLContent_Lock_MissionId the game then blocks on 'Download needed - Please Wait'. Report content as ready; the game already tolerates the packs being absent (fresh installs run the tutorial without them). All callers (main menu, weekly challenge, daily reward, ad interface, command queue) go through this function."
+    },
+    {
+      "id": "screen-size-from-native-bounds",
+      "vmaddr": "0x1001313e4",
+      "original": "886c009018b942f9e10318aa74c22694886c009019bd42f9e10319aa70c226941600781ee00317aae10318aa6cc22694e10319aa6ac226943700781e",
+      "replacement": "886c009018b942f919bd42f9216d00b0215044f972c226945600781e7700781e1f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d5",
+      "original_asm": [
+        "adrp x8, 0x100ec1000",
+        "ldr x24, [x8, #0x570] ; sel currentMode",
+        "mov x1, x24",
+        "bl objc_msgSend ; [screen currentMode]",
+        "adrp x8, 0x100ec1000",
+        "ldr x25, [x8, #0x578] ; sel size",
+        "mov x1, x25",
+        "bl objc_msgSend ; [mode size]",
+        "fcvtzs w22, d0",
+        "mov x0, x23",
+        "mov x1, x24",
+        "bl objc_msgSend ; [screen currentMode]",
+        "mov x1, x25",
+        "bl objc_msgSend ; [mode size]",
+        "fcvtzs w23, d1"
+      ],
+      "replacement_asm": [
+        "adrp x8, 0x100ec1000",
+        "ldr x24, [x8, #0x570] ; sel currentMode (kept for later code)",
+        "ldr x25, [x8, #0x578] ; sel size (kept for later code)",
+        "adrp x1, 0x100ed6000",
+        "ldr x1, [x1, #0x8a0] ; sel nativeBounds",
+        "bl objc_msgSend ; [screen nativeBounds] -> d0..d3 = x, y, w, h",
+        "fcvtzs w22, d2",
+        "fcvtzs w23, d3",
+        "nop",
+        "nop",
+        "nop",
+        "nop",
+        "nop",
+        "nop",
+        "nop"
+      ],
+      "function": "-[AppTemplateAppDelegate application:didFinishLaunchingWithOptions:]",
+      "reason": "The engine's screen size (mz::SystemInit::init -> 0x100f2ada0, used for UI layout and raw glScissor rectangles) comes from [[UIScreen mainScreen] currentMode].size, which is in pixels on iOS. PlayTools hooks UIScreenMode.size and, with a custom resolution, returns the window size in points, so scissor rectangles (Gfx::Transform::setScissor, e.g. in MenuzComponentScroller) cover only the bottom-left quarter of the 2x framebuffer. Read the size from [UIScreen mainScreen].nativeBounds instead (pixels on iOS; PlayTools reports window size x scale). The code already orders the two values as max/min, so nativeBounds' portrait orientation does not matter. x24/x25 still hold the currentMode/size selectors as before."
     }
   ]
 }
