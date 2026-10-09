@@ -18,7 +18,7 @@ public class Decompile extends GhidraScript {
             Function f = null;
             if (arg.startsWith("0x")) {
                 Address a = toAddr(arg);
-                f = getFunctionContaining(a);
+                f = a == null ? null : getFunctionContaining(a);
             } else {
                 for (Function c : currentProgram.getFunctionManager().getFunctions(true)) {
                     if (c.getName(true).contains(arg)) { f = c; break; }

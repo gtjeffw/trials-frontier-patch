@@ -156,3 +156,17 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   configuration, store, time service, offers, DL content. Watch for gameplay that is gated on connectivity
   (daily rewards, VIP, special-event timers, `PlayerProgress::getOpenedLevels`).
 - `frida/trace_dns.js` logs hostnames resolved, to verify no Ubisoft traffic.
+
+## 2026-10-09 — Nickname prefix and cross-promotion
+
+- The nickname keyboard is the game's own (`mz::MenuzComponentKeyboard`, drawn keys, tapped with the pointer).
+- It pre-fills `#TF-`: `subComponentReleased` prepends the C string "#TF-" (0x100bbe0ba) to the stored name; the
+  prefix marks auto-created Ubisoft accounts and would show in mission dialogue offline. Uses: the prefill,
+  `PopupStateKeyboard::componentReleased`, `MenuzStateOptions::componentReleased`,
+  `UserNameValidator::checkName/compare` (3+ letters beyond the prefix's letters; bad_wordlist.txt prefixed).
+  Patch `no-tf-name-prefix` empties the string; validation rules stay equivalent.
+- DNS tracer with offline-mode: `cp-mob.ubi.com` resolved via libcurl when the name UI opened — cross-promotion
+  bypasses NetworkChecker. Patches `crosspromo-init-disabled`, `crosspromo-no-interstitial`,
+  `crosspromo-no-more-games` (all → `ret`).
+- Still contacted at startup (to do): `graph.facebook.com` (Facebook SDK), `settings.crashlytics.com`
+  (Fabric/Crashlytics), `use.fontawesome.com` (likely the privacy-policy web view).

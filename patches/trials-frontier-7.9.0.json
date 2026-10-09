@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "e10bf1f3744c208a7f7f93c6472584b37a37f5b733979ec92010c25968809e65"
+    "patched_executable": "b77f09a3957e30a89d16737141cbf002942bb8eaad35afbd733ecef829a91082"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -151,6 +151,62 @@
       ],
       "function": "mz::NetworkChecker::getNetworkType()",
       "reason": "Single source of 'is the network available' (SCNetworkReachability + a test NSURLConnection to apple.com), consulted ~100 times before any online action: OnlineAuthentication::login, OnlineConfiguration::getAnonymousConfiguration, OnlineCore::checkGameServerConnection, store, time service, offers, images, DL content. Ubisoft's config gateway (gamecfg-mob.ubi.com -> houston-services) still answers, and after the nickname step the game would run a 'silent login' that creates/links a Ubisoft profile '#TF-<nickname>'. Report no network so the game runs as it would on a device without connectivity; the RedLynx game server (imotoheroz.redlynx.com) and content bucket are gone anyway."
+    },
+    {
+      "id": "no-tf-name-prefix",
+      "vmaddr": "0x100bbe0ba",
+      "original": "2354462d00",
+      "replacement": "0054462d00",
+      "original_asm": [
+        "\"#TF-\" (C string in __cstring)"
+      ],
+      "replacement_asm": [
+        "\"\" (first byte set to NUL)"
+      ],
+      "function": "string used by MenuzMissionContentLoginName::subComponentReleased, PopupStateKeyboard::componentReleased, MenuzStateOptions::componentReleased, UserNameValidator::checkName/compare",
+      "reason": "New-player nicknames were stored as '#TF-<name>' to mark auto-created Ubisoft accounts for the silent login (disabled by offline-mode), and the prefix shows up in mission dialogue. With an empty prefix the keyboard starts blank and nothing is prepended; UserNameValidator still requires 3+ letters (prefix letters + 3) and checks bad_wordlist.txt against the bare name, i.e. the same rules."
+    },
+    {
+      "id": "crosspromo-init-disabled",
+      "vmaddr": "0x1002f6bb0",
+      "original": "ff4301d1",
+      "replacement": "c0035fd6",
+      "original_asm": [
+        "sub sp, sp, #0x50"
+      ],
+      "replacement_asm": [
+        "ret"
+      ],
+      "function": "tr::CrossPromoManager::init()",
+      "reason": "Ubisoft cross-promotion (CrossPromoNative via -[AppTemplateViewController initCrossPromo:purchaseCount:installDays:country:]) contacts cp-mob.ubi.com directly through libcurl, bypassing mz::NetworkChecker (seen resolving cp-mob.ubi.com with offline-mode active). init() only gathers purchase count, install age and locale and starts it; returning immediately keeps it from starting."
+    },
+    {
+      "id": "crosspromo-no-interstitial",
+      "vmaddr": "0x1002f72ac",
+      "original": "ff0303d1",
+      "replacement": "c0035fd6",
+      "original_asm": [
+        "sub sp, sp, #0xc0"
+      ],
+      "replacement_asm": [
+        "ret"
+      ],
+      "function": "tr::CrossPromoManager::showInterstitial(CP_ADZONE)",
+      "reason": "Ubisoft cross-promotion (CrossPromoNative via -[AppTemplateViewController initCrossPromo:purchaseCount:installDays:country:]) contacts cp-mob.ubi.com directly through libcurl, bypassing mz::NetworkChecker (seen resolving cp-mob.ubi.com with offline-mode active). Never show cross-promotion interstitials / urgent news (nothing to show without the service)."
+    },
+    {
+      "id": "crosspromo-no-more-games",
+      "vmaddr": "0x1002f7290",
+      "original": "e8031f32",
+      "replacement": "c0035fd6",
+      "original_asm": [
+        "orr w8, wzr, #0x2"
+      ],
+      "replacement_asm": [
+        "ret"
+      ],
+      "function": "tr::CrossPromoManager::showMoreGames()",
+      "reason": "Ubisoft cross-promotion (CrossPromoNative via -[AppTemplateViewController initCrossPromo:purchaseCount:installDays:country:]) contacts cp-mob.ubi.com directly through libcurl, bypassing mz::NetworkChecker (seen resolving cp-mob.ubi.com with offline-mode active). Ignore the 'more games' button (the store/promo page needs the service)."
     }
   ]
 }
