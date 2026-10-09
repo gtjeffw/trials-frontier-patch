@@ -2,7 +2,7 @@
 
 Usage: python3 -I server/local_services.py [--container <app container Data dir>] [--port 7979]
                                            [--profile-id <uuid>] [--name <name>] [--avatars <dir>] [--log <file>]
-                                           [--data <dir>]
+                                           [--data <dir>] [--world-records wrrider.json --world-record-ids ids.json]
 
 Listens on 127.0.0.1 only. The patched game sends every request here (see docs/JOURNAL.md, "Online services probe"):
   GET  /v1/applications/<appId>/configuration   app configuration; its sandbox "triag_ip_lnch61_a_ws" names the game server
@@ -20,6 +20,10 @@ seeded on start from the save's score table and the player's own ghost_<hash>_<l
 original service, a submitted result (resultservice/v1/enhancestats/...) is "updated" only if it beats the stored
 one (fewer faults, then less time); the game uploads a ghost only after such a reply, and the store keeps one ghost
 per player and leaderboard, refusing a slower one.
+
+Other riders: opponent ghosts the game downloaded (Documents/robot_ghost-*.robot, avatars robot_image-*.robot) are
+imported once; the 2019 world records from dutscher/trialstrackmap (MIT; not shipped here) can be added with
+--world-records/--world-record-ids. They appear on GLOBAL; FRIENDS asks only for the player's own id.
 """
 import json
 import os
@@ -93,6 +97,33 @@ def ghost_drive_time(data):
         return struct.unpack_from("<I", body, 4 if version >= 3 else 0)[0]
     except (struct.error, zlib.error):
         return None
+
+
+def unscramble(data, seed=0x97, mult=0x1F49):
+    """mt::file::SaveFile default Protection (also used by level files and robot images)."""
+    out = bytearray(data)
+    key = seed
+    for i in range(len(out)):
+        out[i] ^= key & 0xFF
+        key = (key * mult) & 0xFFFFFFFF
+    return bytes(out)
+
+
+def robot_avatar_png(data):
+    """robot_image-<hash>.robot: SaveFile (default Protection, 16-byte header) holding 'OBOR' + 12 bytes + PNG."""
+    body = unscramble(data)[16:]
+    i = body.find(b"\x89PNG")
+    return body[i:] if body[:4] == b"OBOR" and i >= 0 else None
+
+
+def known_riders(raw):
+    """(name, profile id) pairs the save keeps for opponents: a name followed 129 bytes later by its profile id."""
+    out = {}
+    for m in re.finditer(rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", raw):
+        name = raw[m.start() - 129:m.start() - 1].split(b"\0")[0]
+        if 3 <= len(name) <= 32 and re.fullmatch(rb"[ -~]+", name):
+            out[m.group().decode()] = name.decode()
+    return out
 
 
 def read_profile(container):
@@ -171,9 +202,85 @@ class Services:
                                                   "metadata": {"track_id": lb, "size": len(data), "drive_time":
                                                                ghost_drive_time(data) or scores.get(lb, (0, 0, 0))[1]}}
                 seeded += 1
+        self.store.setdefault("riders", {})
+        seeded += self.import_robots()
         self.save_store()
         self.note(f"store {data_dir}: {sum(len(b) for b in self.store['results'].values())} results, "
-                  f"{len(self.store['ghosts'])} ghosts ({seeded} imported now)")
+                  f"{len(self.store['ghosts'])} ghosts, {len(self.store['riders'])} other riders "
+                  f"({seeded} imported now)")
+
+    def add_rider(self, rider_id, name, source):
+        self.store["riders"].setdefault(rider_id, {"name": name, "source": source})
+
+    def add_result(self, board_name, rider_id, faults, ms, bike, source):
+        """Add another rider's result unless one is stored; keep the better one if both platforms have it."""
+        board = self.store["results"].setdefault(board_name, {})
+        new = {"drivetime": ms, "data": (faults & 0xFF) | ((bike & 0x3F) << 8), "upgrades": 0, "submittime": 0,
+               "score_value": 360000000 - ms - faults * 3600000, "extradata": 0, "source": source}
+        if self.better(new, board.get(rider_id)):
+            board[rider_id] = new
+            return 1
+        return 0
+
+    def import_robots(self):
+        """Opponent ghosts the game downloaded ("beat this rider"): Documents/robot_ghost-<HASH>-<LBHEX>.robot,
+        avatars in robot_image-<HASH>.robot. HASH = getHashCode(profile id), so riders stay anonymous unless the save
+        names them (known_riders); everyone else becomes "Rider <HASH>" under a stable made-up id."""
+        if self.store.get("robots_imported"):
+            return 0
+        _, raw = decode(open(self.documents("player.bin"), "rb").read())
+        named = {"%08X" % game_hash(pid): (pid, name) for pid, name in known_riders(raw).items()}
+        count = 0
+        os.makedirs(os.path.join(self.data_dir, "avatars"), exist_ok=True)
+        for f in sorted(os.listdir(self.documents())):
+            m = re.fullmatch(r"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\.robot", f)
+            if not m:
+                continue
+            h, lb = m.group(1).zfill(8), int(m.group(2), 16)
+            data = open(self.documents(f), "rb").read()
+            ms = ghost_drive_time(data)
+            if not ms:
+                continue
+            rid, name = named.get(h, (str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h)), "Rider " + h))
+            self.add_rider(rid, name, "robot")
+            bike = struct.unpack_from("<I", zlib.decompress(data[16:]), 0)[0]
+            count += self.add_result("track%d" % lb, rid, 0, ms, bike, "robot")
+            cid = self.new_id()
+            open(self.ghost_path(cid), "wb").write(data)
+            self.store["ghosts"][str(cid)] = {"profile": rid, "track_id": lb, "source": f,
+                                              "metadata": {"track_id": lb, "drive_time": ms, "size": len(data)}}
+            img = self.documents("robot_image-%s.robot" % m.group(1))
+            png = robot_avatar_png(open(img, "rb").read()) if os.path.exists(img) else None
+            if png:
+                open(os.path.join(self.data_dir, "avatars", rid + ".png"), "wb").write(png)
+        self.store["robots_imported"] = True
+        return count
+
+    def import_world_records(self, wr_path, ids_path):
+        """2019 world records from dutscher/trialstrackmap (MIT): wrrider.json {riders[], tracks{siteId: {a|i:
+        {n|d|c: {r, b, f, t}}}}} + trackdata/ids.json (site id -> game level id "oid"; JSON with // comments).
+        Categories: n = track<id>, d (donkey) = track<id | 0x10000>, c (crazy) = track<id | 0x100000>."""
+        wr = json.load(open(wr_path))
+        site = {e["id"]: e["oid"] for e in json.loads(re.sub(r"^\s*//.*$", "", open(ids_path).read(), flags=re.M))}
+        flags = {"n": 0, "d": 0x10000, "c": 0x100000}
+        count = 0
+        with self.lock:
+            for sid, plats in wr["tracks"].items():
+                oid = site.get(int(sid))
+                if oid is None:
+                    continue
+                for plat, cats in plats.items():
+                    if plat not in ("a", "i"):
+                        continue
+                    for cat, e in cats.items():
+                        if not isinstance(e, dict) or cat not in flags:
+                            continue
+                        name = wr["riders"][e["r"]]
+                        rid = str(uuid.uuid5(uuid.NAMESPACE_URL, "trialstrackmap-rider:" + name))
+                        self.add_rider(rid, name, "wr2019")
+                        count += self.add_result("track%d" % (oid | flags[cat]), rid, e["f"], e["t"], e["b"], "wr2019")
+            self.save_store()
+        self.note(f"world records {os.path.basename(wr_path)}: {count} results added")
 
     def new_id(self):
         with self.lock:
@@ -354,10 +461,15 @@ class Services:
             self.save_store()
         return 200, {"contentId": int(cid)}
 
+    def rider_name(self, pid):
+        if pid == self.profile_id:
+            return self.name
+        return self.store["riders"].get(pid, {}).get("name", "rider")
+
     def profiles(self, query):
         ids = ",".join(query.get("profileId", [])).split(",")
         return {"profiles": [{"profileId": i, "userId": i, "idOnPlatform": i, "platformType": "uplay",
-                              "nameOnPlatform": self.name if i == self.profile_id else "rider"} for i in ids if i]}
+                              "nameOnPlatform": self.rider_name(i)} for i in ids if i]}
 
     # Requests the original services answered that have no local equivalent (yet). Answered 404 = "nothing
     # here", which the game treats like an unreachable service; logged as "not offered" instead of UNHANDLED.
@@ -410,10 +522,11 @@ class Services:
         if method == "POST" and p == "/public/liveevents/v1/weekly_track_system/basic_info":
             return 200, {}, {}  # outfit data: any 200 ends the game's 10x retry
         m = re.fullmatch(r"/avatars/(?:([0-9a-fA-F-]{36})/default|fallback)_146_146\.png", p)
-        if method == "GET" and m and self.avatars:
-            f = os.path.join(self.avatars, (m.group(1) or "fallback") + ".png")
-            if os.path.isfile(f):
-                return 200, {}, open(f, "rb").read()
+        if method == "GET" and m:
+            name = (m.group(1) or "fallback") + ".png"
+            for d in (self.avatars, os.path.join(self.data_dir, "avatars")):
+                if d and os.path.isfile(os.path.join(d, name)):
+                    return 200, {}, open(os.path.join(d, name), "rb").read()
         if method == "GET" and p == "/v1/profiles":
             return 200, {}, self.profiles(query)
         if method == "GET" and re.fullmatch(r"/v1/applications/[^/]+/configuration", p):
@@ -476,6 +589,11 @@ def main():
     port = int(opt("--port", "7979"))
     services = Services(container, port, opt("--profile-id"), opt("--name"), opt("--log"), opt("--avatars"))
     services.load_store(opt("--data", os.path.join(container, "Library", "LocalServices")))
+    wr, wr_ids = opt("--world-records"), opt("--world-record-ids")
+    if wr and wr_ids and not services.store.get("world_records_imported"):
+        services.import_world_records(wr, wr_ids)
+        services.store["world_records_imported"] = os.path.basename(wr)
+        services.save_store()
     Handler.services = services
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     services.note(f"listening on {services.base} for {services.name} ({services.profile_id}); container {container}")

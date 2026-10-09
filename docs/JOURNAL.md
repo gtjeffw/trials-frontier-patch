@@ -465,3 +465,22 @@ later an in-app loopback server). Static analysis only.
 - PlayCover: Cmd+Q / closing the window does not end the process (relaunch resumes). True quit:
   `pkill -x TrialsFrontier` (SIGTERM; the save decodes fine afterwards). One session stopped accepting clicks while
   still rendering the map (cause unknown).
+
+## 2026-10-09 — Other riders on GLOBAL: downloaded opponents and 2019 world records
+
+- Friends: the iPad's `friend-17FE8523.cache` (default SaveFile Protection) holds an empty list (written
+  2020-10-10); nothing to restore.
+- Opponent ghosts the game downloaded for "beat this rider": `Documents/robot_ghost-<HASH>-<LBHEX>.robot` (385 files,
+  383 riders, 150 leaderboards; ghost container v3, body u32 bike, u32 drive time) and avatars
+  `robot_image-<HASH>.robot` (default Protection, 16-byte header, `OBOR` + 12 bytes + 146×146 PNG). HASH =
+  getHashCode(profile id), so riders are anonymous except where the save keeps a name: a name followed 129 bytes
+  later by its profile id (two opponents are named this way). The server imports them once
+  ("Rider <HASH>" under a stable uuid5 id; known ones under their real id/name), with ghosts and avatars; faults are
+  unknown (0).
+- 2019 world records: dutscher/trialstrackmap (MIT) `database/wr/wrrider.json` (2019-12-11 snapshot; 118 riders,
+  361 tracks × Android/iOS × normal/donkey/crazy) + `database/trackdata/ids.json` (site id → game level id "oid";
+  JSON with `//` comments). Mapping verified: all 375 site tracks' medal times equal the game's M0–M3. Categories:
+  normal = `track<id>`, donkey = `track<id|0x10000>` (bike 19), crazy = `track<id|0x100000>` (bikes 10/11), matching
+  the save's own leaderboards. Imported with `--world-records/--world-record-ids` (2158 results); the data stays in the
+  private recovery folder with its licence and source note, not in this repo. No ghosts for these.
+- FRIENDS asks only for the player's own id, so it shows just the player; GLOBAL shows everyone around the player.
