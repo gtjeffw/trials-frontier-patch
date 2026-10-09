@@ -324,3 +324,9 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   `--dlc-from <folder>` for packs saved from a device's download cache (texture packs + TrialsContentDL/DL2/OfferDL),
   and reports content packs this build cannot load (here: TrialsContentExtraDL_Moon.dat, one 60 KB object file; the
   "moon" tracks themselves are normal levels). `--dry-run` shows the plan.
+- `TrialsContentExtraDL_Moon.dat` holds one file, `/gen/3d/env/moon/bg/dome.b3d`, referenced by
+  `/resource/moon_00_bg.txt` (moon environment background; `BgRenderer::parseDataFile` calls
+  `__iosShowFatalError("Cannot open file: ")` when a mesh is missing). It is not in the 12-name content table, and
+  content packs are only otherwise opened from Library/Caches/DLC by three fixed names. The installer now puts such
+  packs under a free "alias slot" name from the spec (`dlc_content_alias_slots`: `TrialsContentOfferDL.dat`, whose real
+  pack — store offers — is lost); a real pack supplied via `--dlc-from` takes precedence. Game starts cleanly with it.

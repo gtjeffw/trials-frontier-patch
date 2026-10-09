@@ -1444,5 +1444,9 @@
     "TrialsContentDL.dat",
     "TrialsContentDL2.dat",
     "TrialsContentOfferDL.dat"
-  ]
+  ],
+  "dlc_content_alias_slots": [
+    "TrialsContentOfferDL.dat"
+  ],
+  "dlc_content_alias_note": "TrialsContentExtraDL_Moon.dat (bundled, holds /gen/3d/env/moon/bg/dome.b3d needed by /resource/moon_00_bg.txt; BgRenderer treats a missing mesh as fatal) is not in the 12-name content table. The game opens TrialsContentOfferDL.dat from Library/Caches/DLC by fixed name and that pack (store offers) is lost, so it is used as an alias slot."
 }

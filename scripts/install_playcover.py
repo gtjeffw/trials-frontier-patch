@@ -12,7 +12,9 @@ What it does (the game should be closed):
   3. --dlc-from: packs the user saved from a device's Library/Caches/DLC (or elsewhere) are copied too, if the game
      can load them from there: TrialsTexturesDL*.dat and the fixed names in the spec's "dlc_content_names".
   4. Content packs (TrialsContent*.dat) in the bundle that are in neither the content table nor dlc_content_names
-     cannot be loaded by this build; they are reported, not copied.
+     are never opened by this build. Each is installed under a free name from the spec's "dlc_content_alias_slots"
+     (names the game opens from the download folder whose real packs are lost), unless the user supplied a real pack
+     for that name via --dlc-from. Packs that do not fit are reported.
   5. --keymap: install the PlayCover keymap.
 Re-run after the app's cache folder has been cleared.
 """
@@ -69,7 +71,7 @@ tex_table = set(read_table(exe, int(tables["texture"]["vmaddr"], 16), tables["te
 content_table = set(read_table(exe, int(tables["content"]["vmaddr"], 16), tables["content"]["count"]))
 dlc_content = set(spec.get("dlc_content_names", []))
 
-copies, report = [], []
+copies, report, unloadable = [], [], []
 for root, _, files in os.walk(app_dir):
     for name in sorted(files):
         path = os.path.join(root, name)
@@ -78,8 +80,9 @@ for root, _, files in os.walk(app_dir):
                 report.append(f"skipped {path}: not a texture pack")
             elif name not in {os.path.basename(c[1]) for c in copies}:
                 copies.append((path, name, "bundled texture pack missing from the game's table"))
-        elif name.startswith("TrialsContent") and name.endswith(".dat") and name not in content_table:
-            report.append(f"cannot load {os.path.relpath(path, app_dir)}: content pack not in this build's table")
+        elif (name.startswith("TrialsContent") and name.endswith(".dat") and name not in content_table
+              and name not in dlc_content and name not in {u[1] for u in unloadable}):
+            unloadable.append((path, name))
 
 if dlc_from:
     for name in sorted(os.listdir(dlc_from)):
@@ -90,6 +93,15 @@ if dlc_from:
             copies.append((path, name, "user-supplied downloaded content pack"))
         elif name.endswith(".dat"):
             report.append(f"ignored {path}: the game does not load this name from the download folder")
+
+taken = {c[1] for c in copies}
+free = [n for n in spec.get("dlc_content_alias_slots", []) if n not in taken]
+for path, name in unloadable:
+    if free:
+        slot = free.pop(0)
+        copies.append((path, slot, f"{name} is not in the game's content table; installed under a lost download name"))
+    else:
+        report.append(f"cannot load {os.path.relpath(path, app_dir)}: not in the content table and no free slot")
 
 if ipa:
     print(f"install {ipa} via PlayCover")
