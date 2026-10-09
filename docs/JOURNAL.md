@@ -205,3 +205,17 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   plug in at the same place.
 - Patches now carry a `group` (`compat`, `privacy`, `offline`) and `apply_patches.py --groups` selects them, so a
   future fan-server build can swap the `offline` group without touching the others.
+
+## 2026-10-09 — Economy group: no fuel use, unlimited gems
+
+- New optional group `economy` (user's choice for offline play: no fuel, unlimited gems, coins unchanged so gems
+  can still be traded for coins in the game's own way).
+- Fuel: every race start/restart path calls `tr::ConsumableManager::isUnlimitedFuel(level)` (unlimited-fuel
+  booster, consumable 0x27d). Patch `unlimited-fuel` → always 1.
+- Items: `tr::PlayerItems` stores counts obfuscated: `stored = rol(value, 7) ^ 0xab1d4f5`, index = item*5 + sub.
+  Item 0 = currencies (sub 0 fuel, 1 coins, 2 gems). `remove(key, n)` / `setItemCount` cap items 1..10 and 0x14
+  at 9999.
+- Gems: both `getItemCount` overloads jump to code caves that return 9999 for slot 2 and otherwise do the original
+  load. Caves sit in the zero padding between the load commands and __text (0x100006e00/0x100006e20); PlayCover's
+  inserted `LC_LOAD_DYLIB` (PlayTools) only extends the load commands to 0x1cc8. `ghidra/scripts/Unreferenced.java`
+  was used to look for dead functions first (only 3, not trusted).

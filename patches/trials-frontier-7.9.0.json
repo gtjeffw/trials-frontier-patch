@@ -8,7 +8,7 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "a2e8aa324516adf95e1b843bd2d28c0fd6f2411ce8c23d0d4bbf9979d1dfb8fc"
+    "patched_executable": "639e3d9068b50ce580effda2cdccacde7c2d1a8927f34b585d103614ceb0e80a"
   },
   "encryption": {
     "cryptoff": 28672,
@@ -18,7 +18,8 @@
   "groups": {
     "compat": "Required to run outside a team-signed iPhone/iPad install (PlayCover/macOS) and without the dead content bucket.",
     "privacy": "Stops ad and cross-promotion SDKs (and their network traffic). Independent of any server.",
-    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears."
+    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears.",
+    "economy": "Optional gameplay changes for offline play: no fuel use, unlimited gems; coins unchanged."
   },
   "patches": [
     {
@@ -240,6 +241,92 @@
       ],
       "function": "tr::MenuzMissionContentLoginName::subComponentReleased(int)",
       "reason": "Pre-fill the nickname keyboard with the bare stored name instead of '#TF-' + name. The literal is copied into a std::string (no in-place write), and with an empty prefix the prepend branch is skipped."
+    },
+    {
+      "id": "unlimited-fuel",
+      "group": "economy",
+      "vmaddr": "0x100133534",
+      "original": "f44fbea9fd7b01a9",
+      "replacement": "20008052c0035fd6",
+      "original_asm": [
+        "(prologue)"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1",
+        "ret"
+      ],
+      "function": "tr::ConsumableManager::isUnlimitedFuel(int)",
+      "reason": "Every race start/restart path (RaceStarter, map, mission hall, slot machine, post-race restart) asks whether the unlimited-fuel booster (consumable 0x27d) is active before taking fuel. Always answer yes, reusing the game's own unlimited-fuel handling."
+    },
+    {
+      "id": "unlimited-gems-cave-a",
+      "group": "economy",
+      "vmaddr": "0x100006e00",
+      "original": "000000000000000000000000000000000000000000000000",
+      "replacement": "1f0900716000005408d868b8a5d10714e0e18452c0035fd6",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "cmp w8, #2",
+        "b.eq +12",
+        "ldr w8, [x0, w8, sxtw #2]",
+        "b 0x1001fb4a0",
+        "mov w0, #9999",
+        "ret"
+      ],
+      "function": "code cave for tr::PlayerItems::getItemCount(int, int)",
+      "reason": "Unlimited gems. Item counts are stored obfuscated per slot (index = item*5 + sub; currencies are item 0: sub 0 fuel, 1 coins, 2 gems). Reads of slot 2 return 9999 (the game's own cap for capped items); other slots read as before. Spending still subtracts from the stored value, which no longer matters. The cave lives in the zero padding between the load commands and __text (0x100006e00; PlayCover's added LC_LOAD_DYLIB ends at 0x1cc8), so it does not depend on any other patch."
+    },
+    {
+      "id": "unlimited-gems-hook-a",
+      "group": "economy",
+      "vmaddr": "0x1001fb49c",
+      "original": "08d868b8",
+      "replacement": "592ef817",
+      "original_asm": [
+        "ldr w8, [x0, w8, sxtw #2]"
+      ],
+      "replacement_asm": [
+        "b 0x100006e00"
+      ],
+      "function": "tr::PlayerItems::getItemCount(int, int)",
+      "reason": "Unlimited gems. Item counts are stored obfuscated per slot (index = item*5 + sub; currencies are item 0: sub 0 fuel, 1 coins, 2 gems). Reads of slot 2 return 9999 (the game's own cap for capped items); other slots read as before. Spending still subtracts from the stored value, which no longer matters. The cave lives in the zero padding between the load commands and __text (0x100006e00; PlayCover's added LC_LOAD_DYLIB ends at 0x1cc8), so it does not depend on any other patch."
+    },
+    {
+      "id": "unlimited-gems-cave-b",
+      "group": "economy",
+      "vmaddr": "0x100006e20",
+      "original": "000000000000000000000000000000000000000000000000",
+      "replacement": "1f09007160000054085868b81fd90714e0e18452c0035fd6",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "cmp w8, #2",
+        "b.eq +12",
+        "ldr w8, [x0, w8, uxtw #2]",
+        "b 0x1001fd2a8",
+        "mov w0, #9999",
+        "ret"
+      ],
+      "function": "code cave for tr::PlayerItems::getItemCount(int)",
+      "reason": "Unlimited gems. Item counts are stored obfuscated per slot (index = item*5 + sub; currencies are item 0: sub 0 fuel, 1 coins, 2 gems). Reads of slot 2 return 9999 (the game's own cap for capped items); other slots read as before. Spending still subtracts from the stored value, which no longer matters. The cave lives in the zero padding between the load commands and __text (0x100006e00; PlayCover's added LC_LOAD_DYLIB ends at 0x1cc8), so it does not depend on any other patch."
+    },
+    {
+      "id": "unlimited-gems-hook-b",
+      "group": "economy",
+      "vmaddr": "0x1001fd2a4",
+      "original": "085868b8",
+      "replacement": "df26f817",
+      "original_asm": [
+        "ldr w8, [x0, w8, uxtw #2]"
+      ],
+      "replacement_asm": [
+        "b 0x100006e20"
+      ],
+      "function": "tr::PlayerItems::getItemCount(int)",
+      "reason": "Unlimited gems. Item counts are stored obfuscated per slot (index = item*5 + sub; currencies are item 0: sub 0 fuel, 1 coins, 2 gems). Reads of slot 2 return 9999 (the game's own cap for capped items); other slots read as before. Spending still subtracts from the stored value, which no longer matters. The cave lives in the zero padding between the load commands and __text (0x100006e00; PlayCover's added LC_LOAD_DYLIB ends at 0x1cc8), so it does not depend on any other patch."
     }
   ]
 }
