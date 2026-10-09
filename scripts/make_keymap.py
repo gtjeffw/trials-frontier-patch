@@ -10,14 +10,14 @@ in-race HUD; size is in PlayTools' percent units. Key codes are HID usages as in
 import plistlib
 import sys
 
-HID = {"Up": 82, "Down": 81, "Left": 80, "Right": 79, "W": 26, "S": 22, "A": 4, "D": 7, "R": 21, "P": 19}
+HID = {"Up": 82, "Down": 81, "Left": 80, "Right": 79, "W": 26, "S": 22, "A": 4, "D": 7, "Space": 44, "Esc": 41}
 BUTTONS = [  # (action, (x, y), keys)
     ("throttle", (0.921, 0.884), ["Up", "W"]),
     ("brake", (0.779, 0.893), ["Down", "S"]),
     ("lean back", (0.079, 0.893), ["Left", "A"]),
     ("lean forward", (0.214, 0.903), ["Right", "D"]),
-    ("restart", (0.932, 0.065), ["R"]),
-    ("pause", (0.049, 0.060), ["P"]),
+    ("restart (tap: checkpoint, hold: full reset)", (0.932, 0.065), ["Space"]),
+    ("pause", (0.049, 0.060), ["Esc"]),
 ]
 
 models = [{"keyCode": HID[k], "keyName": k, "transform": {"xCoord": x, "yCoord": y, "size": 6.0}}

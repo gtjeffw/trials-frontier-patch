@@ -128,9 +128,9 @@
 		</dict>
 		<dict>
 			<key>keyCode</key>
-			<integer>21</integer>
+			<integer>44</integer>
 			<key>keyName</key>
-			<string>R</string>
+			<string>Space</string>
 			<key>transform</key>
 			<dict>
 				<key>size</key>
@@ -143,9 +143,9 @@
 		</dict>
 		<dict>
 			<key>keyCode</key>
-			<integer>19</integer>
+			<integer>41</integer>
 			<key>keyName</key>
-			<string>P</string>
+			<string>Esc</string>
 			<key>transform</key>
 			<dict>
 				<key>size</key>

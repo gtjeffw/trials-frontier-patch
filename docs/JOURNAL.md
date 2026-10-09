@@ -192,4 +192,5 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   for throttle + lean.
 - `scripts/make_keymap.py` writes `playcover/trials-frontier-keymap.plist` (PlayCover Keymap 2.0.0: HID key codes,
   xCoord/yCoord fractions, size in percent): ↑/W throttle, ↓/S brake, ←/A lean back, →/D lean forward,
-  R restart, P pause. Requires Keymapping enabled for the app in PlayCover.
+  Space restart (tap = checkpoint, hold = full reset; PlayCover holds the touch while the key is down),
+  Esc pause. Requires Keymapping enabled for the app in PlayCover.
