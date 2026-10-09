@@ -585,3 +585,13 @@ later an in-app loopback server). Static analysis only.
   Documents/LocalServices with everything in it (2759 results, 493 ghosts, 501 riders); login, configuration and the
   usual start-up requests are answered; netwatch: loopback only. The Python server is now only for development
   (build without `embedded-server`).
+
+## 2026-10-09 — `build.py` and README
+
+- `build.py`: one command from the player's own `.app` to an installed game: picks the executable (unencrypted,
+  `--decrypted`, or encrypted + `--page`), applies the default groups plus `--server embedded|external|none` and
+  `--with` options, builds the in-app library for `embedded`, packages the `.ipa` (`--avatars`, world records) and
+  with `--install`/`--keymap` runs `install_playcover.py`. Verified: the embedded build is byte-identical to the
+  installed one (ipa sha256 c1b6f0a8…, including the freshly compiled library); `external` and `none` from the
+  encrypted executable + page give the recorded executable hashes (a46fb1b…, 28f0738…).
+- README rewritten for the current state (quick start, options, local services, development, getting the files).

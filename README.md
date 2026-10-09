@@ -1,56 +1,106 @@
 # trials-frontier-patch
 
-Tools and notes for preserving and running **Trials Frontier 7.9.0** (RedLynx/Ubisoft, iOS) after its
-online services ended: decode your own save, ghosts and best times; build a patched copy of *your own*
-installed game that runs on an Apple-silicon Mac via PlayCover.
+Tools and notes for preserving and playing **Trials Frontier 7.9.0** (RedLynx/Ubisoft, iOS) after its online
+services ended. From *your own* copy of the game you can build a patched app that:
 
-This repository contains **no game files**. You need your own installed copy of the game (and a way to read
-its one encrypted page, see below). Do not publish decrypted game files, game assets, or save files (saves
-contain account ids and other players' names).
+- runs on an Apple-silicon Mac in [PlayCover](https://playcover.io) (iPhone/iPad sideloading is planned), with keyboard
+  controls;
+- works fully offline, with ads, tracking and every connection to Ubisoft/RedLynx switched off;
+- serves its own leaderboards, ghosts and login from inside the app on `127.0.0.1` — race your own ghosts, upload new
+  best runs, see the opponents the game downloaded over the years;
+- optionally: buy coins with gems, open every level that can no longer be unlocked, and more (see *Options*).
 
-## Layout
+It also decodes your save, best times and ghosts.
+
+**This repository contains no game files.** You need your own installed copy of the game, and for an encrypted
+copy a way to read its one encrypted page (see *Getting the game files*). Do not publish decrypted game files, game
+assets or saves (saves contain account ids and other players' names).
+
+## Quick start (PlayCover on an Apple-silicon Mac)
+
+```
+python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <decrypted TrialsFrontier> --install --keymap
+```
+
+`build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa`, hands it to
+PlayCover and copies the texture packs the game only loads from its download folder. Close the game first. Then in
+PlayCover set a custom resolution of **1366×1024** for the app and enable **Keymapping**.
+
+The patched app keeps your progress across rebuilds: PlayCover only replaces the app, not its data. To quit the game
+completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.
+
+## Options
+
+| `build.py` | what |
+|---|---|
+| `--server embedded` (default) | the game serves leaderboards, ghosts and login itself (`local-services` + `embedded-server`) |
+| `--server external` | same game, but you run the server: `server/local_services.py` (Python) or `tfserver` — for development |
+| `--server none` | no local services; every online feature stays off |
+| `--with coins-for-gems` | coin packs (App Store only) become gem-priced shop items, priced like the gem pack of the same tier |
+| `--with open-all-levels` | the game's own developer switch reveals every level on the map (event, X-Games, Bunker tracks …) |
+| `--with orphan-levels` | gives the six levels without a map position a place in the main map's fogged east (PvP tracks keep "any bike") |
+| `--with dev-levels` | names and places six unfinished developer test levels that ship with the game |
+| `--avatars <dir>` | `<profileId>.png` (146×146) pictures shown on the leaderboards, e.g. your own Ubisoft avatar |
+| `--world-records` + `--world-record-ids` | add the 2019 world records from [dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap) (MIT; `database/wr/wrrider.json` and `database/trackdata/ids.json`, downloaded by you) |
+
+The always-on patch groups are `compat` (runs outside a team-signed install, without the dead content bucket),
+`privacy` (ads, cross-promotion, analytics SDKs off), `offline` (no Ubisoft/RedLynx services; the online code itself is
+kept, so a fan server could replace this group) and `economy` (no fuel use, unlimited gems; coins unchanged). Every
+patch is data in `patches/trials-frontier-7.9.0.json`: address, original and new bytes, and the reason.
+
+## Local services
+
+With `local-services` the game logs in silently, fetches its configuration and talks to a game server — all on
+`127.0.0.1:7979`; the app may not reach any other host (the HTTP layer only allows `http://127.0.0.1:` URLs and
+`getaddrinfo` only resolves `127.0.0.1`). The embedded server (`inapp/`, Objective-C) and the Python server
+(`server/local_services.py`) implement the same API and store and are checked against each other by
+`tests/test_parity.py`.
+
+- Store: `Documents/LocalServices/` in the game's data (`store.json`, `ghosts/`, `avatars/`, `server.log`) — never
+  purged, included in device backups. On PlayCover: `~/Library/Containers/com.ubisoft.redlynx.trialsfrontier/Data/`.
+- First start imports your best times and ghosts from the save, and the opponent ghosts and avatars the game had
+  downloaded (`robot_ghost-*.robot`, `robot_image-*.robot`).
+- Results are kept best-only (fewer faults, then less time); the game uploads a ghost only for a new best, and the
+  server keeps one ghost per player and leaderboard.
+- Requests with no local equivalent (gifts, PvP, weekly challenges, store targeting) are answered "nothing here".
+
+Development: build with `--server external`, then `python3 -I server/local_services.py` (logs every request; unknown
+ones are marked `UNHANDLED`) and `python3 -I scripts/netwatch.py` (flags any non-loopback socket of the game).
+`python3 -I scripts/build_inapp.py <dir>` builds `libTFLocalServices.dylib` and the macOS `tfserver`;
+`python3 -I tests/test_parity.py <tfserver> <game Documents>` compares the two servers.
+
+## Getting the game files
+
+You need the `TrialsFrontier.app` of version 7.9.0 (e.g. from a device backup or a jailbroken device) and its
+executable without FairPlay encryption. An unencrypted copy of your own executable is needed (`--decrypted`). Every input is checked against the sha256 values in the patch spec.
+
+Packs from the game's download folder (`Library/Caches/DLC` on the device) can be added with
+`scripts/install_playcover.py --dlc-from <folder>`; most of what they contained also ships in the app.
+
+## Other tools
 
 | path | what |
 |---|---|
-| `patches/trials-frontier-7.9.0.json` | binary patches as data: address, original bytes, new bytes, reason, plus sha256 of every stage |
-| `scripts/apply_patches.py` | apply the spec to the decrypted executable (or encrypted executable + `--page`) |
-| `scripts/build_ipa.py` | reproducible `.ipa` from the original `.app` + patched executable |
-| `a private helper` | read the FairPlay-encrypted page from memory via Frida (jailbroken device) |
-| `scripts/decode_save.py`, `extract_scores.py`, `list_ghosts.py` | save / score / ghost decoding |
-| `scripts/unpack_datapack.py`, `build_report.py` | content packs, track names, medals, combined report |
-| `scripts/extract_app_domain.py` | pull an app's files out of an unencrypted iOS backup |
-| `frida/` | runtime tracing scripts used during development |
-| `ghidra/scripts/` | headless Ghidra helpers (`Decompile.java`, `Refs.java`) |
-| `tools/ghidra-headless.sh` | runs Ghidra with the JDK pinned in `.sdkmanrc` |
-| `docs/JOURNAL.md` | what was done, in order, and why |
-| `docs/FORMATS.md` | file formats and the code they were derived from |
+| `scripts/decode_save.py`, `extract_scores.py`, `list_ghosts.py`, `build_report.py` | save, best times, ghosts, a report with track names and medals |
+| `scripts/level_audit.py` | which levels you have raced, own, or cannot reach any more |
+| `scripts/unpack_datapack.py`, `datapack.py`, `level_info.py` | content packs, build-time content edits, level files |
+| `scripts/make_keymap.py` | the PlayCover keymap (one virtual finger per thumb) |
+| `scripts/extract_app_domain.py` | an app's files from an unencrypted iOS backup |
+| `frida/`, `ghidra/scripts/`, `tools/ghidra-headless.sh` | runtime tracing and headless Ghidra helpers used during development |
+| `docs/JOURNAL.md` | everything that was done, in order, and why |
+| `docs/FORMATS.md`, `docs/TODO.md` | file formats; open items |
 
 ## Environment
 
-- Python 3.12 (pyenv-virtualenv `trials-frontier-patch-3.12`, see `.python-version`), `pip install -r requirements.txt`.
-- Java 21 for Ghidra via SDKMAN (`.sdkmanrc`).
-- Work files go in a separate private workspace, never in this repository.
-
-## Build (outline)
-
-```
-python3 -I scripts/apply_patches.py patches/trials-frontier-7.9.0.json \
-    <TrialsFrontier.app>/TrialsFrontier <work>/TrialsFrontier.patched --page <work>/page.bin
-python3 -I scripts/build_ipa.py <TrialsFrontier.app> <work>/TrialsFrontier.patched <work>/TrialsFrontier-patched.ipa \
-    --spec patches/trials-frontier-7.9.0.json
-```
-
-Each step verifies sha256 values from the spec, so the same inputs always give the same output.
-
-Patches are grouped: `compat` (needed to run on macOS/PlayCover without the dead content bucket), `privacy`
-(ads, cross-promotion), `offline` (no Ubisoft/RedLynx services). `--groups compat,privacy` builds without the
-offline group, e.g. for a future fan server.
-
-Keyboard controls: install `playcover/trials-frontier-keymap.plist` as
-`~/Library/Containers/io.playcover.PlayCover/Keymapping/com.ubisoft.redlynx.trialsfrontier.plist` and enable
-Keymapping for the app. PlayCover needs a custom resolution of 1366×1024 for now.
+- Python 3.12 (`.python-version`: pyenv-virtualenv `trials-frontier-patch-3.12`); `pip install -r requirements.txt`
+  only for the Frida tools.
+- Xcode (clang, iOS SDK) for the in-app server.
+- Java 21 for Ghidra via SDKMAN (`.sdkmanrc`), only for analysis.
+- Keep work files (game files, saves, builds) in a separate private folder, never in this repository.
 
 ## Status
 
-Runs in PlayCover through the tutorial with a 1366×1024 custom window. Known issues and progress are in
-`docs/JOURNAL.md`.
+Tested with PlayCover on macOS: the whole game plays offline with keyboard controls; leaderboards with your own
+results, downloaded opponents and optional world records; racing and uploading ghosts; avatars; coins for gems;
+hidden, orphan and developer levels reachable. Open items (iOS sideloading, a robot-challenge module, top five on
+FRIENDS, native keyboard/controller input) are in `docs/TODO.md`.
