@@ -1427,5 +1427,19 @@
       },
       "reason": "Facebook SDK auto-logs app activation (graph.facebook.com) when the app becomes active, independent of the removed FBSDKApplicationDelegate call. Facebook's documented opt-out key."
     }
+  ],
+  "dlc_folder_packs": [
+    {
+      "source": "data/TrialsMobile/TrialsTexturesDL_swamp.dat",
+      "reason": "Bundled but missing from the game's hard-coded 21-entry texture-pack table (0x100efb270, loaded by tr::GlobalData::initTextureManager). The game only finds them via findFilePacks in Library/Caches/DLC, where the download system used to place copies. Without them swamp tracks (e.g. Frog Village) and others render mostly black."
+    },
+    {
+      "source": "TrialsTexturesDL_moon.dat",
+      "reason": "Bundled but missing from the game's hard-coded 21-entry texture-pack table (0x100efb270, loaded by tr::GlobalData::initTextureManager). The game only finds them via findFilePacks in Library/Caches/DLC, where the download system used to place copies. Without them swamp tracks (e.g. Frog Village) and others render mostly black."
+    },
+    {
+      "source": "data/TrialsMobile/TrialsTexturesDL_chipshop_extra.dat",
+      "reason": "Bundled but missing from the game's hard-coded 21-entry texture-pack table (0x100efb270, loaded by tr::GlobalData::initTextureManager). The game only finds them via findFilePacks in Library/Caches/DLC, where the download system used to place copies. Without them swamp tracks (e.g. Frog Village) and others render mostly black."
+    }
   ]
 }

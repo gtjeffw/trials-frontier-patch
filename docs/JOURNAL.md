@@ -302,3 +302,19 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   likely the missing desert backdrop rocks.
 - Patch `missing-texture-guard` (compat): bindTexture's lazy-load call goes through a cave (0x100006e40) that skips
   loading when the vtable is null and still calls `TEXTURE_HW::bind` (binds nothing) → object invisible, no crash.
+
+## 2026-10-09 — Black levels: bundled texture packs not loaded
+
+- With the restored iPad profile, Flower Hills and Frog Village rendered mostly black (after the texture guard).
+  A lightweight tracer of failed `getTextureId` / `getTextureIdByFilename` lookups (`frida/trace_missing_textures.js`,
+  no backtraces) showed swamp textures missing by name — yet they are in the bundled `TrialsTexturesDL_swamp.dat`.
+- `initTextureManager` loads `textures.dat`, then 21 packs from a hard-coded suffix table at 0x100efb270
+  (`.dat, _bikes0-3, _homeshack0/1, _fusion, _slotmachine0/1, _villagers0/1, _offericons, _cave, _maptiles(1),
+  _special_event, _snow, _extraoutfits, _crazybikes, _dailyquest`), then any `TrialsTexturesDL_*.dat` that
+  `findFilePacks` lists in save-path type 6 = `Library/Caches/DLC`. Bundled but not in the table: `_swamp`,
+  `_moon` (bundle root), `_chipshop_extra`. They only ever worked via downloaded copies in Caches/DLC (purged on the
+  iPad; never present on a fresh install now).
+- Content packs: `initAdditionalDataPacks` table (0x100efb318, 12 names) includes Swamp/Snow/Cave but not Moon.
+- Verified: copying the three texture packs into the container's Caches/DLC fixes Flower Hills and Frog Village.
+- Made repeatable: spec `dlc_folder_packs` + `scripts/install_playcover.py` (also installs the .ipa and keymap).
+  A self-contained binary fix (load them from the bundle) is possible later but needs extending a fixed-size table.
