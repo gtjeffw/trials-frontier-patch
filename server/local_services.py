@@ -152,6 +152,7 @@ class Services:
             return {"replay_id": 0}
         files = self.ghost_files(int(m.group(1)))
         if not files:
+            self.note(f"   no ghost for track {m.group(1)}")
             return {"replay_id": 0}
         with self.replay_lock:
             rid = next((k for k, v in self.replays.items() if v == files[0]), None) or len(self.replays) + 1000
@@ -171,6 +172,10 @@ class Services:
         m = re.fullmatch(r"/public/playerstats/v1/ranking/([^/]+)", p)
         if method == "GET" and m:
             return 200, {}, self.leaderboard(m.group(1), query)
+        m = re.fullmatch(r"/public/playerstats/v1/stats/([^/]+)", p)
+        if method == "GET" and m:
+            board = self.leaderboard(m.group(1), query)
+            return 200, {}, {"statboard": m.group(1), "results": board["results"]}
         if method == "GET" and p == "/v1/profiles":
             return 200, {}, self.profiles(query)
         if method == "POST" and p == "/public/resultservice/v1/replay_id":
@@ -208,7 +213,7 @@ class Handler(BaseHTTPRequestHandler):
             _, extra, payload = result
         else:
             extra, payload = {}, {"errorCode": 404, "message": "not implemented by local server", "httpCode": 404}
-        data = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+        data = payload if isinstance(payload, bytes) else json.dumps(payload, separators=(",", ":")).encode()  # compact: the login library strstr()s for "environment":"Prod"
         self.send_response(status)
         self.send_header("Content-Type", "application/octet-stream" if isinstance(payload, bytes) else "application/json")
         self.send_header("Content-Length", str(len(data)))
