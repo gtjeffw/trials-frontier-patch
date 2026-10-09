@@ -2,6 +2,9 @@
 
 ## Access lost levels from within the game
 
+Partly done: `open-all-levels` (the game's own cheatOpenAllLevels), `orphan-levels`, `dev-levels`. Still open: play
+through event tracks (X-Games, KTM Course, Dakar, Bunker) and see which need their event logic ("naked" clones).
+
 Expose levels that are in the game data but unreachable on the map (event-only tracks, ended
 seasonal/holiday events, tracks gated behind expired missions) through an in-game entry point,
 e.g. a menu or an optional unlock command.
@@ -26,7 +29,7 @@ risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purg
    + "/DLC"`; `build_ipa.py` copies the user's own untabled packs (same detection as `install_playcover.py`) into
    `TrialsFrontier.app/DLC/`. Never purged, read-only (game cleanup cannot delete), works for iOS sideloads, and
    makes the PlayCover copy step unnecessary.
-2. **Server store in `Documents/LocalServices`** (now `Library/LocalServices`): never purged, backed up, second copy
+2. ~~**Server store in `Documents/LocalServices`**~~ — done (both servers; old Library store moved once): never purged, backed up, second copy
    of every best ghost.
 3. **File sharing** (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`) so users can copy save, ghosts and
    store off the device (the only protection against deleting the app).
@@ -99,7 +102,8 @@ config file.
   "<name> #2" … "#5" (the leaderboard parser drops repeated profile ids, so each needs its own id and a
   `/v1/profiles` name). Only the best run has a ghost (the game keeps one ghost file per leaderboard and uploads only
   after `"updated"`), so #2–#5 are times without a ghost.
-- **GLOBAL tab: the player's single best among other riders.** Candidates: 2019 world records from
+- ~~**GLOBAL tab: the player's single best among other riders.**~~ Done: downloaded opponents + optional 2019
+  world records (`--world-records`). Candidates: 2019 world records from
   dutscher/trialstrackmap `database/wr/wrrider.json` (MIT; ~360 tracks × iOS/Android × normal/donkey/crazy, rider
   name, bike, faults, time) and its git history (2015–2019 snapshots). World records only, so roughly 2–6 entries per
   track, no ghosts. tf.lforo.com top-10 lists have no licence (ask the owner first). Ask the user before downloading;
