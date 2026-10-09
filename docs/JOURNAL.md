@@ -412,3 +412,33 @@ later an in-app loopback server). Static analysis only.
   configuration, network time and sessions (profile id/name read from the container's player.bin); everything else is
   404 + `UNHANDLED`. `scripts/netwatch.py`: polls `lsof` for the game process and marks non-loopback sockets `LEAK`.
   Baseline (default build, running): no sockets at all.
+
+## 2026-10-09 — Own ghosts race again (local-services, first end-to-end success)
+
+- First run: only the configuration request; no login. Restored Uplay-linked saves never auto-login
+  (`OnlineCore::makeAutoLogin` only calls `loginSilent` for login type 2; `onConfigurationLoaded` otherwise waits
+  for the Uplay web login). Added `local-services-auto-login` (0x1001d9ebc `ldr w20, [x8, x9]` → `mov w20, #2`).
+- Second run: ~1,800 account creations in 30 s. The mobile login library checks the creation reply with
+  `strstr("\"environment\":\"Prod\"")`; Python's default JSON (`"environment": "Prod"`, with a space) failed it, so
+  the account was treated as UAT, deleted (`ubimobile_DO_NOT_CALL_IN_RELEASE_BUILD_deleteAccount`) and recreated.
+  The server now sends compact JSON. Keychain storage itself works under PlayCover.
+- Note: Cmd+Q / closing the window in PlayCover leaves the process running; quit with
+  `osascript -e 'tell application id "com.ubisoft.redlynx.trialsfrontier" to quit'` (graceful; the game saves).
+- Third run: login OK, GLOBAL shows the player's own entry (from the save's score table), names resolve via
+  `GET /v1/profiles?profileId=`, and **racing the own ghost works** (`POST resultservice/v1/replay_id` →
+  `{"replay_id":N}` → `GET userstorage/v2/content/ghost/N/payload` = the ghost file bytes as stored in Documents).
+  Tracks without a saved ghost (e.g. Flower Hills) keep the race button disabled (replay_id 0). netwatch: only
+  127.0.0.1:7979.
+- Requests seen but not answered yet (404, harmless): `match/v1/robot`, `resultservice/v1/enhancestats/batch_update`
+  (re-submits stored results), `targeting/v1/configuration|condition_items|vip_validation`, `pvp_matches/v1/pvp_init`,
+  `liveevents/v1/weekly_track_system/basic_info` (retried every ~11 s), `gift/v1/gifts|get_gifts`.
+- Ghost upload, as the original game did it: `IngameStatePostRace::sendToOnlineLeaderboard` submits only when the
+  run set the "new best" flag (Player+0x6ea8; server setting 0xd69745a5 = 1 would force every run), with the right
+  bike tier and outside events: `POST resultservice/v1/enhancestats/track<id>` `{"updates": [ {…} ], checksum}`.
+  Only if the reply's first update has `"updated"` ≠ 0 does `OnlineResult::onResultSent` call
+  `OnlineGhostManager::submitGhostFile("ghost_<hash>_<lb>.bin")` (drive time must match) → user-storage search →
+  add/send data. `OnlineGhostSync` re-uploads a local ghost when the server's stats match it. So uploads are
+  best-only on both sides; the server should confirm only real improvements (fewer faults, then less time).
+- Avatars: `getUserPicture` / `getDefaultUserPicture` URLs (Ubisoft CDN) redirected to
+  `/avatars/<profileId>/default_146_146.png` and `/avatars/fallback_146_146.png`; the server serves
+  `<--avatars dir>/<profileId>.png` / `fallback.png` (personal pictures stay outside the repo).

@@ -10,7 +10,7 @@
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
     "patched_executable": "28f073898406d876e4cf4dd929d9f030f9c88f74a76ae23004615a894ba5a18d",
     "patched_executable_with": {
-      "local-services": "fc6b5e89b024a6f05ad5a47a315a80d36979bcb31a353b41822faa3cef14cd7e"
+      "local-services": "a46fb1b82021895c1fab9be9f95c6c942536ef28db94afdc04ac00bc8b6b02e3"
     }
   },
   "encryption": {
@@ -1638,6 +1638,36 @@
       ],
       "function": "tr::OnlineCore::makeAutoLogin(bool)",
       "reason": "After the configuration loads, makeAutoLogin only starts the silent mobile login if the save's login type is 2; Uplay-linked saves (type 3, e.g. a restored iPad profile) wait for the Uplay web login instead, which cannot work locally. Treat every save as a silent-login account so it logs in to the local server automatically. On success setAuthenticated(ticket, len, 3) stores login type 2 in the save; profile id and name come from the local server, which reads them from the same save."
+    },
+    {
+      "id": "local-services-avatar-url",
+      "group": "local-services",
+      "vmaddr": "0x100bc8f89",
+      "original": "68747470733a2f2f756269736f66742d617661746172732e616b616d61697a65642e6e65742f25732f64656661756c745f3134365f3134362e706e6700",
+      "replacement": "687474703a2f2f3132372e302e302e313a373937392f617661746172732f25732f64656661756c745f3134365f3134362e706e67000000000000000000",
+      "original_asm": [
+        "\"https://ubisoft-avatars.akamaized.net/%s/default_146_146.png\""
+      ],
+      "replacement_asm": [
+        "\"http://127.0.0.1:7979/avatars/%s/default_146_146.png\" (NUL padded)"
+      ],
+      "function": "C string used by tr::OnlineUbiservices::getUserPicture",
+      "reason": "Profile pictures (146x146 PNG per profile id) come from the local server instead of Ubisoft's avatar CDN."
+    },
+    {
+      "id": "local-services-avatar-fallback-url",
+      "group": "local-services",
+      "vmaddr": "0x100bc8fc6",
+      "original": "68747470733a2f2f756269737461746963322d612e616b616d616968642e6e65742f617661746172732f70726f642f66616c6c6261636b5f3134365f3134362e706e6700",
+      "replacement": "687474703a2f2f3132372e302e302e313a373937392f617661746172732f66616c6c6261636b5f3134365f3134362e706e67000000000000000000000000000000000000",
+      "original_asm": [
+        "\"https://ubistatic2-a.akamaihd.net/avatars/prod/fallback_146_146.png\""
+      ],
+      "replacement_asm": [
+        "\"http://127.0.0.1:7979/avatars/fallback_146_146.png\" (NUL padded)"
+      ],
+      "function": "C string used by tr::OnlineUbiservices::getDefaultUserPicture",
+      "reason": "Default profile picture from the local server instead of Ubisoft's CDN."
     }
   ],
   "plist_patches": [

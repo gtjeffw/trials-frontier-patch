@@ -1,7 +1,7 @@
 """Local game-services server for the `local-services` patch group (prototype, Python stdlib only).
 
 Usage: python3 -I server/local_services.py [--container <app container Data dir>] [--port 7979]
-                                           [--profile-id <uuid>] [--name <name>] [--log <file>]
+                                           [--profile-id <uuid>] [--name <name>] [--avatars <dir>] [--log <file>]
 
 Listens on 127.0.0.1 only. The patched game sends every request here (see docs/JOURNAL.md, "Online services probe"):
   GET  /v1/applications/<appId>/configuration   app configuration; its sandbox "triag_ip_lnch61_a_ws" names the game server
@@ -9,6 +9,8 @@ Listens on 127.0.0.1 only. The patched game sends every request here (see docs/J
   POST /v2/profiles/sessions                    mobile login library: create device account / get session ticket
   PUT  /v1/profiles/sessions                    ticket renewal
   .../public/...                                game server (leaderboards, ghosts)
+  GET  /avatars/<profileId>/default_146_146.png profile picture: <avatars dir>/<profileId>.png (146x146 PNG);
+  GET  /avatars/fallback_146_146.png            default picture: <avatars dir>/fallback.png
 Every request is logged; anything not handled yet is answered 404 and marked UNHANDLED so it can be implemented.
 The player's profile id and name are read from the container's Documents/player.bin unless given.
 """
@@ -79,8 +81,8 @@ def read_profile(container):
 
 
 class Services:
-    def __init__(self, container, port, profile_id, name, log_path):
-        self.container, self.port = container, port
+    def __init__(self, container, port, profile_id, name, log_path, avatars=None):
+        self.container, self.port, self.avatars = container, port, avatars
         self.base = f"http://127.0.0.1:{port}"
         if not (profile_id and name):
             pid, nm = read_profile(container)
@@ -176,6 +178,11 @@ class Services:
         if method == "GET" and m:
             board = self.leaderboard(m.group(1), query)
             return 200, {}, {"statboard": m.group(1), "results": board["results"]}
+        m = re.fullmatch(r"/avatars/(?:([0-9a-fA-F-]{36})/default|fallback)_146_146\.png", p)
+        if method == "GET" and m and self.avatars:
+            f = os.path.join(self.avatars, (m.group(1) or "fallback") + ".png")
+            if os.path.isfile(f):
+                return 200, {}, open(f, "rb").read()
         if method == "GET" and p == "/v1/profiles":
             return 200, {}, self.profiles(query)
         if method == "POST" and p == "/public/resultservice/v1/replay_id":
@@ -215,7 +222,9 @@ class Handler(BaseHTTPRequestHandler):
             extra, payload = {}, {"errorCode": 404, "message": "not implemented by local server", "httpCode": 404}
         data = payload if isinstance(payload, bytes) else json.dumps(payload, separators=(",", ":")).encode()  # compact: the login library strstr()s for "environment":"Prod"
         self.send_response(status)
-        self.send_header("Content-Type", "application/octet-stream" if isinstance(payload, bytes) else "application/json")
+        ctype = "application/json" if not isinstance(payload, bytes) else \
+            "image/png" if payload[:4] == b"\x89PNG" else "application/octet-stream"
+        self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         for k, v in extra.items():
             self.send_header(k, v)
@@ -228,7 +237,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     container = opt("--container", DEFAULT_CONTAINER)
     port = int(opt("--port", "7979"))
-    services = Services(container, port, opt("--profile-id"), opt("--name"), opt("--log"))
+    services = Services(container, port, opt("--profile-id"), opt("--name"), opt("--log"), opt("--avatars"))
     Handler.services = services
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     services.note(f"listening on {services.base} for {services.name} ({services.profile_id}); container {container}")
