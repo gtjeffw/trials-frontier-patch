@@ -43,6 +43,30 @@ Plan: a `TFRobots` module (inapp/, listed in `TFLocalServicesModules()`) + the s
 opponent ghost from the store near the player's best (`range`/`offset`), from the 383 imported opponents or any
 future ghost collection imported as riders. Decode the exact response nesting before implementing.
 
+## Community ghost bundles (self-published, consolidated)
+
+Idea: players publish *their own* runs as static ghost bundles on their own GitHub Pages; a consolidator merges
+them so the local server (and a robot-challenge module) can offer many riders. No central host; each publisher
+owns their data.
+
+- **Contributing without a jailbreak:** unencrypted Finder/iTunes backup of an old device that still has the game →
+  `scripts/extract_app_domain.py` → `Documents/player.bin` (best times, profile id, name) + `ghost_<hash>_<lb>.bin`.
+  Write a short guide.
+- **`scripts/export_ghost_bundle.py`** (save + ghost files → static folder): `manifest.json` {format version,
+  game version 7.9.0, `rider_key` = SHA-256 of the profile id (merges the same rider across devices without
+  publishing the account id; pseudonymous, not anonymous), display name chosen by the publisher, licence chosen by
+  the publisher (suggest CC0/CC-BY), entries [{leaderboard id, faults, time ms, bike, ghost file, sha256}]},
+  `ghosts/`, a small `index.html`. Own runs only by default; downloaded opponents (`robot_ghost-*`) only opt-in and
+  anonymized. Optionally create the repo and enable Pages with the publisher's own `gh` login.
+- **Discovery:** GitHub topic (e.g. `trials-frontier-ghosts`) and/or a plain registry file of bundle URLs.
+- **`scripts/consolidate_bundles.py`:** fetch manifests and ghosts, check sha256 and that each ghost's recorded drive
+  time equals the claimed time, merge by `rider_key` (best per leaderboard), flag outliers (e.g. far below the 2019
+  world records), write one combined bundle.
+- **Local server import** (Python + `inapp/`): load a combined bundle as riders (results, ghosts, names) — on GLOBAL,
+  raceable, and the ghost supply for the robot-challenge module.
+- Bundles carry ghosts and times only, never game assets. Ghost data cannot be fully verified (cheating); keep it
+  best-effort.
+
 ## Native keyboard and game-controller input (backburner)
 
 The PlayCover fix is the joystick keymap (`scripts/make_keymap.py`, one virtual finger per thumb). Later, for every
