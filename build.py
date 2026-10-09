@@ -5,6 +5,7 @@ Usage:
                       [--page <page.bin> | --decrypted <decrypted TrialsFrontier executable>]
                       [--server embedded|external|none] [--with group,group,...]
                       [--avatars <dir>] [--world-records wrrider.json --world-record-ids ids.json]
+                      [--bundle-id <id>] [--display-name <name>]
                       [--install] [--keymap] [--dry-run]
 
 Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.json where they exist):
@@ -20,7 +21,8 @@ Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.
                                  (local-services + embedded-server);
             external = local-services only; run server/local_services.py (or tfserver) yourself, e.g. for development;
             none     = no local services (everything online stays off).
---with:     optional extras: coins-for-gems, open-all-levels, orphan-levels, dev-levels (see README).
+--with:     optional extras: coins-for-gems, open-all-levels, orphan-levels, dev-levels, file-sharing (see README).
+--bundle-id / --display-name: for iPhone/iPad installs next to the original app (then sign with scripts/sign_ios.py).
 """
 import json
 import os
@@ -108,6 +110,7 @@ def main():
     server = opt("--server", default="embedded")
     extra = [g for g in (opt("--with", default="") or "").split(",") if g]
     avatars, wr, wr_ids = opt("--avatars"), opt("--world-records"), opt("--world-record-ids")
+    bundle_id, display_name = opt("--bundle-id"), opt("--display-name")
     install, keymap, dry = opt("--install", True), opt("--keymap", True), opt("--dry-run", True)
     if not app or not work or server not in ("embedded", "external", "none") or len(sys.argv) > 1:
         sys.exit(__doc__)
@@ -149,6 +152,10 @@ def main():
             ipa_cmd += ["--avatars", avatars]
         if wr and wr_ids:
             ipa_cmd += ["--world-records", wr, "--world-record-ids", wr_ids]
+    if bundle_id:
+        ipa_cmd += ["--bundle-id", bundle_id]
+    if display_name:
+        ipa_cmd += ["--display-name", display_name]
     run(ipa_cmd, dry)
 
     if install:

@@ -1830,6 +1830,16 @@
         "FacebookAutoLogAppEventsEnabled": false
       },
       "reason": "Facebook SDK auto-logs app activation (graph.facebook.com) when the app becomes active, independent of the removed FBSDKApplicationDelegate call. Facebook's documented opt-out key."
+    },
+    {
+      "id": "file-sharing",
+      "group": "file-sharing",
+      "file": "Info.plist",
+      "set": {
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
+      },
+      "reason": "iOS has no other way for a player to copy the game's data off the device (deleting the app deletes it)."
     }
   ],
   "pack_tables": {
@@ -1859,7 +1869,8 @@
     "open-all-levels": "Opt-in (build with --with open-all-levels). Every named level inside the map circle is shown on the map, using the game's own developer function Map::cheatOpenAllLevels: event, season, X-Games and Bunker tracks that can no longer be unlocked. Levels with event rules may behave oddly.",
     "orphan-levels": "Opt-in (build with --with orphan-levels). Gives the six levels parked off the map at (-10000,-10000) a place in the main map's fogged area east of the eastern sea route (x 1230, artwork but no levels): Sine City, Hill Climb, Bunnyhop (hidden Bunker tracks), Rigged Roadway, Roadway (Agent event), Collapsed Orchard (Rodeo). They show up once opened, or with open-all-levels.",
     "dev-levels": "Opt-in (build with --with dev-levels; best with open-all-levels). Six unnamed developer/test levels that ship with the game (their level files are in the LevelPack1/2 packs) get a display name '<name> (dev)' and a spot in the fogged area east of the eastern sea route, below the orphan levels.",
-    "embedded-server": "Opt-in, with local-services (build with --with local-services,embedded-server and build_ipa.py --inapp <dir with libTFLocalServices.dylib>). The game loads the native local services (inapp/, built by scripts/build_inapp.py) from its Frameworks folder and serves itself on 127.0.0.1:7979: nothing runs outside the app, on macOS (PlayCover) or iOS. Without this group, local-services expects an external server (server/local_services.py or tfserver) for development."
+    "embedded-server": "Opt-in, with local-services (build with --with local-services,embedded-server and build_ipa.py --inapp <dir with libTFLocalServices.dylib>). The game loads the native local services (inapp/, built by scripts/build_inapp.py) from its Frameworks folder and serves itself on 127.0.0.1:7979: nothing runs outside the app, on macOS (PlayCover) or iOS. Without this group, local-services expects an external server (server/local_services.py or tfserver) for development.",
+    "file-sharing": "Opt-in (meant for iPhone/iPad installs). Shows the game's Documents folder (save, ghosts, LocalServices store) in Finder and the Files app, so players can back it up or copy it to another device."
   },
   "local_services_port": 7979,
   "content_patches": [

@@ -625,3 +625,14 @@ later an in-app loopback server). Static analysis only.
   `install_playcover.py` copies to Library/Caches/DLC only with `--caches-dlc` (old builds).
 - Verified in PlayCover with Library/Caches/DLC moved aside: the game has all four packs open from the app's
   `DLC/` (swamp, moon, chipshop_extra, Moon content as TrialsContentOfferDL.dat). Recorded hashes updated.
+
+## 2026-10-09 — iPhone/iPad build tooling
+
+- Opt-in `file-sharing` (plist: UIFileSharingEnabled, LSSupportsOpeningDocumentsInPlace); `build.py`/`build_ipa.py`
+  `--bundle-id`, `--display-name` (install next to the original, own data container).
+- `scripts/sign_ios.py`: signs a built .ipa with the player's own (free) Apple development account: finds the
+  provisioning profile for the bundle id that Xcode created, the matching identity, writes entitlements from the
+  profile (exact application-identifier and keychain group), embeds the profile, signs `Frameworks/*.dylib` and the
+  app, verifies, writes the .app and a signed .ipa. The original bundle has no extensions/frameworks of its own.
+- `scripts/ios_device.py`: devicectl wrapper — devices, install, push-data (player.bin, ghost_*, robot_*,
+  LocalServices/ from the PlayCover copy into the app's Documents), pull-data (backup), list.

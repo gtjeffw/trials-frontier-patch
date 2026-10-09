@@ -4,6 +4,7 @@ Usage: python3 -I build_ipa.py <TrialsFrontier.app from device> <patched executa
        [--spec patches/trials-frontier-7.9.0.json] [--groups g,g] [--with g,g]
        [--inapp <dir with libTFLocalServices.dylib>] [--avatars <dir of <profileId>.png>]
        [--world-records wrrider.json --world-record-ids ids.json] [--dlc-from <folder>]
+       [--bundle-id <id>] [--display-name <name>]
 
 With --spec, the spec's "plist_patches" (optionally limited to --groups) are applied to the bundle's plists;
 plists are re-serialised as sorted binary plists so the output stays reproducible. "content_patches" edit files
@@ -13,7 +14,8 @@ embedded-server group adds Frameworks/libTFLocalServices.dylib from --inapp (bui
 embedded-server, --avatars and --world-records/--world-record-ids add the player's own extras to the app's
 LocalServices/ folder (read by the in-app server; never part of this repository). With the compat group, "bundle_dlc"
 fills the app's DLC/ folder (where the dlc-folder-in-bundle patch makes the game look for downloaded packs) with the
-packs selected by scripts/dlcpacks.py, plus the player's own downloaded packs from --dlc-from.
+packs selected by scripts/dlcpacks.py, plus the player's own downloaded packs from --dlc-from. --bundle-id and
+--display-name change CFBundleIdentifier / CFBundleDisplayName (to install next to the original on a device).
 
 The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) is dropped and the
 executable is replaced. Zip entries are sorted, stored uncompressed, with fixed timestamps and permissions,
@@ -44,6 +46,7 @@ def opt(name):
 spec_path, groups, extra = opt("--spec"), opt("--groups"), opt("--with")
 inapp, avatars, wr, wr_ids = opt("--inapp"), opt("--avatars"), opt("--world-records"), opt("--world-record-ids")
 dlc_from = opt("--dlc-from")
+bundle_id, display_name = opt("--bundle-id"), opt("--display-name")
 app_dir, exe_path, out = sys.argv[1:4]
 plist_edits, content_patches, extra_files = {}, {}, {}
 if spec_path:
@@ -86,6 +89,12 @@ if spec_path:
         if wr and wr_ids:
             extra_files["LocalServices/wrrider.json"] = (wr, False)
             extra_files["LocalServices/ids.json"] = (wr_ids, False)
+if bundle_id or display_name:
+    ident = plist_edits.setdefault("Info.plist", {})
+    if bundle_id:
+        ident["CFBundleIdentifier"] = bundle_id
+    if display_name:
+        ident["CFBundleDisplayName"] = display_name
 app_name = os.path.basename(os.path.normpath(app_dir))
 exe_name = "TrialsFrontier"
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
