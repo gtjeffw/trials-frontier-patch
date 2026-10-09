@@ -170,3 +170,14 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   `crosspromo-no-more-games` (all → `ret`).
 - Still contacted at startup (to do): `graph.facebook.com` (Facebook SDK), `settings.crashlytics.com`
   (Fabric/Crashlytics), `use.fontawesome.com` (likely the privacy-policy web view).
+
+## 2026-10-09 — Nickname crash and corrected fix
+
+- With `no-tf-name-prefix` the game crashed on OK (KERN_PROTECTION_FAILURE, write to 0xc152a0):
+  `PopupStateKeyboard::componentReleased` (silent mode) builds an mt::String whose buffer is the shared
+  read-only "" literal (capacity 1) and assigns "#TF-" to it. The 4-char prefix forces a heap allocation; an empty
+  one is copied in place into read-only memory. Lesson: changing string literals can break code that relies on
+  their length.
+- Replaced by: `nickname-plain-keyboard` (`useSilentLoginKeyboard` → `ret`; ordinary name keyboard, no prefix
+  handling, no 3-letter/bad-word validation) and `nickname-no-prefill-prefix` (pre-fill reads "" via
+  adrp/add to 0x100c152a0; copied into a std::string, so safe). The "#TF-" literal is back to original.
