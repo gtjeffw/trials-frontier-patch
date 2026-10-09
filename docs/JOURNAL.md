@@ -339,3 +339,46 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
 - `scripts/level_info.py`: every level with its environment and pack. 382 levels: desert 83, city 68, village 53,
   cave 42, swamp 42, snow 48, happy 46, moon 0. Flower Hills (1152) is `swamp_02` — explains the black level.
   No level uses `snow_01` (the only environment whose `_bg.txt` is missing) or `moon_00` (event-only).
+
+## 2026-10-09 — Online services probe (for an in-app loopback server)
+
+Goal: race own ghosts and show FRIENDS/GLOBAL leaderboards without Ubisoft, via a local server (Mac prototype first,
+later an in-app loopback server). Static analysis only.
+
+- Transport: the engine (`mz::NetworkCoreIPhone`, `_NETWORK_makeRequest` 0x1001dcabc) uses `NSURLConnection` with an
+  absolute URL, headers and a GET/POST/PUT/DELETE body. It fails immediately if `getNetworkType()` is 0, which is what
+  our `offline-mode` patch returns, so every engine request currently errors locally. Info.plist has
+  `NSAllowsArbitraryLoads`, so plain `http://127.0.0.1:<port>` works. The Ubisoft mobile login library (`ubimobile`,
+  statically linked) uses its own bundled libcurl.
+- Base URLs:
+  - Ubiservices: string constant `https://public-ubiservices.ubi.com` (fileoff 0xbc834e), used as
+    `%s/v1/applications/%s/configuration`, `%s/v1/profiles/sessions`, `%s/v1/profiles/%s`, `%s/v2/profiles/me/friends`.
+    Requests carry `Ubi-AppId: 4b8b5f28-3561-4195-9dc8-c450aca960ae`.
+  - Game server: NOT a constant. `OnlineUbiservices::parseConfigurationJson` (0x100317904) takes it from the app
+    configuration response: `configuration.sandboxes[]` entry with `friendlyName` `triag_ip_lnch61_a_ws` (or
+    `triag_ip_lnch_a_ws`) → its `url` → `OnlineCore::setserverAddress` (inline 64-byte buffer at OnlineCore+0x28,
+    trailing `/` stripped). Requests are `"%s/%s/<path>"` with `"public"` as the second part.
+  - ubimobile: network time from `http://gamecfg-mob.ubi.com/profile/?epoch=1` (`Server-Time:` header), account
+    calls with `Authorization: UbiMobile_v1 t=…`, `Ubi-AppId`, JSON bodies.
+- Gate for every game-server request, `OnlineCore::checkGameServerConnection` (0x1001dae4c), returns 0 only if: a
+  server address is set; `OnlineAuthentication::hasAccess(access)`; a ticket is present (m_authentication+0x10,
+  m_authentication = 0x100f43f80); `getNetworkType() != 0`; `OnlineUbiservices::m_configurationState == 2` (config
+  fetched). Otherwise 3/5/0xb → "Could not connect to game server".
+- Authentication (`OnlineAuthentication`, two back ends):
+  - Mobile/silent (`OnlineAuthenticationMobile`, access flags 0xfff9f → includes leaderboard access 2): reads
+    accounts `ubiacNN` from the keychain/iCloud KV (`ubimobile_getAllExistingAccounts`), creates one if needed
+    (`ubimobile_createNewAccount*`, generated credentials + HMAC with network time), then gets a ticket
+    (`ubimobile_getTicketForAccount*`). The result JSON must contain `ticket`, `profileId`, `nameOnPlatform`
+    (`parseTicketData` 0x10013a168); profileId/name are copied into the player, then
+    `setAuthenticated(ticket, len, 3)` → state 5.
+  - Uplay (`OnlineAuthenticationUPlay`, the "Connect" button / web UI) → `onAuthenticationComplete` →
+    `finishLoginSequence`.
+  - Every authenticated engine request gets `Authorization: Ubi_v1 t=<ticket>` (`OnlineCore::addAuthentication`);
+    tickets are renewed after 0x1518 s (`PUT /v1/profiles/sessions`).
+- Leaderboard/ghost requests (all `<server>/public/…`):
+  - `playerstats/v1/ranking/<lb>?around=<profile>,<n>` / `?range=a,b` / `?players=…` (requestRelativeLeaderBoard
+    0x1002db7f4, requestLeaderBoard, friends)
+  - `resultservice/v1/replay_id` POST `{"profile_id","track_name":"track<id>","drive_time","faults","bike"}`
+    (GhostQueryObject::queryGhostShared 0x1002d8244)
+  - `resultservice/v1/replaydata?track_id=<id>`, `userstorage/v2/content/<type>/<id>/payload`,
+    `resultservice/v1/enhancestats/track<id>`, `match/v1/robot?…`
