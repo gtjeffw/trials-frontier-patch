@@ -253,3 +253,18 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
   mission. With 171 blocked he kept the finished mission, so claiming repeated the reward (likely explanation of
   the repeated mechanic reward; same root cause).
 - The original game on a device whose cache was purged would hit the same "Download needed" + this stall today.
+
+## 2026-10-09 — Content audit (what the lost downloads cost)
+
+- Story resumes after `missions-no-dl-texture-gate`: shopkeeper's helmet mission played and a further mission was
+  offered.
+- Live content tracing (hooking `DataFilePack::searchFile` with backtraces) hung the game at ~300% CPU; switched to
+  static auditing.
+- Levels: `/level/` + the level's `F` field (e.g. `/level/dump/Prod1 Andreas 3.lvl`), hashed with the game hash →
+  all 382 levels present (LevelPack1 189, LevelPack2 177, content 16).
+- Texture packs (`textures.dat`, `TrialsTexturesDL*.dat`): header u32 0, u32 count, u32 entry size 24; entry
+  = u32 size, u32 offset, u16 w, u16 h, u32 format, u32 name hash, u32. 2,567 textures bundled.
+- 1,948 texture paths referenced by content files and the executable: 1,869 present (96%). Missing 79: ~30 not game
+  content (web/ad URLs, gamepad icons, SDK friends UI, editor paths); ~45 cosmetic/event art (outfit icons for riders
+  14/16/18/22/28/53, coin variants, event teasers: Rodeo, Treasure Hunt, KTM, PvP, daily quest, New Year's offer);
+  a few world props (crate, village time capsule, desert rocks, KTM banner/poster).
