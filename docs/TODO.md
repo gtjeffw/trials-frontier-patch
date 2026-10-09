@@ -31,6 +31,15 @@ risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purg
 3. **File sharing** (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`) so users can copy save, ghosts and
    store off the device (the only protection against deleting the app).
 
+## Native keyboard and game-controller input (backburner)
+
+The PlayCover fix is the joystick keymap (`scripts/make_keymap.py`, one virtual finger per thumb). Later, for every
+platform including iPhone/iPad with a Bluetooth keyboard or controller: read `GCKeyboard` / `GCController`
+(GameController framework) in the planned in-app dylib and drive the game's control state directly instead of
+synthesising touches. Needs: static analysis of where the touch buttons become throttle/brake/lean (and whether an
+analog/tilt lean path exists for sticks), a way to keep touch working alongside, and a key/button mapping UI or
+config file.
+
 ## Other open items
 
 - Touch scaling per axis (float) so any window size / full screen works without the 1366×1024 PlayCover setting.
