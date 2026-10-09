@@ -318,3 +318,9 @@ Addresses are unslid vmaddrs in TrialsFrontier 7.9.0 (Mach-O UUID D1B9B883-E309-
 - Verified: copying the three texture packs into the container's Caches/DLC fixes Flower Hills and Frog Village.
 - Made repeatable: spec `dlc_folder_packs` + `scripts/install_playcover.py` (also installs the .ipa and keymap).
   A self-contained binary fix (load them from the bundle) is possible later but needs extending a fixed-size table.
+- Installer made generic: spec `pack_tables` (texture table 0x100efb270 ×21, content table 0x100efb318 ×12) and
+  `dlc_content_names`. `install_playcover.py` reads the tables from the user's executable, copies every bundled
+  `TrialsTexturesDL*.dat` not in the texture table (header-checked) to Library/Caches/DLC, accepts
+  `--dlc-from <folder>` for packs saved from a device's download cache (texture packs + TrialsContentDL/DL2/OfferDL),
+  and reports content packs this build cannot load (here: TrialsContentExtraDL_Moon.dat, one 60 KB object file; the
+  "moon" tracks themselves are normal levels). `--dry-run` shows the plan.
