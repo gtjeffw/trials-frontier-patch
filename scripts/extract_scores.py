@@ -21,7 +21,10 @@ def is_record(off):
     if off + 64 > len(raw):
         return False
     f = struct.unpack_from("<16I", raw, off)
-    return f[1] & 0xFF == 0xFF and (f[9] == 0 or f[9] + f[10] + f[8] * 3600000 == 360000000)
+    # PlayerScores byte 0 is a state byte the game changes after a race (0xff for most records, 0 after
+    # replaying one), so only the integrity copy and a plausible leaderboard id identify a record. Id 0 is the
+    # overall "global_stats" leaderboard, added once the player is logged in.
+    return f[0] < 0x1000000 and (f[9] == 0 or f[9] + f[10] + f[8] * 3600000 == 360000000)
 
 
 # find the table: the longest run of 64-byte records preceded by a matching count
@@ -29,11 +32,12 @@ best = None
 for start in range(0, len(raw) - 68, 4):
     n = struct.unpack_from("<I", raw, start)[0]
     if 1 <= n <= 2000 and start + 4 + n * 64 <= len(raw) and all(is_record(start + 4 + i * 64) for i in range(n)):
-        if best is None or n > best[1]:
-            best = (start, n)
+        timed = sum(1 for i in range(n) if struct.unpack_from("<I", raw, start + 4 + i * 64 + 36)[0])
+        if best is None or timed > best[2]:  # the real table has the most timed records
+            best = (start, n, timed)
 if not best:
     sys.exit("score table not found")
-start, n = best
+start, n, _ = best
 
 rows = []
 for i in range(n):
