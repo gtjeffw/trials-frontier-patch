@@ -15,10 +15,24 @@ e.g. a menu or an optional unlock command.
   (`frida/dump_missions.js`), texture/content pack inventory.
 - Keep it optional (separate group or script), never part of the default patch; back up `player.bin` first.
 
+## Nothing needed in purgeable storage (installed app: PlayCover and iOS)
+
+Own ghosts and the save live in `Documents/` (never purged, backed up); the game only overwrites an own ghost on a new
+best (its delete paths cover mission/PvP/multi-ghost temp files, images, DL content, profile-version reset). The
+risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purgeable on iOS; also
+`DLContentManager::deleteFile(s)`), which is where the untabled swamp/moon/chipshop/Moon packs must be today.
+
+1. **Load untabled packs from the bundle.** Patch `__getSaveFilePath` type 6 to `[[NSBundle mainBundle] resourcePath]
+   + "/DLC"`; `build_ipa.py` copies the user's own untabled packs (same detection as `install_playcover.py`) into
+   `TrialsFrontier.app/DLC/`. Never purged, read-only (game cleanup cannot delete), works for iOS sideloads, and
+   makes the PlayCover copy step unnecessary.
+2. **Server store in `Documents/LocalServices`** (now `Library/LocalServices`): never purged, backed up, second copy
+   of every best ghost.
+3. **File sharing** (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`) so users can copy save, ghosts and
+   store off the device (the only protection against deleting the app).
+
 ## Other open items
 
-- Load the three untabled texture packs and the Moon content pack directly from the bundle (binary patch), so
-  sideloaded iOS installs don't need files in Library/Caches/DLC.
 - Touch scaling per axis (float) so any window size / full screen works without the 1366×1024 PlayCover setting.
 - Name the 30 June-2017 event ghosts (needs 5.2.0-era event data; not archived as far as we know).
 - Check the old iPhone X for a surviving Library/Caches/DLC (would restore lost event art via `--dlc-from`).
