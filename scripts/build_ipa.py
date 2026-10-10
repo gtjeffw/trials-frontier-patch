@@ -153,7 +153,7 @@ with zipfile.ZipFile(out, "w") as z:
             pack = open(os.path.join(app_dir, rel), "rb").read()
             for cp in content_patches[rel]:
                 pack = datapack.apply_content_patch(pack, cp)
-                print(f"patched {rel}: {cp['id']} ({cp['file']})")
+                print(f"patched {rel}: {cp['id']} ({cp.get('file') or 'file ' + cp.get('file_hash', '?')})")
             add(z, arc, pack, False)
         else:
             src = os.path.join(app_dir, rel)

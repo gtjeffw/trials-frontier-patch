@@ -116,9 +116,29 @@ def add_strings(data, strings):
     return bytes(out)
 
 
+def shift_mission_dates(text, missions, delta):
+    """Mission file (content 0xc4125fdb): move the dated parts of the listed missions by delta seconds. Unlock
+    windows `u,6,<f>,<start>,<end>` (0 stays 0: open-ended) and notification times `o,16,0,0,0,<time>,...`."""
+    out, current = [], None
+    for line in text.split("\n"):
+        m = re.match(r"^(\d+),", line)
+        if m and not line.startswith(("u,", "o,", "t,", "r,", "a,", "b,", "c,", "m,", "z,")):
+            current = int(m.group(1))
+        if current in missions:
+            u = re.match(r"^u,6,(\d+),(\d+),(\d+)(\r?)$", line)
+            n = re.match(r"^(o,16,0,0,0,)(\d+)(,.*)$", line, re.S)
+            if u:
+                a, b = int(u.group(2)), int(u.group(3))
+                line = f"u,6,{u.group(1)},{a + delta if a else 0},{b + delta if b else 0}{u.group(4)}"
+            elif n and int(n.group(2)) > 1_000_000_000:
+                line = f"{n.group(1)}{int(n.group(2)) + delta}{n.group(3)}"
+        out.append(line)
+    return "\n".join(out)
+
+
 def apply_content_patch(pack, patch):
     """Apply one spec "content_patches" entry to the pack bytes; returns the new pack bytes."""
-    h = game_hash(patch["file"])
+    h = int(patch["file_hash"], 16) if patch.get("file_hash") else game_hash(patch["file"])
     if patch.get("binary"):
         data = read_file(pack, h)
         for edit in patch["edits"]:
@@ -134,6 +154,8 @@ def apply_content_patch(pack, patch):
         elif edit["op"] == "level_position":
             text = level_position(text, edit["level_id"], edit["x"], edit["y"],
                                   edit.get("from_x", -10000), edit.get("from_y", -10000))
+        elif edit["op"] == "shift_mission_dates":
+            text = shift_mission_dates(text, set(edit["missions"]), int(edit["to"]) - int(edit["from"]))
         elif edit["op"] == "level_bike_tier":
             text = level_bike_tier(text, edit["level_id"], edit["old"], edit["new"])
         else:
