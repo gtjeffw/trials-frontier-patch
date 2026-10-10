@@ -22,12 +22,28 @@ assets or saves (saves contain account ids and other players' names).
 python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <decrypted TrialsFrontier> --install --keymap
 ```
 
-`build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa`, hands it to
-PlayCover and copies the texture packs the game only loads from its download folder. Close the game first. Then in
+`build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
+packs the game only loads from its download folder placed inside the app) and hands it to PlayCover. Close the game first. Then in
 PlayCover set a custom resolution of **1366×1024** for the app and enable **Keymapping**.
 
 The patched app keeps your progress across rebuilds: PlayCover only replaces the app, not its data. To quit the game
 completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.
+
+## iPhone / iPad (sideloading with a free Apple ID)
+
+```
+python3 -I build.py --app <TrialsFrontier.app> --work <work> --decrypted <executable> \
+    --with file-sharing --bundle-id com.<you>.trialsfrontier --display-name "Trials Offline"
+python3 -I scripts/sign_ios.py <work>/TrialsFrontier-7.9.0-patched.ipa <work>/signed
+python3 -I scripts/ios_device.py install <device> <work>/signed/TrialsFrontier.app      # iOS 17+
+ideviceinstaller -u <udid> install <work>/signed/TrialsFrontier-7.9.0-patched-signed.ipa # older iOS
+```
+
+Once: sign in to Xcode with your Apple ID, create any iOS app with the same bundle id and your Personal Team, and run
+it on each device (this registers the device and creates the certificate and profile). The app installs next to the
+original. Your data: `scripts/ios_device.py push-data` (iOS 17+) or drag the files in with Finder (file sharing).
+Free signatures last 7 days: re-run `sign_ios.py` and reinstall; the game's data stays. If there is no sound, check
+the silent switch.
 
 ## Options
 
@@ -40,6 +56,8 @@ completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.
 | `--with open-all-levels` | the game's own developer switch reveals every level on the map (event, X-Games, Bunker tracks …) |
 | `--with orphan-levels` | gives the six levels without a map position a place in the main map's fogged east (PvP tracks keep "any bike") |
 | `--with dev-levels` | names and places six unfinished developer test levels that ship with the game |
+| `--with file-sharing` | shows the game's data (save, ghosts, server store) in Finder and the Files app — for iPhone/iPad |
+| `--bundle-id`, `--display-name` | install next to the original app (iPhone/iPad) |
 | `--avatars <dir>` | `<profileId>.png` (146×146) pictures shown on the leaderboards, e.g. your own Ubisoft avatar |
 | `--world-records` + `--world-record-ids` | add the 2019 world records from [dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap) (MIT; `database/wr/wrrider.json` and `database/trackdata/ids.json`, downloaded by you) |
 
@@ -100,7 +118,7 @@ Packs from the game's download folder (`Library/Caches/DLC` on the device) can b
 
 ## Status
 
-Tested with PlayCover on macOS: the whole game plays offline with keyboard controls; leaderboards with your own
+Tested with PlayCover on macOS and sideloaded on an iPhone 15 Pro (iOS 26) and an iPad Air 2 (iOS 15): the whole game plays offline with keyboard controls; leaderboards with your own
 results, downloaded opponents and optional world records; racing and uploading ghosts; avatars; coins for gems;
-hidden, orphan and developer levels reachable. Open items (iOS sideloading, a robot-challenge module, top five on
+hidden, orphan and developer levels reachable. Open items (a robot-challenge module, top five on
 FRIENDS, native keyboard/controller input) are in `docs/TODO.md`.

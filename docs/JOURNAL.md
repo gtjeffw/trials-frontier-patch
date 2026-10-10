@@ -648,3 +648,5 @@ later an in-app loopback server). Static analysis only.
   `ideviceinstaller -u <udid> install <signed.ipa>` (libimobiledevice 1.2 syntax). Data: on this jailbroken iPad via
   SSH + tar into the app container (found by bundle id in `.com.apple.mobile_container_manager.metadata.plist`);
   for other iOS < 17 devices the `file-sharing` option lets players drag the files in with Finder.
+- Verified on both devices: "Trials Offline" starts with the copied profile, Flower Hills renders (bundled
+  packs), leaderboards and ghost racing work through the embedded server (iPhone log: login, store load, replay).
