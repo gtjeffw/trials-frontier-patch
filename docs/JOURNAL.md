@@ -948,7 +948,7 @@ later an in-app loopback server). Static analysis only.
 ## 2026-10-10 — No decryption tooling in the repository
 
 - Publishing tools or instructions for circumventing copy protection is legally risky in many countries, so the
-  repository no longer contains any: `a private helper` and `build.py`/`apply_patches.py --page` are
+  repository no longer contains any: the page-reading helper and `build.py`/`apply_patches.py --page` are
   removed (the helper is mothballed in the private workspace), and the journal's extraction/decryption sections
   are summaries without tools or steps. The README says the user needs an unencrypted copy of their own
   executable, that well-established community methods exist, that this project does not provide or link to them,
@@ -959,3 +959,6 @@ later an in-app loopback server). Static analysis only.
   the recorded hashes). Tested: reference (recorded hash), a re-signed copy (accepted, 115 patches), the App Store
   executable (refused: still encrypted), one changed byte in the formerly encrypted range (refused). A copy whose
   code signature load command was removed fails the header patch, with a hint.
+- History cleaned as well (git filter-repo, backup bundle in the private workspace): the helper removed from every
+  commit; the old journal sections, README paragraphs and commit messages that described the procedure replaced
+  with the summaries. No tool names, steps or "spawn suspended"-style descriptions remain in files or messages.
