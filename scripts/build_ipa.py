@@ -17,10 +17,11 @@ fills the app's DLC/ folder (where the dlc-folder-in-bundle patch makes the game
 packs selected by scripts/dlcpacks.py, plus the player's own downloaded packs from --dlc-from. --bundle-id and
 --display-name change CFBundleIdentifier / CFBundleDisplayName (to install next to the original on a device).
 
-The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) is dropped and the
-executable is replaced. Zip entries are sorted, stored uncompressed, with fixed timestamps and permissions,
-so the same inputs always give the same .ipa bytes. The result is unsigned in practice (the original
-Apple signature no longer matches); PlayCover re-signs on install.
+The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) and _CodeSignature/
+(Apple's signature, invalid once the executable changes; decryption tools differ in whether they keep it) are
+dropped and the executable is replaced. Zip entries are sorted, stored uncompressed, with fixed timestamps and permissions,
+so the same inputs always give the same .ipa bytes. The result is unsigned; PlayCover signs it on
+install, scripts/sign_ios.py for an iPhone/iPad.
 """
 import hashlib
 import json
@@ -105,7 +106,7 @@ if bundle_id or display_name:
 app_name = os.path.basename(os.path.normpath(app_dir))
 exe_name = "TrialsFrontier"
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
-SKIP_TOP = {"SC_Info"}
+SKIP_TOP = {"SC_Info", "_CodeSignature"}
 
 entries = []
 for root, dirs, files in os.walk(app_dir):

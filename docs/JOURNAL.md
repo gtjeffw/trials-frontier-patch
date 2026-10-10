@@ -992,3 +992,21 @@ later an in-app loopback server). Static analysis only.
   event leaderboards (421–424, online), and ~22 point prizes (items 104–130) plus an event item (134).
   `MissionEditorTools::unlockIngameMissionsAdmin` exists: an in-game admin path to unlock missions, a lead for
   starting events by hand.
+
+## 2026-10-10 — Decryptions with a zeroed crypt range are accepted
+
+- Testing a second, independently made decryption of the same 7.9.0 copy: the code was identical to the reference,
+  but the decryption tool had zeroed `cryptoff`/`cryptsize` along with `cryptid` (two header bytes differ).
+  `apply_patches.py` took the formerly encrypted range from the input's header, hashed an empty range and refused a
+  correct copy.
+- Fix: a copy with `cryptid`, `cryptoff` and `cryptsize` all 0 gets `cryptoff`/`cryptsize` restored from the spec
+  (`encryption`), which is what the original executable has. Such a copy is then byte-identical to the reference,
+  so its builds are reproducible and checked against the recorded hashes (default and `--with` builds give the
+  recorded sha256). Refusals unchanged: the App Store executable (still encrypted) and one changed byte in the
+  formerly encrypted range.
+- `build.py --app` with that tool's app bundle alone (no `--decrypted`) builds. The package differed from the
+  reference build only by `_CodeSignature/CodeResources` (Apple's original signature, which that tool drops and
+  others keep). It is invalid once the executable is patched, and PlayCover / `sign_ios.py` replace it anyway, so
+  `build_ipa.py` now drops `_CodeSignature/` like `SC_Info/`. Result: the reference inputs and two independently
+  decrypted copies (one keeping the crypt range and the signature, one zeroing and dropping them) give the same
+  .ipa, byte for byte. Ad-hoc signing the result (as PlayCover does) creates a new signature and verifies.

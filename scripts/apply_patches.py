@@ -9,12 +9,15 @@ sha256.patched_executable, a --with build against sha256.patched_executable_with
 
 Input: an unencrypted executable of your own copy of 7.9.0 (arm64). If it is byte-identical to the reference
 (sha256.decrypted_executable), the output is byte-for-byte reproducible and checked against the recorded hashes.
+A copy whose cryptoff/cryptsize were zeroed along with cryptid gets them restored from the spec first, so it can
+still be byte-identical to the reference.
 Decryption tools differ in details (e.g. code signature, header bytes), so another executable is accepted when it
 is the same build and the same code: Mach-O UUID, not encrypted (cryptid 0), the formerly encrypted range equal to
 the reference (sha256.decrypted_page), and every patch site holding exactly the original bytes.
 """
 import json
 import os
+import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,6 +37,16 @@ only, groups, extra = opt("--only"), opt("--groups"), opt("--with")
 spec_path, src, dst = sys.argv[1:4]
 spec = json.load(open(spec_path))
 data = open(src, "rb").read()
+
+# some tools zero cryptoff/cryptsize along with cryptid; restore them so such a copy can match the reference
+try:
+    lc, cryptoff, cryptsize, cryptid = encryption_info(data)
+    if cryptid == 0 and cryptoff == 0 and cryptsize == 0:
+        data = bytearray(data)
+        struct.pack_into("<2I", data, lc + 8, spec["encryption"]["cryptoff"], spec["encryption"]["cryptsize"])
+        data = bytes(data)
+except ValueError:
+    pass
 
 reference = sha256(data) == spec["sha256"]["decrypted_executable"]
 if not reference:
