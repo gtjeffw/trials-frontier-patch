@@ -981,3 +981,14 @@ later an in-app loopback server). Static analysis only.
   with `AntiCheating::getSystemTime()` (server-synchronised; the device clock only via a setting), so with the
   real date every window is past and the events stay dormant. `SpecialEventManager` (75 functions),
   `MiniEventManager` (online config), treasure hunt, KTM/rally popups, event leaderboards are all in the code.
+- The two Halloween events in the data. **Halloween Heat** (2019-10-19..11-12, the most recent): intro mission
+  457 "HERE'S DRACUUL!" (Count Dracuul: gather the hidden pumpkins on the tracks); mission 448 "Treasure Hunt!":
+  every 6 hours (`z,21600`) new clues appear on the world map and a track piece is hidden on one of the clue
+  tracks (mission 447: ~30 candidate tracks); the pieces unlock six new tracks (Dolomite, Township, Abandoned
+  Colony, Tiptop, Orbicular Escape, Alpine) plus bike skins and outfits; no event leaderboard. **Wrath of the
+  Pumpkin Queen** (2015-10-15..11-12): intro 433 "DARKNESS RETURNS", then smash her three kinds of prized pumpkins
+  (`HLW_PUMPKIN_00..02`) placed on 42 ordinary tracks (435), beat her "Pumpkin Patrol" ghosts (436,
+  `EVENT_BEAT_GHOST`: mission ghosts, which the local server now serves), a third weekly task (437), four weekly
+  event leaderboards (421–424, online), and ~22 point prizes (items 104–130) plus an event item (134).
+  `MissionEditorTools::unlockIngameMissionsAdmin` exists: an in-game admin path to unlock missions, a lead for
+  starting events by hand.
