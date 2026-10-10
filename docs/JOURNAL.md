@@ -696,3 +696,5 @@ later an in-app loopback server). Static analysis only.
   which appeared in two earlier journal commits, are replaced in every commit (58 kept); author/committer moved to
   a GitHub noreply address. Searched all history afterwards: no names, profile ids, device ids or local paths left
   (only the game's application id and the standard UUID namespaces). MIT licence added.
+- 2026-10-10: second pass: the site name of the publicly posted copy (one journal line) replaced in every commit;
+  the repository names no download sources.

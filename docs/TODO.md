@@ -83,6 +83,13 @@ config file.
 
 ## Other open items
 
+- **Fetch community high scores automatically:** a tool (or a `build.py` option) that downloads
+  `database/wr/wrrider.json` and `database/trackdata/ids.json` from dutscher/trialstrackmap (MIT) at a pinned
+  commit, checks them (sha256 / JSON shape), caches them in the work folder and passes them to `--world-records`.
+  Must never break a build: no network, a changed repository or bad data → a warning and the build goes on without
+  them (or with the cached copy). Maybe also `database/backup/bonxyResults.json` (another leaderboard snapshot) for
+  more riders and times.
+
 - ~~Touch scaling for any window size / full screen~~ — works since `screen-size-from-native-bounds`: render size =
   configured window × scaler, touches in window points, so any custom resolution with an integer scaler (2) is fine,
   including full screen. Only a fractional scaler (e.g. 1.5) would still need per-axis float touch scaling.
