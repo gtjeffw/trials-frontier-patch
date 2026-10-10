@@ -839,3 +839,15 @@ later an in-app loopback server). Static analysis only.
   the community layer and robots only use `track<N>` boards, so it is never duplicated or re-shared. Other riders
   have no overall score (bundles and the world records only carry track times). Parity test: first score, same
   score (unchanged), higher score, ranking around/players: PASS.
+- Third new-player run: JBuzz then "Rider" on both panels at the next course, although every server reply after the
+  rename said JBuzz. A second login path writes the name too: `OnlineAuthenticationUPlay::finishLoginSequence`
+  (from `onAuthenticationComplete`) copies its own profile id and name to Player+0x10 without the chosen-name
+  override that `parseTicketData` has. Diagnostics added: the in-app server reads the game's name fields
+  (Player+0x10, the chosen name at OnlineData+0x168 = Player+0x6d48, the profile id at Player+0x110; the player
+  pointer at 0x100f2ed90, only when the executable's UUID is the known 7.9.0 one) and logs them as "game: …" before
+  any request when they changed; login requests log their token's field count and name and the User-Agent (never
+  the secret). Seen at start: a 4-field login (the library's guest account name, e.g. Guest_hLBA8F) and two 3-field
+  ones. PlayCover now also keeps a PlayChain `<bundle id>.db` (keychain) next to `.keyCover`.
+- `ghidra/scripts/DecompileAll.java`: the whole program decompiled once into the private workspace
+  (`ghidra/decompiled/<namespace>/<address>_<name>.c` with callers, `index.tsv`), so code questions are a grep
+  instead of a headless run each.

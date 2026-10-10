@@ -12,6 +12,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, nullable) NSString *profileId;        // default: from player.bin
 @property(nonatomic, copy, nullable) NSString *name;             // default: from player.bin
 @property(nonatomic, copy, nullable) void (^log)(NSString *line);
+/// Diagnostics: a description of the game's own state, logged before a request whenever it changed (TFEntry.m reads
+/// the player's name fields from the game's memory, only in the known 7.9.0 executable).
+@property(nonatomic, copy, nullable) NSString *_Nullable (^probe)(void);
 @end
 
 /// Starts listening on 127.0.0.1:port at once; requests wait until the store is loaded (done on a background thread,

@@ -12,10 +12,22 @@ NSArray<Class> *TFLocalServicesModules(void) {
 /// Router whose dispatch waits until the store is loaded.
 @interface TFGatedRouter : TFRouter
 @property(nonatomic, strong) dispatch_group_t ready;
+@property(nonatomic, copy) NSString *_Nullable (^probe)(void);
+@property(nonatomic, copy) void (^log)(NSString *);
+@property(nonatomic, copy) NSString *lastProbe;
 @end
 @implementation TFGatedRouter
 - (TFResponse *)dispatch:(TFRequest *)request {
     dispatch_group_wait(self.ready, dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC));
+    if (self.probe) {
+        NSString *state = self.probe();
+        @synchronized(self) {
+            if (state && ![state isEqualToString:self.lastProbe]) {
+                self.lastProbe = state;
+                self.log([@"   game: " stringByAppendingString:state]);
+            }
+        }
+    }
     return [super dispatch:request];
 }
 @end
@@ -26,6 +38,8 @@ BOOL TFLocalServicesStart(TFLocalServicesConfig *config, NSError **error) {
                                                        profileId:config.profileId name:config.name avatarsDir:config.avatarsDir log:log];
     TFGatedRouter *router = [TFGatedRouter new];
     router.ready = dispatch_group_create();
+    router.probe = config.probe;
+    router.log = log;
     [services registerCoreRoutes:router];
     for (Class module in TFLocalServicesModules()) [module registerWithServices:services router:router];
     [services registerQuietRoutes:router];

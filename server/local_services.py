@@ -144,6 +144,19 @@ def known_riders(raw):
     return out
 
 
+def token_summary(headers):
+    """For the log: how many fields the login token has and the name in it (never the secret)."""
+    auth = headers.get("Authorization") or ""
+    if "t=" not in auth:
+        return f"no token ({auth.split(' ')[0] if auth else 'none'})"
+    try:
+        parts = base64.b64decode(auth.split("t=", 1)[1]).decode("utf-8", "replace").split(":")
+        name = base64.b64decode(parts[2]).decode("utf-8", "replace") if len(parts) >= 3 else "-"
+    except ValueError:
+        return "unreadable token"
+    return f"{len(parts)} fields, name '{name}'"
+
+
 def requested_name(headers):
     """The name in a mobile-login-library request: "Authorization: UbiMobile_v1 t=<base64 of
     account:secret:base64(name)>". The "change account name" request (ubimobile changeAccountName, sent after every
@@ -816,6 +829,7 @@ class Services:
         if method == "GET" and p == "/profile/":
             return 200, {"Server-Time": "%.3f" % time.time()}, {}
         if p in ("/v2/profiles/sessions", "/v1/profiles/sessions") and method in ("POST", "PUT"):
+            self.note(f"   login request: {token_summary(headers)}; {headers.get('User-Agent') or '-'}")
             new = requested_name(headers)
             if new and not self.fixed_name:
                 with self.lock:

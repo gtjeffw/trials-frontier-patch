@@ -69,6 +69,21 @@ static NSString *sha256Hex(NSString *s) {
 /// The new name in the mobile login library's "change account name" request (ubimobile changeAccountName, sent when
 /// the player picks a name in the tutorial or the options): "Authorization: UbiMobile_v1 t=<base64 of
 /// account:secret:base64(name)>" (a plain login has two fields). nil for any other request.
+/// For the log: how many fields the login token has and the name in it (never the secret).
+static NSString *tokenSummary(TFRequest *q) {
+    NSString *auth = q.headers[@"authorization"] ?: @"";
+    NSRange r = [auth rangeOfString:@"t="];
+    if (r.location == NSNotFound) return [NSString stringWithFormat:@"no token (%@)", auth.length ? [auth componentsSeparatedByString:@" "][0] : @"none"];
+    NSData *outer = [[NSData alloc] initWithBase64EncodedString:[auth substringFromIndex:NSMaxRange(r)] options:0];
+    NSArray *parts = [[[NSString alloc] initWithData:outer ?: [NSData data] encoding:NSUTF8StringEncoding] componentsSeparatedByString:@":"];
+    NSString *name = @"-";
+    if (parts.count >= 3) {
+        NSData *inner = [[NSData alloc] initWithBase64EncodedString:parts[2] options:0];
+        name = inner ? [[NSString alloc] initWithData:inner encoding:NSUTF8StringEncoding] ?: @"?" : @"?";
+    }
+    return [NSString stringWithFormat:@"%lu fields, name '%@'", (unsigned long)parts.count, name];
+}
+
 static NSString *requestedName(TFRequest *q) {
     NSString *auth = [q.headers[@"authorization"] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
     if (![auth hasPrefix:@"UbiMobile_v1 t="]) return nil;
@@ -798,6 +813,7 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     [r route:nil path:@"/v[12]/profiles/sessions" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         if (![q.method isEqualToString:@"POST"] && ![q.method isEqualToString:@"PUT"]) return nil;
         TFServices *s = w;
+        [s note:[NSString stringWithFormat:@"   login request: %@; %@", tokenSummary(q), q.headers[@"user-agent"] ?: @"-"]];
         NSString *requested = requestedName(q);
         if (requested && !s->_fixedName) {
             [s.lock lock];
