@@ -15,11 +15,12 @@ Usage:
 
 Sources: the defaults in community/sources.json of this repository (the patch author's bundle; the 2019 world
 records, disabled until you enable them), plus your own list, which can add sources and override the defaults
-by id. Bundles must be signed by a GitHub account (ghost_bundle.py publish does that); local folders and sources
-added with --unsigned-ok may be unsigned.
+by id. A bundle from GitHub must be its publisher's: every commit made through GitHub by the account its manifest
+names (signed by GitHub; ghost_bundle.py publish does that). Local folders, and sources added with --unsigned-ok,
+are not checked that way.
 
 Robust and incremental: sync replaces a source's cached copy only with a newer copy that passes every check
-(validation as in ghost_bundle.py check, signature against the publisher's GitHub keys, pinned sha256 for the world
+(validation as in ghost_bundle.py check, the publisher's GitHub-signed commits, pinned sha256 for the world
 records); anything that fails keeps the last good copy. build always starts from scratch, so revised or removed
 data in a source is reflected; it is deterministic for the same cache. The layer never touches your own results:
 the server overlays it when it loads and never writes it into your store.
@@ -151,7 +152,7 @@ def cmd_list():
     for s in sources():
         st = status_of(s["id"])
         good = st.get("good")
-        state = (f"cached {good['commit'][:10]} {good['fetched'][:10]}" + (f", signed by {good['signed_by']}"
+        state = (f"cached {good['commit'][:10]} {good['fetched'][:10]}" + (f", signed by GitHub for {good['signed_by']}"
                  if good.get("signed_by") else "")) if good else "not fetched"
         if st.get("last_error"):
             state += f"; last sync failed: {st['last_error'][:80]}"
@@ -195,8 +196,11 @@ def sync_bundle(s, dest):
         shutil.rmtree(os.path.join(dest, ".git"))
     m = gb.check(dest)
     signed_by = None
-    if os.path.exists(os.path.join(dest, gb.SIGNATURE)) or not s.get("allow_unsigned"):
-        signed_by = gb.verify_signature(dest, m)
+    if s.get("repo") and not s.get("allow_unsigned"):
+        publisher = (m.get("publisher") or {}).get("github")
+        if not publisher:
+            raise gb.BundleError("the manifest names no publisher")
+        signed_by = gb.verify_repo(s["repo"], publisher, commit)
     return {"commit": commit, "fetched": now(), "signed_by": signed_by, "rider": m["rider"]["name"],
             "game_hash": m["rider"]["game_hash"], "created": m["created"]}
 
@@ -242,7 +246,7 @@ def cmd_sync():
             changed = st.get("good", {}).get("commit") != info["commit"]
             st = {"good": info}
             print(f"ok   {sid}: {'updated to' if changed else 'unchanged'} {info['commit'][:10]}"
-                  + (f", signed by {info['signed_by']}" if info.get("signed_by") else ", unsigned"))
+                  + (f", signed by GitHub for {info['signed_by']}" if info.get("signed_by") else ", not checked (local)"))
             ok += 1
         except (gb.BundleError, OSError, ValueError) as e:
             st["last_error"], st["last_attempt"] = str(e), now()
@@ -344,7 +348,7 @@ def cmd_build(out=None):
     claimed_by_hash = {}
     for sha in sorted(claims):
         cl = sorted(claims[sha], key=lambda c: c[0])
-        _, sid, m, folder = cl[0]  # signed first, then the earliest bundle
+        _, sid, m, folder = cl[0]  # verified first, then the earliest bundle
         if len(cl) > 1:
             conflicts.append({"profile_sha256": sha, "used": sid, "also_claimed_by": [c[1] for c in cl[1:]]})
         h = m["rider"]["game_hash"]

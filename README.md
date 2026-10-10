@@ -102,8 +102,8 @@ Packs from the game's download folder (`Library/Caches/DLC` on the device) can b
 ## Sharing your ghosts
 
 `scripts/ghost_bundle.py` turns your best times and ghosts into a *bundle* and publishes it as a public GitHub
-repository (`gh` login; you confirm that the runs are yours; commits use your GitHub noreply address; the manifest
-is signed with an SSH key on your GitHub account). `ghost_bundle.py update` publishes your new best times later.
+repository (`gh` login, the web login is fine; you confirm that the runs are yours; the files are committed through
+GitHub's API, so GitHub signs every commit for your account: no key to keep). `ghost_bundle.py update` publishes your new best times later.
 Bundles never contain your save, your profile id or game files. Format: `docs/BUNDLES.md`.
 
 ```

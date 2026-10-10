@@ -899,3 +899,15 @@ later an in-app loopback server). Static analysis only.
   in a separate community home (recovery/build/community-fresh; the unpublished GitHub source disabled, the
   bundle added as a local folder): 502 riders, 2765 results, 498 ghosts. Checked on a scratch in-app server as a
   new player: world-record holders, jayuph and other riders on the track boards, robots find opponents.
+
+## 2026-10-10 — Bundles: GitHub-signed commits instead of an SSH key
+
+- The SSH signature tied a bundle to a private key on the publisher's Mac (lost key → new key; deleting the old
+  public key from GitHub would break older copies). Now `publish` commits the files through GitHub's GraphQL API
+  (`createCommitOnBranch`, batches of ≤1.5 MB, manifest and README last; a new repository starts from GitHub's
+  own README commit): GitHub signs every commit for the account (committer web-flow, verification valid, as seen
+  on public repos). `verify_repo`: every commit GitHub-signed and authored by `publisher.github`; used by
+  `ghost_bundle.py verify <owner/repo>` and `community.py sync`. No key, no extra gh scope, nothing to lose.
+  Removed: SSH key discovery/creation, the .sig file, `check --verify`, `--sign-key`, the local git repository in
+  the bundle folder. Dry run of the developer's bundle: 502 files in 2 commits; parity test PASS; verify rejects a
+  repository with someone else's commits.

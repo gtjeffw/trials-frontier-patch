@@ -19,7 +19,6 @@ That search is the index for now; a future collecting service can start from it.
 
 ```
 trials-frontier-bundle.json        the manifest (below)
-trials-frontier-bundle.json.sig    SSH signature of the manifest by the publisher (namespace trials-frontier-bundle)
 ghosts/<leaderboard>.bin           the rider's ghosts, exactly as the game stores them
 others/<HASH>/<leaderboard>.bin    optional: other riders' ghosts the game downloaded as opponents
 avatar.png                         optional: the rider's picture (146x146)
@@ -72,14 +71,14 @@ README.md, LICENSE                 for people; the manifest is the source of tru
   id hashes, best times and ghosts). `publisher.github` is the GitHub account that published it, and
   `publisher.statement` says, inside the signed manifest, that the rider is theirs. Everything under `others` is
   explicitly *not* the publisher's: other riders' ghosts their game downloaded.
-- **Signature** (always made by `publish`): the manifest, which lists the sha256 of every file, signed with an SSH
-  key of the publisher's GitHub account; `check --verify` checks it against that account's public keys
-  (`api.github.com/users/<login>/keys` and `/ssh_signing_keys`). `publish` uses a key of yours that is already on
-  GitHub, or offers to create a signing-only key (`~/.ssh/trials_frontier_bundle_ed25519`) and add it, and refuses
-  to publish a signature that does not verify.
-- **Claims**: a signed bundle proves that a GitHub account published *a statement* that a rider is theirs, and
-  when (git history); it cannot prove ownership of the Ubisoft account (Ubisoft has purged many). A future fan
-  server can combine: the signature (who), the earliest publication (when), `profile_sha256` (the claimant had a
+- **Proof of the publisher** (made by `publish`): the files are committed through GitHub's API, so GitHub signs
+  every commit for the account that made it (committer `web-flow`, shown as Verified). A bundle is its publisher's
+  when every commit in its repository is GitHub-signed and authored by the account `publisher.github` names
+  (`ghost_bundle.py verify <owner/repo>`, and `community.py sync` before using a bundle). Nothing to keep or lose:
+  no key on the publisher's machine; the signatures live in the commits, so copies of the repository keep them.
+- **Claims**: a bundle proves that a GitHub account published *a statement* that a rider is theirs, and when (the
+  signed commits); it cannot prove ownership of the Ubisoft account (Ubisoft has purged many). A future fan
+  server can combine: the GitHub-signed commits (who), the earliest publication (when), `profile_sha256` (the claimant had a
   save with that profile id; they can show the save privately to the server), and the same rider across several
   devices or bundles. Conflicting claims to one rider are for such a server to resolve.
 
