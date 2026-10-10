@@ -932,3 +932,15 @@ later an in-app loopback server). Static analysis only.
   republishing, passing on a layer or app, or serving publicly requires honouring every source's licence.
 - Local folder sources get ids `local/<folder>` (the absolute path, which ended up in layers and in apps built
   with them, stays only in the user's own sources list). Trials Fresh and the main game's layer rebuilt.
+
+## 2026-10-10 — jayuph's bundle published; project review
+
+- The user published github.com/gtjeffw/trials-frontier-ghosts-jayuph (public, topics set): `verify` ok, all three
+  commits (GitHub's initial one and the two bundle batches) signed by GitHub for gtjeffw; a normal
+  `community.py update` fetched and verified it from GitHub.
+- Review before publishing the project: no profile ids, other riders' names or ids, device ids, team or bundle ids,
+  emails or local paths in the tracked files or the history (only the game's application id and standard UUID
+  constants). README: disclaimer near the top (unofficial fan preservation project, not affiliated with or endorsed
+  by Ubisoft/RedLynx, trademarks and all rights in the game theirs, contact for rights holders), status and
+  features brought up to date, licence section names the generated artwork and the quoted original bytes. TODO:
+  done items marked.

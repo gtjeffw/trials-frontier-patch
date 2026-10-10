@@ -3,18 +3,26 @@
 Tools and notes for preserving and playing **Trials Frontier 7.9.0** (RedLynx/Ubisoft, iOS) after its online
 services ended. From *your own* copy of the game you can build a patched app that:
 
-- runs on an Apple-silicon Mac in [PlayCover](https://playcover.io) (iPhone/iPad sideloading is planned), with keyboard
-  controls;
+- runs on an Apple-silicon Mac in [PlayCover](https://playcover.io) with keyboard controls, or sideloaded on an
+  iPhone/iPad with a free Apple ID;
 - works fully offline, with ads, tracking and every connection to Ubisoft/RedLynx switched off;
 - serves its own leaderboards, ghosts and login from inside the app on `127.0.0.1` — race your own ghosts, upload new
   best runs, see the opponents the game downloaded over the years;
+- races other riders: your downloaded opponents, other players' published ghost bundles, and optionally the 2019
+  world records; new players get a working game too;
 - optionally: buy coins with gems, open every level that can no longer be unlocked, and more (see *Options*).
 
-It also decodes your save, best times and ghosts.
+It also decodes your save, best times and ghosts, and lets you publish your own as a ghost bundle.
 
 **This repository contains no game files.** You need your own installed copy of the game, and for an encrypted
 copy a way to read its one encrypted page (see *Getting the game files*). Do not publish decrypted game files, game
 assets or saves (saves contain account ids and other players' names).
+
+**Disclaimer.** Trials Frontier was developed by RedLynx and published by Ubisoft; "Trials" and "Trials Frontier" are
+trademarks of Ubisoft Entertainment. This is an unofficial fan project to preserve and keep playing a game whose
+online services have ended, for people who own a copy. It is not affiliated with, endorsed, sponsored or supported
+by Ubisoft or RedLynx, and all rights in the game (its code, artwork, levels, sounds and other content) remain
+theirs. If you hold rights in the game and have concerns about this project, please open an issue.
 
 ## Quick start (PlayCover on an Apple-silicon Mac)
 
@@ -154,12 +162,17 @@ python3 -I scripts/community.py update                         # fetch, check, b
 
 ## Status
 
-Tested with PlayCover on macOS and sideloaded on an iPhone 15 Pro (iOS 26) and an iPad Air 2 (iOS 15): the whole game plays offline with keyboard controls; leaderboards with your own
-results, downloaded opponents and optional world records; racing and uploading ghosts; avatars; coins for gems;
-hidden, orphan and developer levels reachable. Open items (a robot-challenge module, top five on
-FRIENDS, native keyboard/controller input) are in `docs/TODO.md`.
+Tested with PlayCover on macOS and sideloaded on an iPhone 15 Pro (iOS 26) and an iPad Air 2 (iOS 15): the whole game
+plays offline with keyboard controls, for a restored profile and for a brand-new player (tutorial, naming, story);
+leaderboards and the Hall of Fame with your own results, downloaded opponents, published bundles and optional world
+records; racing and uploading ghosts; A.N.B.A.'s live opponents; avatars (generated helmets for riders without one);
+coins for gems; hidden, orphan and developer levels. Publishing a bundle and fetching it from GitHub work end to
+end. Open items (PvP duels, top five on FRIENDS, event tracks, native keyboard/controller input, a guide for players
+without a jailbreak) are in `docs/TODO.md`.
 
 ## Licence
 
-MIT (see `LICENSE`) for this repository's own code and documentation. Trials Frontier and its files belong to
-Ubisoft/RedLynx and are not part of this repository or covered by this licence.
+MIT (see `LICENSE`) for this repository's own code, documentation and artwork (the generated helmet avatars).
+Trials Frontier and its files belong to Ubisoft/RedLynx and are not part of this repository or covered by this
+licence; the patch spec only quotes the few original bytes each patch replaces (about 1.5 KB of machine code in
+total), so that inputs and builds can be verified. Data you fetch with `community.py` keeps its own licences.

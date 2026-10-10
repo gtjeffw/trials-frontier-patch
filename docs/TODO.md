@@ -25,13 +25,13 @@ best (its delete paths cover mission/PvP/multi-ghost temp files, images, DL cont
 risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purgeable on iOS; also
 `DLContentManager::deleteFile(s)`), which is where the untabled swamp/moon/chipshop/Moon packs must be today.
 
-1. **Load untabled packs from the bundle.** Patch `__getSaveFilePath` type 6 to `[[NSBundle mainBundle] resourcePath]
+1. ~~**Load untabled packs from the bundle.**~~ — done (compat `dlc-folder-in-bundle`, `bundle_dlc`). Was: patch `__getSaveFilePath` type 6 to `[[NSBundle mainBundle] resourcePath]
    + "/DLC"`; `build_ipa.py` copies the user's own untabled packs (same detection as `install_playcover.py`) into
    `TrialsFrontier.app/DLC/`. Never purged, read-only (game cleanup cannot delete), works for iOS sideloads, and
    makes the PlayCover copy step unnecessary.
 2. ~~**Server store in `Documents/LocalServices`**~~ — done (both servers; old Library store moved once): never purged, backed up, second copy
    of every best ghost.
-3. **File sharing** (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`) so users can copy save, ghosts and
+3. ~~**File sharing**~~ — done (`--with file-sharing`). Was: (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`) so users can copy save, ghosts and
    store off the device (the only protection against deleting the app).
 
 ## Robot challenge module (daily "beat this rider")
@@ -39,8 +39,8 @@ risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purg
 Done (Python server + `inapp/src/TFRobots.m`, parity-tested): `match/v1/robot`, `match/v1/robot_v2`,
 `resultservice/v1/robot_replaydata` from the store's ghosts — other riders first (closest just slower than the
 player's best), the player's own ghost if no one else. Robots are the "Live Opponents" of the A.N.B.A. quest line
-(RobotmanManager). Still to check in play: that downloaded robot ghosts load (`SaveFile::processHeader` path in
-`OnlineRobotMission::onGhostReceived`) and A.N.B.A. progresses; how the PvP duels (`pvp_matches`) could be served.
+(RobotmanManager). Verified in play: robot ghosts load and are raced (with community bundles too). Still open: how
+the PvP duels (`pvp_matches`) could be served.
 
 ## Community ghost bundles (self-published, consolidated)
 
