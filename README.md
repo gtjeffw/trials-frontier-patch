@@ -1,7 +1,11 @@
 # trials-frontier-patch
 
-Tools and notes for preserving and playing **Trials Frontier 7.9.0** (RedLynx/Ubisoft, iOS) after its online
-services ended. From *your own* copy of the game you can build a patched app that:
+Trials Frontier is an excellent game in the Trials series by Ubisoft RedLynx. Unfortunately, it is no longer
+available. Even if you got this free-to-play game while it was still being distributed and supported, you can no
+longer play it, because Ubisoft shut down its servers.
+
+This project lets you ride again. Starting from *your own* copy of **Trials Frontier 7.9.0** for iOS, it builds
+a patched app that:
 
 - runs on an Apple-silicon Mac in [PlayCover](https://playcover.io) with keyboard controls, or sideloaded on an
   iPhone/iPad with a free Apple ID;
@@ -12,11 +16,12 @@ services ended. From *your own* copy of the game you can build a patched app tha
   world records; new players get a working game too;
 - optionally: buy coins with gems, open every level that can no longer be unlocked, and more (see *Options*).
 
-It also decodes your save, best times and ghosts, and lets you publish your own as a ghost bundle.
+It also decodes your save, best times and ghosts, and lets you share your own runs with other players as a ghost
+bundle.
 
 **This repository contains no game files.** You need your own copy of the game, including an unencrypted copy of
-its executable (see *Getting the game files*). Do not publish decrypted game files, game
-assets or saves (saves contain account ids and other players' names).
+its executable (see *Getting the game files*). A raw save holds account ids and other players' names, so a ghost
+bundle carries only times and ghosts, never the save itself (see *Sharing your ghosts*).
 
 **Disclaimer.** Trials Frontier was developed by RedLynx and published by Ubisoft; "Trials" and "Trials Frontier" are
 trademarks of Ubisoft Entertainment. This is an unofficial fan project to preserve and keep playing a game whose
