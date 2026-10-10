@@ -76,6 +76,11 @@ config file.
 
 ## Other open items
 
+- **Hall of Fame (overall ranking):** handle `POST playerstats/v1/stats/global_stats` (after every race:
+  {data, drivetime, global_score, upgrades, submittime}) and serve `ranking/global_stats` from it; the displayed
+  value (e.g. 1,058,226 for global_score 14.68) needs its conversion decoded. Would give every player a working Hall
+  of Fame and likely fix the name a new player sees there in the session where they pick it.
+
 - ~~**Fetch community high scores automatically**~~ — done: the `world-records-2019` source of `community.py`
   (pinned commit and sha256, cached, never breaks anything). Maybe also `database/backup/bonxyResults.json` (another
   leaderboard snapshot) as a further source type.

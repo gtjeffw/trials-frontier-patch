@@ -819,3 +819,9 @@ later an in-app loopback server). Static analysis only.
   zlib after a 16-byte header) held JBuff afterwards. Suspect: the overall ranking (global_stats) fetched before
   naming stays in memory with "Rider"; `POST playerstats/v1/stats/global_stats` (the overall score after each
   race) is still unhandled, so it is never refreshed. To confirm with a screenshot.
+- Confirmed after a restart: every login answers "JBuff" from the first one, and both results panels (track and
+  Hall of Fame) show JBuff. "Rider" only appears in the session in which the player picks a name, on lists the game
+  filled before naming: the Hall of Fame (global_stats, loaded at start and never refreshed because the overall
+  score submit is unhandled) and tracks raced before naming (the game's in-memory cache keeps the entry it added
+  with the name of that moment). Known, cosmetic, gone after a restart. Handling global_stats on the server (store
+  the overall score, serve the Hall of Fame ranking) would likely refresh that list in-session too (TODO).
