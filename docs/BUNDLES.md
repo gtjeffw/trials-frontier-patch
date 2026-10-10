@@ -19,7 +19,7 @@ That search is the index for now; a future collecting service can start from it.
 
 ```
 trials-frontier-bundle.json        the manifest (below)
-trials-frontier-bundle.json.sig    optional: SSH signature of the manifest (namespace trials-frontier-bundle)
+trials-frontier-bundle.json.sig    SSH signature of the manifest by the publisher (namespace trials-frontier-bundle)
 ghosts/<leaderboard>.bin           the rider's ghosts, exactly as the game stores them
 others/<HASH>/<leaderboard>.bin    optional: other riders' ghosts the game downloaded as opponents
 avatar.png                         optional: the rider's picture (146x146)
@@ -37,7 +37,7 @@ README.md, LICENSE                 for people; the manifest is the source of tru
  "license": "CC0-1.0",
  "rider": {"name": "…", "game_hash": "1A2B3C4D", "profile_sha256": "…64 hex…",
            "avatar": {"file": "avatar.png", "sha256": "…"}},
- "publisher": {"github": "<login>"},
+ "publisher": {"github": "<login>", "statement": "The publisher states that the rider is their own …"},
  "results": [{"leaderboard": 65537, "track": 1, "faults": 0, "time_ms": 14932, "bike": 15,
               "source": "save", "track_name": "…"}],
  "ghosts":  [{"leaderboard": 65537, "track": 1, "time_ms": 14932, "bike": 15, "file": "ghosts/65537.bin",
@@ -62,9 +62,20 @@ README.md, LICENSE                 for people; the manifest is the source of tru
   so bundles and the opponents in everyone's saves can be matched. It is only 32 bits, so collisions are possible:
   `profile_sha256` = sha256 of `"trials-frontier-profile:" + profile id` settles them, and lets anyone who
   already knows a profile id (from a save, or a future service) recognise it.
-- **Signature**: `publish --sign-key <key>` signs the manifest (which lists the sha256 of every file) with an SSH
-  key; `check --verify` checks it against `https://github.com/<publisher>.keys`. So the bundle stays attributable
-  to its GitHub account even when copied elsewhere. That is the basis for any later claim of a rider's records.
+- **Who is who**: `rider` is the publisher's own rider: the profile the export was made from (the save's own name,
+  id hashes, best times and ghosts). `publisher.github` is the GitHub account that published it, and
+  `publisher.statement` says, inside the signed manifest, that the rider is theirs. Everything under `others` is
+  explicitly *not* the publisher's: other riders' ghosts their game downloaded.
+- **Signature** (always made by `publish`): the manifest, which lists the sha256 of every file, signed with an SSH
+  key of the publisher's GitHub account; `check --verify` checks it against that account's public keys
+  (`api.github.com/users/<login>/keys` and `/ssh_signing_keys`). `publish` uses a key of yours that is already on
+  GitHub, or offers to create a signing-only key (`~/.ssh/trials_frontier_bundle_ed25519`) and add it, and refuses
+  to publish a signature that does not verify.
+- **Claims**: a signed bundle proves that a GitHub account published *a statement* that a rider is theirs, and
+  when (git history); it cannot prove ownership of the Ubisoft account (Ubisoft has purged many). A future fan
+  server can combine: the signature (who), the earliest publication (when), `profile_sha256` (the claimant had a
+  save with that profile id; they can show the save privately to the server), and the same rider across several
+  devices or bundles. Conflicting claims to one rider are for such a server to resolve.
 
 ## Rules for readers
 

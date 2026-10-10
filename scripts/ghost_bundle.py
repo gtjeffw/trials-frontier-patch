@@ -22,13 +22,17 @@ check    validates a bundle the way import does; --verify also checks the manife
          publisher's SSH keys on GitHub.
 publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`, logged in) creates or updates a
          public repository <you>/trials-frontier-ghosts-<name> with the topics that make bundles findable. Commits
-         use your GitHub noreply address. --sign-key signs the manifest with an SSH key you have on GitHub.
+         use your GitHub noreply address. The manifest names you as publisher, states that the rider is you, and is
+         always signed with an SSH key on your GitHub account (anyone can check it; a future fan server can use it
+         to tie the rider's records to you): a key of yours already on GitHub is found automatically (or
+         --sign-key); if there is none, publish offers to create a signing-only key and add it to your account.
 import   adds a bundle's riders, times and ghosts to the patched game's store (close the game first). Riders are
          keyed by the game's own hash of their profile id, so they merge with the "Rider <hash>" opponents your game
          downloaded back then. Default container: PlayCover's (com.ubisoft.redlynx.trialsfrontier).
 search   lists published bundles (GitHub topic trials-frontier-bundle).
 """
 import datetime
+import glob
 import hashlib
 import json
 import os
@@ -51,6 +55,9 @@ from local_services import decode, game_hash, ghost_drive_time, known_riders, re
 FORMAT, FORMAT_VERSION = "trials-frontier-bundle", 1
 MANIFEST, SIGNATURE = "trials-frontier-bundle.json", "trials-frontier-bundle.json.sig"
 SIGN_NAMESPACE = "trials-frontier-bundle"
+STATEMENT = ("The publisher states that the rider is their own and that the rider's times and ghosts were recorded "
+             "by them; anything under 'others' was downloaded by their game.")
+SIGNING_KEY = os.path.expanduser("~/.ssh/trials_frontier_bundle_ed25519")
 TOPICS = ["trials-frontier", "trials-frontier-bundle", "trials-frontier-ghosts", "game-preservation"]
 PATCH_REPO = "https://github.com/gtjeffw/trials-frontier-patch"
 DEFAULT_CONTAINER = os.path.expanduser("~/Library/Containers/com.ubisoft.redlynx.trialsfrontier/Data")
@@ -245,6 +252,13 @@ def write_text(out, m):
         f"Best times and ghost replays of **{r['name']}** in Trials Frontier {m['game']['version']} (RedLynx/Ubisoft, "
         f"{m['game']['platform']}), whose online services have ended. A `{FORMAT}` (format {m['format_version']}), "
         f"made with [trials-frontier-patch]({PATCH_REPO}).",
+    ]
+    if m.get("publisher"):
+        lines += ["", f"Published by [github.com/{m['publisher']['github']}](https://github.com/{m['publisher']['github']}), "
+                  f"who states that **{r['name']}** is their own rider and these are their own runs. The manifest is "
+                  f"signed with an SSH key of that account (`{SIGNATURE}`); check it with "
+                  "`python3 -I scripts/ghost_bundle.py check <this folder> --verify`."]
+    lines += [
         "",
         f"- {len(m['results'])} best times, {len(m['ghosts'])} ghosts (`ghosts/<leaderboard>.bin`, the game's own "
         "ghost files)",
@@ -357,28 +371,51 @@ def check(bundle, verify=False):
         ghosts_ok(o.get("ghosts"), "others/" + o["game_hash"] + r"/%d\.bin")
     if m.get("license") not in LICENSES:
         fail("license")
+    pub = m.get("publisher")
+    if pub is not None and (not isinstance(pub, dict) or not re.fullmatch(r"[A-Za-z0-9-]{1,39}", str(pub.get("github")))
+                            or not isinstance(pub.get("statement", ""), str)):
+        fail("publisher")
     if verify:
         verify_signature(real, m)
     return m
 
 
-def verify_signature(bundle, m):
-    login = (m.get("publisher") or {}).get("github")
+def github_keys(login):
+    """The public SSH keys of a GitHub account ("<type> <base64>"): authentication and signing keys."""
+    keys = []
+    for kind in ("keys", "ssh_signing_keys"):
+        try:
+            with urllib.request.urlopen(f"https://api.github.com/users/{login}/{kind}", timeout=20) as r:
+                keys += [" ".join(k["key"].split()[:2]) for k in json.load(r)]
+        except (OSError, ValueError, KeyError):
+            pass
+    return keys
+
+
+def verify_with_keys(bundle, login, keys):
+    """None if the manifest's signature was made by one of keys, else the reason."""
     sig = os.path.join(bundle, SIGNATURE)
-    if not login or not os.path.isfile(sig):
-        sys.exit("not signed (no publisher or no signature)")
-    if not re.fullmatch(r"[A-Za-z0-9-]{1,39}", login):
-        sys.exit("bad publisher name")
-    keys = urllib.request.urlopen(f"https://github.com/{login}.keys", timeout=20).read().decode().split("\n")
+    if not os.path.isfile(sig):
+        return "no signature"
+    if not keys:
+        return f"no SSH keys found for github.com/{login}"
     with tempfile.NamedTemporaryFile("w", suffix=".signers", delete=False) as fh:
-        fh.write("".join(f"{login} {k}\n" for k in keys if k.strip()))
+        fh.write("".join(f"{login} {k}\n" for k in keys))
     try:
         r = subprocess.run(["ssh-keygen", "-Y", "verify", "-f", fh.name, "-I", login, "-n", SIGN_NAMESPACE, "-s", sig],
                            stdin=open(os.path.join(bundle, MANIFEST), "rb"), capture_output=True, text=True)
     finally:
         os.remove(fh.name)
-    if r.returncode != 0:
-        sys.exit(f"signature does NOT match {login}'s SSH keys on GitHub: {r.stderr.strip() or r.stdout.strip()}")
+    return None if r.returncode == 0 else (r.stderr.strip() or r.stdout.strip() or "does not verify")
+
+
+def verify_signature(bundle, m):
+    login = (m.get("publisher") or {}).get("github")
+    if not login or not re.fullmatch(r"[A-Za-z0-9-]{1,39}", str(login)):
+        sys.exit("not signed: no publisher")
+    err = verify_with_keys(bundle, login, github_keys(login))
+    if err:
+        sys.exit(f"signature does NOT match github.com/{login}: {err}")
     print(f"signature ok: signed by an SSH key of github.com/{login}")
 
 
@@ -405,6 +442,37 @@ It does not contain your save, your profile id, or any game files."""
 OTHERS = """  - this bundle ALSO contains {n} other riders' ghosts that your game downloaded as opponents{names}; you
     take responsibility for sharing them;
 """
+
+
+def find_key(login):
+    """A private key in ~/.ssh whose public key is on the GitHub account (signing keys first)."""
+    on_github = github_keys(login)
+    for pub in sorted(glob.glob(os.path.expanduser("~/.ssh/*.pub")), key=lambda p: p != SIGNING_KEY + ".pub"):
+        try:
+            mine = " ".join(open(pub).read().split()[:2])
+        except OSError:
+            continue
+        if mine in on_github and os.path.exists(pub[:-4]):
+            return pub[:-4]
+    return None
+
+
+def create_key(login):
+    """Make a signing-only SSH key for bundles and add it to the GitHub account (with the user's OK)."""
+    print(f"\nNone of your SSH keys in ~/.ssh is on github.com/{login}. Bundles are always signed, so publish can create"
+          f"\n{SIGNING_KEY} and add it to your GitHub account as a SIGNING key (it cannot be used to log in or"
+          "\npush; you can remove it any time under Settings > SSH and GPG keys). GitHub may first ask you to approve"
+          "\nthe extra permission in the browser (gh auth refresh -s admin:ssh_signing_key).")
+    if input("Create and add the signing key? [y/N] ").strip().lower() not in ("y", "yes"):
+        sys.exit("not published (use --sign-key <key> with an SSH key that is on your GitHub account)")
+    if not os.path.exists(SIGNING_KEY):
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-C", f"trials-frontier-bundle {login}", "-f", SIGNING_KEY],
+                       check=True)  # asks for an optional passphrase
+    scopes = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
+    if "admin:ssh_signing_key" not in scopes.stdout + scopes.stderr:
+        subprocess.run(["gh", "auth", "refresh", "-h", "github.com", "-s", "admin:ssh_signing_key"], check=True)
+    run(["gh", "ssh-key", "add", SIGNING_KEY + ".pub", "--type", "signing", "--title", "Trials Frontier bundles"])
+    return SIGNING_KEY
 
 
 def names_note(others):
@@ -435,13 +503,21 @@ def publish(bundle):
         if input('\nType "I agree" to publish: ').strip().lower() != "i agree":
             sys.exit("not published")
 
-    m["publisher"] = {"github": login}
+    key = key or find_key(login) or (None if dry else create_key(login))
+    print(f"signing with {key or '(a new signing key, created on a real run)'}")
+    m["publisher"] = {"github": login, "statement": STATEMENT}
     json.dump(m, open(os.path.join(bundle, MANIFEST), "w"), indent=1, ensure_ascii=False)
+    write_text(bundle, m)
     sig = os.path.join(bundle, SIGNATURE)
     if os.path.exists(sig):
         os.remove(sig)
-    if key:
-        run(["ssh-keygen", "-Y", "sign", "-f", key, "-n", SIGN_NAMESPACE, os.path.join(bundle, MANIFEST)], dry=dry)
+    if not dry:
+        run(["ssh-keygen", "-Y", "sign", "-f", key, "-n", SIGN_NAMESPACE, os.path.join(bundle, MANIFEST)])
+        err = verify_with_keys(bundle, login, github_keys(login))
+        if err:  # never publish a signature nobody can check
+            os.remove(sig)
+            sys.exit(f"the signature does not verify against github.com/{login}'s keys ({err}); not published.\n"
+                     f"Is {key}.pub on your GitHub account (Settings > SSH and GPG keys)?")
 
     noreply = f"{uid}+{login}@users.noreply.github.com"
     if not os.path.isdir(os.path.join(bundle, ".git")):

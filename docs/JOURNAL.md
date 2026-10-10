@@ -723,3 +723,10 @@ later an in-app loopback server). Static analysis only.
 - `--include-others-with-names`: like `--include-others`, plus the in-game names the save keeps for some opponents
   (pseudonymous usernames; the publisher decides, and `publish` names them in the agreement text). The local
   server's own placeholders ("Rider <hash>"), which the game may have saved, are never exported as names.
+- Publishing always signs now: a key in `~/.ssh` that is on the publisher's GitHub account (authentication or signing
+  keys, via the public API) is found automatically; otherwise publish offers to create a signing-only key and add it
+  with `gh ssh-key add --type signing` (needs the `admin:ssh_signing_key` scope; gh asks in the browser). The
+  signature is verified against GitHub before anything is pushed. The signed manifest carries
+  `publisher.statement` (the rider is the publisher's own; `others` came from their game) and the bundle README
+  says who published it. Tested: dry run; verification accepts the signing key and rejects others (this Mac's keys
+  are not on the developer's GitHub account, so a real publish from here would create the signing key).
