@@ -1010,3 +1010,24 @@ later an in-app loopback server). Static analysis only.
   `build_ipa.py` now drops `_CodeSignature/` like `SC_Info/`. Result: the reference inputs and two independently
   decrypted copies (one keeping the crypt range and the signature, one zeroing and dropping them) give the same
   .ipa, byte for byte. Ad-hoc signing the result (as PlayCover does) creates a new signature and verifies.
+
+## 2026-10-10 — Halloween revival prototype (back-burnered)
+
+- Separate PlayCover copy "Trials Halloween" (`local.trialsfrontier.halloween`) with a copy of the developer's
+  data and the Pumpkin Queen missions' dates moved to start the day before (content patch `shift_mission_dates`
+  via a temporary spec; the date check then passes: `AntiCheating::getSystemTime` inside the window).
+- Nothing appeared: in memory every mission of that event (433–437, 421–424) was flagged completed
+  (Player+0x3280+id bit 0; the developer played it in 2015), although the save file's flag area did not show them
+  (the in-memory layout is not a byte image of the file; flags above ~350 are not where the file's are).
+- Live test (Frida, read-mostly, on the game's main thread): clearing those flags and calling
+  `MissionManager::addAvailableMissions(false)` made 421, 434, 435, 436, 437 active, and the game requested the
+  event leaderboard `ranking/event_stats9`. Still no event icon on the map and no pumpkins on the listed tracks.
+- Likely missing: the smash objective places objects only on the track assigned to it (`getVisibleSmashables`
+  compares the objective's track; assignment comes from the event's track list via randomized overrides,
+  `reserveRandomizedTrackOverrides` / `SpecialEventManager::onEventTracksRefreshed`), i.e. the event's start
+  sequence, which flipping missions active skips; the map icon probably depends on the same.
+- Constraints for a real feature: mission ids 1–506 are all used and the completion-flag array ends at 511
+  (`0x3484` is `PlayerDailyExperienceData`; code checks ids > 0x1ff), so a "new" event under fresh ids has only
+  507–511 (five missions: intro, event, smash, ghost, third task; the online weekly legs dropped), one event at a
+  time, and completion would block it again the next year. Lesson: detaching Frida from the game crashed it
+  (14:12); stay attached until the game quits.
