@@ -855,7 +855,8 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(n) if n else b""
         s = self.services
-        interesting = {k: v for k, v in self.headers.items() if k.lower() in ("authorization", "ubi-appid", "ubi-sessionid", "content-type")}
+        # never the Authorization header (it carries the login library's account secret; see token_summary)
+        interesting = {k: v for k, v in self.headers.items() if k.lower() in ("ubi-appid", "ubi-sessionid", "content-type")}
         try:
             result = s.handle(self.command, self.path, self.headers, body)
         except Exception as e:  # keep serving; report the bug
