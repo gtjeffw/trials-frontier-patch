@@ -792,3 +792,12 @@ later an in-app loopback server). Static analysis only.
   servers now log the name each login returns (`login as …`) to confirm that a restart logs in as the nickname.
 - Also seen (not blocking): `POST playerstats/v1/stats/global_stats` (overall score after each race) is unhandled;
   a player without an avatar gets 404 for their picture and the fallback.
+- Why "Rider" then "JBuff" (static analysis): the tutorial's name screen (`MenuzMissionContentLoginName`) stores the
+  name as the silent-login name (`OnlineData::setSilentLoginName`, Player+0x6be0 → the field 148 bytes before the
+  end of the save); accepting it calls `OnlineCore::activateSilentLogin`, which logs in again (the second login,
+  08:44:48). `OnlineAuthenticationMobile::parseTicketData` copies the reply's profileId to Player+0x110 and
+  nameOnPlatform to Player+0x10, then overwrites Player+0x10 with the silent-login name if there is one, so the
+  server's name only matters before the player has chosen one. Leaderboard entry names come only from
+  `/v1/profiles` replies (`OnlineUbiservices::setLeaderBoardInfo`; empty names trigger `resolveLeaderBoardNames`).
+  The first race (track 1033, 08:44:04) came before the name existed; the re-login the user asked about is already
+  built into the game.
