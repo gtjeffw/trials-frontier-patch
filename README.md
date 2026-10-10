@@ -14,8 +14,8 @@ services ended. From *your own* copy of the game you can build a patched app tha
 
 It also decodes your save, best times and ghosts, and lets you publish your own as a ghost bundle.
 
-**This repository contains no game files.** You need your own installed copy of the game, and for an encrypted
-copy a way to read its one encrypted page (see *Getting the game files*). Do not publish decrypted game files, game
+**This repository contains no game files.** You need your own copy of the game, including an unencrypted copy of
+its executable (see *Getting the game files*). Do not publish decrypted game files, game
 assets or saves (saves contain account ids and other players' names).
 
 **Disclaimer.** Trials Frontier was developed by RedLynx and published by Ubisoft; "Trials" and "Trials Frontier" are
@@ -27,7 +27,7 @@ theirs. If you hold rights in the game and have concerns about this project, ple
 ## Quick start (PlayCover on an Apple-silicon Mac)
 
 ```
-python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <decrypted TrialsFrontier> --install --keymap
+python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <unencrypted TrialsFrontier> --install --keymap
 ```
 
 `build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
@@ -101,8 +101,26 @@ ones are marked `UNHANDLED`) and `python3 -I scripts/netwatch.py` (flags any non
 
 ## Getting the game files
 
-You need the `TrialsFrontier.app` of version 7.9.0 (e.g. from a device backup or a jailbroken device) and its
-executable without FairPlay encryption. An unencrypted copy of your own executable is needed (`--decrypted`). Every input is checked against the sha256 values in the patch spec.
+You need two things from **your own copy** of Trials Frontier 7.9.0 (arm64, as installed on a 64-bit iPhone or
+iPad):
+
+1. **The app bundle** `TrialsFrontier.app`: its content packs, artwork and settings. It can be copied from an
+   unencrypted device backup (`scripts/extract_app_domain.py` handles the app's data; the bundle itself may need a
+   device you can access directly).
+2. **An unencrypted copy of its executable.** App Store apps are protected with Apple's FairPlay encryption on the
+   device, so the executable inside the bundle cannot be patched as it is. There are well-established community
+   methods to jailbreak an older iOS device and decrypt apps installed on it, for example an old iPhone or iPad
+   that still has Trials Frontier installed. This project does not provide or link to such tools.
+
+**Check your local laws and regulations first.** In many countries, circumventing copy protection is restricted
+even for software you own (for example the US DMCA, section 1201, or the EU's Copyright Directive), with
+exceptions that differ from country to country. Whether and how you obtain an unencrypted copy is your own
+decision and responsibility. Do not share decrypted files with others.
+
+`build.py --decrypted <executable>` checks what you give it before patching anything: the right build (Mach-O
+UUID), not encrypted, the formerly encrypted code identical to the reference, and every patch site holding exactly
+the original bytes. An executable that is byte-identical to the reference gives byte-identical, verified builds;
+one from another tool that only differs in details such as its code signature is accepted too.
 
 Packs from the game's download folder (`Library/Caches/DLC` on the device) can be added with
 `scripts/install_playcover.py --dlc-from <folder>`; most of what they contained also ships in the app.

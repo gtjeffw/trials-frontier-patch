@@ -2,15 +2,15 @@
 
 Usage:
   python3 -I build.py --app <TrialsFrontier.app> --work <work dir>
-                      [--page <page.bin> | --decrypted <decrypted TrialsFrontier executable>]
+                      [--decrypted <unencrypted TrialsFrontier executable of your own copy>]
                       [--server embedded|external|none] [--with group,group,...]
                       [--avatars <dir>] [--community [<layer dir>]]
                       [--bundle-id <id>] [--display-name <name>]
                       [--install] [--keymap] [--dry-run]
 
 Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.json where they exist):
-  1. executable: the app's own if it is not encrypted (cryptid 0), else --decrypted, else the encrypted one plus the
-     page read by a private helper (--page);
+  1. executable: --decrypted if given, else the app's own if it is not encrypted (cryptid 0); see the README,
+     "Getting the game files";
   2. scripts/apply_patches.py: the default groups (compat, privacy, offline, economy) plus the chosen options;
   3. with --server embedded: scripts/build_inapp.py builds libTFLocalServices.dylib (needs Xcode);
   4. scripts/build_ipa.py: a reproducible .ipa in --work;
@@ -113,7 +113,7 @@ def run(cmd, dry):
 
 def main():
     app, work = opt("--app"), opt("--work")
-    page, decrypted = opt("--page"), opt("--decrypted")
+    decrypted = opt("--decrypted")
     server = opt("--server", default="embedded")
     extra = [g for g in (opt("--with", default="") or "").split(",") if g]
     avatars = opt("--avatars")
@@ -146,11 +146,9 @@ def main():
         cmd += [decrypted, patched]
     elif cryptid(exe) == 0:
         cmd += [exe, patched]
-    elif page:
-        cmd += [exe, patched, "--page", page]
     else:
-        sys.exit("the app's executable is encrypted: give --decrypted <executable> or --page <page.bin> "
-                 "(a private helper)")
+        sys.exit("the app's executable is encrypted (App Store copies are): give --decrypted <an unencrypted "
+                 "executable of your own copy>; see the README, \"Getting the game files\"")
     run(cmd + (["--with", exe_groups] if exe_groups else []), dry)
 
     ipa_cmd = PY + [os.path.join(ROOT, "scripts", "build_ipa.py"), app, patched,

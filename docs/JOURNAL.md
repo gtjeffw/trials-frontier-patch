@@ -944,3 +944,18 @@ later an in-app loopback server). Static analysis only.
   by Ubisoft/RedLynx, trademarks and all rights in the game theirs, contact for rights holders), status and
   features brought up to date, licence section names the generated artwork and the quoted original bytes. TODO:
   done items marked.
+
+## 2026-10-10 — No decryption tooling in the repository
+
+- Publishing tools or instructions for circumventing copy protection is legally risky in many countries, so the
+  repository no longer contains any: `a private helper` and `build.py`/`apply_patches.py --page` are
+  removed (the helper is mothballed in the private workspace), and the journal's extraction/decryption sections
+  are summaries without tools or steps. The README says the user needs an unencrypted copy of their own
+  executable, that well-established community methods exist, that this project does not provide or link to them,
+  and to check local laws first.
+- `apply_patches.py` accepts any correct decryption: byte-identical to the reference → reproducible, verified
+  build; otherwise accepted when the Mach-O UUID matches, cryptid is 0, the formerly encrypted range equals the
+  reference (`sha256.decrypted_page`) and every patch site has the original bytes (output then not compared with
+  the recorded hashes). Tested: reference (recorded hash), a re-signed copy (accepted, 115 patches), the App Store
+  executable (refused: still encrypted), one changed byte in the formerly encrypted range (refused). A copy whose
+  code signature load command was removed fails the header patch, with a hint.
