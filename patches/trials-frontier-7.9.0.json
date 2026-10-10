@@ -10,10 +10,10 @@
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
     "patched_executable": "5f372089ac8ad791434d93209fd039624b29e160524bd60d25718fa46f71466b",
     "patched_executable_with": {
-      "local-services": "10bba9a8ef7e128ca1361d7bc62ed283bf8bed185b348170d1fcdab71fbf8f15",
-      "local-services,open-all-levels": "cc32a01d4ab0955d3442ee7e7ddf32c4fec59aefd9b1dc8f3109b8465e9e5fba",
-      "local-services,open-all-levels,orphan-levels": "57809a6b9c96dab57dd1c7909098f306d30888fd0711dc52ffa99574d038eb0b",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "9e85053e206b050796be49e2efbdb75405178f931c2cdd3116bc5e42721b5fd1"
+      "local-services": "b25b1469ac70631ae433d25e3af2f965c25431b841e1ea84fd93d82898bcb9d8",
+      "local-services,open-all-levels": "a8b7154cde90e8852120b6e93d3a07c24275b06b922da81252099d2999cf46de",
+      "local-services,open-all-levels,orphan-levels": "b7e868cb25cf29ffc96be7de16953acba96607965563fc999c8934ef69aebf5b",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "fd355fc1652d7d960f5622f90c9bad05f2cbad88e9b9a1db26b7b3124fdad640"
     }
   },
   "encryption": {
@@ -1671,23 +1671,6 @@
       ],
       "function": "C string used by tr::OnlineUbiservices::getDefaultUserPicture",
       "reason": "Default profile picture from the local server instead of Ubisoft's CDN."
-    },
-    {
-      "id": "local-services-uplay-login-keeps-name",
-      "group": "local-services",
-      "vmaddr": "0x1002e04a0",
-      "original": "cd0520943fcb3738",
-      "replacement": "1f2003d51f2003d5",
-      "original_asm": [
-        "bl _memcpy                  ; Player+0x10 <- the Playground session's nameOnPlatform",
-        "strb wzr, [x25, w23, sxtw]"
-      ],
-      "replacement_asm": [
-        "nop",
-        "nop"
-      ],
-      "function": "tr::OnlineAuthenticationUPlay::finishLoginSequence",
-      "reason": "The Playground (Uplay) login completes again whenever the network state changes and copies its cached session's nameOnPlatform into the player's name. That session is made at app start, so for a new player it holds the name from before they chose one, and it put the placeholder back after the tutorial's naming. The mobile login (OnlineAuthenticationMobile::parseTicketData) already sets the name, preferring the chosen one; the profile id copy and the rest of the login are unchanged."
     },
     {
       "id": "local-services-results-cache-follows-name",

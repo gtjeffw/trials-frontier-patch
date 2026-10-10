@@ -875,3 +875,8 @@ later an in-app loopback server). Static analysis only.
   change-name request and never re-adopts the placeholder; the Uplay login cannot overwrite the name; the results
   popup drops its cached boards when the name changes. Only the tutorial's first scored course is submitted
   before the name exists (that is how the game works).
+- Cleanup: removed `local-services-uplay-login-keeps-name` again. Offline the Playground (Uplay) login never
+  completes (it would need Ubisoft's servers; no such request ever reached the local server), so the patched copy
+  was never reached; the results-popup cache was the whole cause. Recorded local-services hashes recomputed;
+  default build unchanged. The Python server no longer logs the Authorization header (the login library's account
+  secret); old development logs that had it were moved to the Trash. To confirm: one more new-player run.
