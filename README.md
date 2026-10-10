@@ -58,7 +58,7 @@ the silent switch.
 | `--with orphan-levels` | gives the six levels without a map position a place in the main map's fogged east (PvP tracks keep "any bike") |
 | `--with dev-levels` | names and places six unfinished developer test levels that ship with the game |
 | `--with file-sharing` | shows the game's data (save, ghosts, server store) in Finder and the Files app — for iPhone/iPad |
-| `--bundle-id`, `--display-name` | install next to the original app (iPhone/iPad) |
+| `--bundle-id`, `--display-name` | a second copy next to the original with its own data (iPhone/iPad, or PlayCover: one at a time) |
 | `--avatars <dir>` | `<profileId>.png` (146×146) pictures shown on the leaderboards, e.g. your own Ubisoft avatar |
 | `--world-records` + `--world-record-ids` | add the 2019 world records from [dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap) (MIT; `database/wr/wrrider.json` and `database/trackdata/ids.json`, downloaded by you) |
 

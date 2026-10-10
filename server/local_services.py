@@ -128,8 +128,12 @@ def known_riders(raw):
 
 
 def read_profile(container):
-    """(profile id, name) from player.bin: name at raw offset 20 (Player+0x10), profile id at 276 (Player+0x110)."""
-    _, raw = decode(open(os.path.join(container, "Documents", "player.bin"), "rb").read())
+    """(profile id, name) from player.bin: name at raw offset 20 (Player+0x10), profile id at 276 (Player+0x110).
+    ("", "") before the game has written its first save."""
+    path = os.path.join(container, "Documents", "player.bin")
+    if not os.path.exists(path):
+        return "", ""
+    _, raw = decode(open(path, "rb").read())
     name = raw[20:20 + 128].split(b"\0")[0].decode("utf-8", "replace")
     pid = raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace")
     return pid, name
@@ -139,12 +143,24 @@ class Services:
     def __init__(self, container, port, profile_id, name, log_path, avatars=None):
         self.container, self.port, self.avatars = container, port, avatars
         self.base = f"http://127.0.0.1:{port}"
-        if not (profile_id and name):
-            pid, nm = read_profile(container)
-            profile_id, name = profile_id or pid, name or nm
-        self.profile_id, self.name = profile_id, name
-        self.ticket = "local-" + uuid.uuid5(uuid.NAMESPACE_URL, profile_id).hex
+        self.fixed_name, self.save_mtime = name, None
+        self.profile_id, self.name = profile_id or read_profile(container)[0], "Rider"
+        self.refresh_name()
         self.log = open(log_path, "a", buffering=1) if log_path else None
+
+    def refresh_name(self):
+        """The player's name: --name, else the save's (re-read when player.bin changes: a new player picks one in the
+        tutorial), else "Rider"."""
+        if self.fixed_name:
+            self.name = self.fixed_name
+            return
+        try:
+            mtime = os.stat(self.documents("player.bin")).st_mtime_ns
+        except OSError:
+            return
+        if mtime != self.save_mtime:
+            self.save_mtime = mtime
+            self.name = read_profile(self.container)[1] or self.name
 
     def note(self, line):
         line = time.strftime("%H:%M:%S ") + line
@@ -152,7 +168,12 @@ class Services:
         if self.log:
             self.log.write(line + "\n")
 
+    @property
+    def ticket(self):
+        return "local-" + uuid.uuid5(uuid.NAMESPACE_URL, self.profile_id).hex
+
     def session(self):
+        self.refresh_name()
         now = time.gmtime()
         return {
             "platformType": "uplay",
@@ -169,9 +190,13 @@ class Services:
     def documents(self, name=""):
         return os.path.join(self.container, "Documents", name)
 
+    def save_raw(self):
+        path = self.documents("player.bin")
+        return decode(open(path, "rb").read())[1] if os.path.exists(path) else b""
+
     def scores(self):
-        _, raw = decode(open(self.documents("player.bin"), "rb").read())
-        return read_scores(raw)
+        raw = self.save_raw()
+        return read_scores(raw) if raw else {}
 
     # ---- persistent store (results and ghosts), seeded from the save and its ghost files ----
 
@@ -181,6 +206,8 @@ class Services:
         self.lock = threading.RLock()
         path = os.path.join(data_dir, "store.json")
         self.store = json.load(open(path)) if os.path.exists(path) else {"results": {}, "ghosts": {}, "next_id": 1000}
+        if not self.profile_id:  # a new player: no save yet; the game keeps the id the login returns
+            self.profile_id = self.store.setdefault("new_player_profile", str(uuid.uuid4()))
         seeded = 0
         for lb, (faults, ms, bike) in self.scores().items():
             board = self.store["results"].setdefault("track%d" % lb, {})
@@ -229,7 +256,7 @@ class Services:
         names them (known_riders); everyone else becomes "Rider <HASH>" under a stable made-up id."""
         if self.store.get("robots_imported"):
             return 0
-        _, raw = decode(open(self.documents("player.bin"), "rb").read())
+        raw = self.save_raw()
         named = {"%08X" % game_hash(pid): (pid, name) for pid, name in known_riders(raw).items()}
         count = 0
         os.makedirs(os.path.join(self.data_dir, "avatars"), exist_ok=True)
@@ -464,6 +491,7 @@ class Services:
 
     def rider_name(self, pid):
         if pid == self.profile_id:
+            self.refresh_name()
             return self.name
         return self.store["riders"].get(pid, {}).get("name", "rider")
 

@@ -1,10 +1,12 @@
 """Install a patched Trials Frontier .ipa into PlayCover.
 
 Usage: python3 -I install_playcover.py <spec.json> <TrialsFrontier.app> [--ipa patched.ipa] [--keymap keymap.plist]
-                                       [--caches-dlc [--dlc-from <folder>]] [--dry-run]
+                                       [--bundle-id <id>] [--caches-dlc [--dlc-from <folder>]] [--dry-run]
 
   --ipa:        hand the .ipa to PlayCover (`open -a PlayCover`), which installs and re-signs it (game closed).
   --keymap:     install the PlayCover keymap (enable Keymapping for the app in PlayCover).
+  --bundle-id:  the bundle id the .ipa was built with (build.py --bundle-id), for a second copy of the game with its
+                own data; default com.ubisoft.redlynx.trialsfrontier.
   --caches-dlc: only for builds without the compat patch dlc-folder-in-bundle: copy the packs the game can only load
                 from its download folder (scripts/dlcpacks.py) into the app data's Library/Caches/DLC. Current builds
                 carry them inside the app (build_ipa.py puts them into TrialsFrontier.app/DLC).
@@ -15,9 +17,7 @@ import shutil
 import subprocess
 import sys
 
-BUNDLE_ID = "com.ubisoft.redlynx.trialsfrontier"
 HOME = os.path.expanduser("~")
-CONTAINER = os.path.join(HOME, "Library/Containers", BUNDLE_ID, "Data")
 PLAYCOVER = os.path.join(HOME, "Library/Containers/io.playcover.PlayCover")
 
 
@@ -38,6 +38,8 @@ import dlcpacks  # noqa: E402
 
 ipa, keymap, dlc_from = opt("--ipa"), opt("--keymap"), opt("--dlc-from")
 caches, dry = opt("--caches-dlc", True), opt("--dry-run", True)
+BUNDLE_ID = opt("--bundle-id") or "com.ubisoft.redlynx.trialsfrontier"
+CONTAINER = os.path.join(HOME, "Library/Containers", BUNDLE_ID, "Data")
 spec_path, app_dir = sys.argv[1:3]
 spec = json.load(open(spec_path))
 copies, report = dlcpacks.plan(spec, app_dir, dlc_from) if caches else ([], [])

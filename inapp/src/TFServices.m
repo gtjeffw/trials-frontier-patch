@@ -37,7 +37,8 @@ static id jsonObject(NSData *d) {
 @implementation TFServices {
     NSString *_avatarsDir;
     void (^_log)(NSString *);
-    NSString *_ticket;
+    NSString *_fixedName;
+    NSDate *_saveDate;
 }
 
 - (instancetype)initWithDocuments:(NSString *)documentsDir dataDir:(NSString *)dataDir port:(uint16_t)port
@@ -50,17 +51,39 @@ static id jsonObject(NSData *d) {
         _log = log;
         _base = [NSString stringWithFormat:@"http://127.0.0.1:%u", port];
         _lock = [NSRecursiveLock new];
-        if (!profileId.length || !name.length) {
-            NSString *n = nil, *p = nil;
-            TFReadProfile([self saveRaw] ?: [NSData data], &n, &p);
-            if (!profileId.length) profileId = p;
-            if (!name.length) name = n;
+        if (!profileId.length) {
+            NSString *p = nil;
+            TFReadProfile([self saveRaw] ?: [NSData data], NULL, &p);
+            profileId = p;
         }
-        _profileId = [profileId copy] ?: @"";
-        _name = [name copy] ?: @"";
-        _ticket = [@"local-" stringByAppendingString:[TFUUID5(TFNamespaceURL, _profileId) stringByReplacingOccurrencesOfString:@"-" withString:@""]];
+        _profileId = [profileId copy] ?: @"";  // empty for a new player until loadStore
+        _fixedName = name.length ? [name copy] : nil;
+        _name = @"Rider";
+        [self refreshName];
     }
     return self;
+}
+
+/// The player's name: the one given, else the save's (re-read when player.bin changes: a new player picks one in the
+/// tutorial), else "Rider".
+- (void)refreshName {
+    if (_fixedName) {
+        _name = _fixedName;
+        return;
+    }
+    NSDate *d = [NSFileManager.defaultManager attributesOfItemAtPath:[self documents:@"player.bin"] error:nil].fileModificationDate;
+    [_lock lock];
+    if (d && ![d isEqual:_saveDate]) {
+        _saveDate = d;
+        NSString *n = nil;
+        TFReadProfile([self saveRaw] ?: [NSData data], &n, NULL);
+        if (n.length) _name = [n copy];
+    }
+    [_lock unlock];
+}
+
+- (NSString *)ticket {
+    return [@"local-" stringByAppendingString:[TFUUID5(TFNamespaceURL, _profileId) stringByReplacingOccurrencesOfString:@"-" withString:@""]];
 }
 
 - (void)note:(NSString *)line { _log(line); }
@@ -82,6 +105,10 @@ static id jsonObject(NSData *d) {
     [fm createDirectoryAtPath:[_dataDir stringByAppendingPathComponent:@"ghosts"] withIntermediateDirectories:YES attributes:nil error:nil];
     NSMutableDictionary *s = jsonObject([NSData dataWithContentsOfFile:[_dataDir stringByAppendingPathComponent:@"store.json"]]);
     _store = s ?: [@{@"results": [NSMutableDictionary dictionary], @"ghosts": [NSMutableDictionary dictionary], @"next_id": @1000} mutableCopy];
+    if (!_profileId.length) {  // a new player: no save yet; the game keeps the id the login returns
+        if (!_store[@"new_player_profile"]) _store[@"new_player_profile"] = NSUUID.UUID.UUIDString.lowercaseString;
+        _profileId = [_store[@"new_player_profile"] copy];
+    }
     NSInteger seeded = 0;
     NSDictionary *scores = [self scores];
     for (NSNumber *lb in scores) {
@@ -462,14 +489,19 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
 }
 
 - (NSString *)riderName:(NSString *)pid {
-    if ([pid isEqual:_profileId]) return _name;
+    if ([pid isEqual:_profileId]) {
+        [self refreshName];
+        return _name;
+    }
     return _store[@"riders"][pid][@"name"] ?: @"rider";
 }
 
 - (NSDictionary *)session {
-    return @{@"platformType": @"uplay", @"ticket": _ticket, @"profileId": _profileId, @"userId": _profileId,
+    [self refreshName];
+    NSString *ticket = [self ticket];
+    return @{@"platformType": @"uplay", @"ticket": ticket, @"profileId": _profileId, @"userId": _profileId,
              @"nameOnPlatform": _name, @"environment": @"Prod", @"expiration": isoTime([NSDate dateWithTimeIntervalSinceNow:3 * 3600]),
-             @"serverTime": isoTime([NSDate date]), @"sessionId": TFUUID5(TFNamespaceOID, _ticket)};
+             @"serverTime": isoTime([NSDate date]), @"sessionId": TFUUID5(TFNamespaceOID, ticket)};
 }
 
 #pragma mark - routes

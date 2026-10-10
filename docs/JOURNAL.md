@@ -678,3 +678,14 @@ later an in-app loopback server). Static analysis only.
   (`OnlineUbiservices::getPlayerProfile`, one profile object, parsed by `parseProfileJson`) — added to both servers
   (parity: PASS). After that: robot → ghost → profile → avatar all answered (other rider on The Trebuchet) and the
   game stopped re-requesting (opponent accepted).
+
+## 2026-10-09 — New players (no save yet) and a second PlayCover copy
+
+- Both servers used to read the profile id and name from `player.bin` once at start; a fresh install has none. Now:
+  no save → a random profile id kept in the store (`new_player_profile`), which the login returns (the game keeps
+  the id it is given); the name is re-read from the save whenever `player.bin` changes (the tutorial's
+  `MenuzMissionTaskEnterName` sets it), "Rider" until then; save imports skip a missing save. Parity test gained a
+  new-player case (made-up id survives a restart, "Rider", first result, name from a save once one appears): PASS.
+- `install_playcover.py --bundle-id` (and `build.py --bundle-id` passes it on): a second copy with its own data in
+  PlayCover. Built "Trials Fresh" (`local.trialsfrontier.fresh`, embedded server, no options, no imported riders)
+  to play the story from the start as a new player would. Only one copy at a time (both serve on port 7979).

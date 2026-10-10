@@ -22,7 +22,9 @@ Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.
             external = local-services only; run server/local_services.py (or tfserver) yourself, e.g. for development;
             none     = no local services (everything online stays off).
 --with:     optional extras: coins-for-gems, open-all-levels, orphan-levels, dev-levels, file-sharing (see README).
---bundle-id / --display-name: for iPhone/iPad installs next to the original app (then sign with scripts/sign_ios.py).
+--bundle-id / --display-name: a second copy next to the original app, with its own data: on iPhone/iPad (then sign
+            with scripts/sign_ios.py) or in PlayCover (e.g. a fresh game besides your own; run one at a time, both
+            serve on port 7979).
 """
 import json
 import os
@@ -163,6 +165,8 @@ def main():
                      "--ipa", os.path.join(work, "TrialsFrontier-7.9.0-patched.ipa")]
         if keymap:
             inst += ["--keymap", os.path.join(ROOT, "playcover", "trials-frontier-keymap.plist")]
+        if bundle_id:
+            inst += ["--bundle-id", bundle_id]
         run(inst, dry)
     print(f"done: {os.path.join(work, 'TrialsFrontier-7.9.0-patched.ipa')} (server: {server}; options: {', '.join(extra) or 'none'})")
 

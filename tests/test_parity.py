@@ -5,7 +5,9 @@ Usage: python3 -I tests/test_parity.py <tfserver binary> <game Documents dir to 
 Both servers get a copy of the same Documents and an empty store, receive the same scripted requests (login,
 leaderboards, result submit, ghost search/download/upload/refusal, avatars, quiet and unhandled routes), and must give
 the same status codes and bodies (JSON compared as data, timestamps ignored; binary byte for byte). At the end the two
-stores must be equal. Uses the player's own data, so nothing private is kept in the repository.
+stores must be equal. Then a new player: empty Documents (no save yet), each server makes up a profile id and keeps
+it, the name is "Rider" until a save appears and then the save's. Uses the player's own data, so nothing private is
+kept in the repository.
 """
 import json
 import os
@@ -57,6 +59,65 @@ def wait(port):
     sys.exit(f"server on {port} did not start")
 
 
+def start(tfserver, work, docs):
+    procs = [subprocess.Popen([sys.executable, "-I", PY_SERVER, "--container", os.path.join(work, "Data"),
+                               "--data", os.path.join(work, "store-py"), "--port", "7982"],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT),
+             subprocess.Popen([tfserver, "--documents", docs, "--data", os.path.join(work, "store-native"), "--port", "7983"],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)]
+    wait(7982)
+    wait(7983)
+    return procs
+
+
+def stop(procs):
+    for p in procs:
+        p.terminate()
+        p.wait()
+
+
+def new_player(tfserver, documents):
+    """No save yet: a made-up profile id that survives a restart, "Rider", then the name from the save once there."""
+    work = tempfile.mkdtemp(prefix="tf-parity-new-")
+    docs = os.path.join(work, "Data", "Documents")
+    os.makedirs(docs)
+    failures, ids = 0, {}
+    try:
+        for round_ in (1, 2):
+            procs = start(tfserver, work, docs)
+            try:
+                for port in (7982, 7983):
+                    sess = json.loads(call(port, "POST", "/v2/profiles/sessions", b"{}")[2])
+                    pid = sess["profileId"]
+                    store = json.load(open(os.path.join(work, "store-py" if port == 7982 else "store-native", "store.json")))
+                    ok = (re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}", pid) and
+                          sess["nameOnPlatform"] == "Rider" and store.get("new_player_profile") == pid and
+                          ids.setdefault(port, pid) == pid)
+                    print(f"{'ok  ' if ok else 'DIFF'} new player, start {round_}, port {port}: {sess['nameOnPlatform']} {pid}")
+                    failures += not ok
+                if round_ == 2:
+                    body = b'{"updates": [ {"stats": { "data": 768,"drivetime": 12345, "score_value": 1,"upgrades": 3,"submittime": 0 }}],"checksum":"X" }'
+                    replies = []
+                    for port in (7982, 7983):
+                        call(port, "POST", "/public/resultservice/v1/enhancestats/track65000", body)
+                        r = call(port, "GET", f"/public/playerstats/v1/ranking/track65000?around={ids[port]},20")
+                        replies.append(normal(r[2].replace(ids[port].encode(), b"PID")))
+                    same = replies[0] == replies[1]
+                    print(f"{'ok  ' if same else 'DIFF'} new player's first result")
+                    failures += not same
+                    shutil.copy(os.path.join(documents, "player.bin"), docs)
+                    names = [json.loads(call(port, "POST", "/v2/profiles/sessions", b"{}")[2])["nameOnPlatform"]
+                             for port in (7982, 7983)]
+                    ok = names[0] == names[1] != "Rider"
+                    print(f"{'ok  ' if ok else 'DIFF'} name from the save once it exists")
+                    failures += not ok
+            finally:
+                stop(procs)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return failures
+
+
 def main():
     tfserver, documents = sys.argv[1:3]
     work = tempfile.mkdtemp(prefix="tf-parity-")
@@ -65,14 +126,8 @@ def main():
     for f in os.listdir(documents):
         if f == "player.bin" or re.fullmatch(r"(ghost_[0-9a-f]{8}_\d+\.bin|robot_(ghost|image)-.*\.robot)", f):
             shutil.copy(os.path.join(documents, f), docs)
-    procs = [subprocess.Popen([sys.executable, "-I", PY_SERVER, "--container", os.path.join(work, "Data"),
-                               "--data", os.path.join(work, "store-py"), "--port", "7982"],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT),
-             subprocess.Popen([tfserver, "--documents", docs, "--data", os.path.join(work, "store-native"), "--port", "7983"],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)]
+    procs = start(tfserver, work, docs)
     try:
-        wait(7982)
-        wait(7983)
         profile = json.loads(call(7982, "POST", "/v2/profiles/sessions", b"{}")[2])["profileId"]
         store = json.load(open(os.path.join(work, "store-py", "store.json")))
         own = sorted((g["track_id"], int(c)) for c, g in store["ghosts"].items() if g["profile"] == profile)
@@ -165,12 +220,12 @@ def main():
             for k in sorted(set(sp) | set(sn)):
                 if sp.get(k) != sn.get(k):
                     print("   differs:", k)
-        print("PASS" if not failures else f"FAIL ({failures})")
-        return 1 if failures else 0
     finally:
-        for p in procs:
-            p.terminate()
+        stop(procs)
         shutil.rmtree(work, ignore_errors=True)
+    failures += new_player(tfserver, documents)
+    print("PASS" if not failures else f"FAIL ({failures})")
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
