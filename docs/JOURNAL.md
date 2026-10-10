@@ -757,3 +757,9 @@ later an in-app loopback server). Static analysis only.
   re-published as one's own downloads.
 - Developer's PlayCover install: store backed up, `world-records-2019` enabled, layer installed (118 riders, 2158
   results), app rebuilt with the same options (executable unchanged, ca220a37…).
+- `ghost_bundle.py update` merges with the bundle's previous content (best result and fastest ghost per
+  leaderboard, also for `others`; avatar kept), so updates from different copies of one profile (PlayCover, a
+  pulled iPhone/iPad Documents via `--documents`) only add or improve; a different profile is refused and any
+  failure restores the bundle. Tested: bundle from the old iPad copy (210 times, 102 ghosts) → update from PlayCover
+  (+12 times, +11 ghosts) → update from the iPad copy again (no loss, 222/113); wrong rider refused and restored.
+  The update push uses gh's login for that command only (`git -c credential.helper='!gh auth git-credential'`).

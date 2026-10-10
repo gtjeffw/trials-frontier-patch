@@ -107,7 +107,7 @@ Bundles never contain your save, your profile id or game files. Format: `docs/BU
 python3 -I scripts/ghost_bundle.py export <game Documents> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
 python3 -I scripts/ghost_bundle.py publish <bundle dir> --dry-run   # builds <bundle dir>-preview, publishes nothing
 python3 -I scripts/ghost_bundle.py publish <bundle dir>
-python3 -I scripts/ghost_bundle.py update <bundle dir>              # later: new best times
+python3 -I scripts/ghost_bundle.py update <bundle dir> [--documents <iPhone/iPad Documents copy>]  # new best times
 ```
 
 ## Other riders

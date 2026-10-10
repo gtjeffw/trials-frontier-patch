@@ -4,7 +4,7 @@ Usage:
   python3 -I ghost_bundle.py export  <game Documents dir> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
                                      [--name <rider name>] [--license CC0-1.0|CC-BY-4.0]
                                      [--include-others | --include-others-with-names]
-  python3 -I ghost_bundle.py update  <bundle dir> [--dry-run]
+  python3 -I ghost_bundle.py update  <bundle dir> [--documents <dir>] [--dry-run]
   python3 -I ghost_bundle.py check   <bundle dir> [--verify]
   python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--sign-key <ssh private key>] [--i-agree]
                                      [--dry-run [--preview-dir <dir>]]
@@ -21,9 +21,12 @@ export   reads the save (player.bin), your ghost files and, if present, the loca
          server served later (possibly from other people's bundles) are never re-shared. Re-exporting into the same
          folder keeps its git history (for publish updates).
 update   re-exports a bundle with the options of its first export (kept in the bundle folder's .export.json, never
-         published), shows the new and better times since then, and publishes the update (agreement, signature,
-         a new commit in the same repository; --dry-run builds the preview instead). Run it whenever you have
-         new best times.
+         published), keeps whatever the bundle already had where it is better (best time and fastest ghost per
+         leaderboard), shows the new and better times, and publishes the update (agreement, signature, a new commit
+         pushed to the same repository; --dry-run builds the preview instead). Run it whenever you have new best
+         times. --documents <dir>: this time from another copy of the same profile, e.g. an iPhone's Documents
+         pulled with `scripts/ios_device.py pull-data` (iOS 17+) or copied with Finder (file-sharing build); a
+         different profile is refused.
 check    validates a bundle the way scripts/community.py does before using it; --verify also checks the manifest signature against the
          publisher's SSH keys on GitHub.
 publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`, logged in) creates or updates a
@@ -592,7 +595,9 @@ def publish(bundle):
     if exists:
         if "origin" not in run(["git", "remote"], cwd=target).split():
             run(["git", "remote", "add", "origin", f"https://github.com/{full}.git"], cwd=target, dry=dry)
-        run(["git", "push", "-u", "origin", "main"], cwd=target, dry=dry)
+        # with gh's login for this one push (no change to your git configuration)
+        run(["git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential", "push", "-u",
+             "origin", "main"], cwd=target, dry=dry)
         run(["gh", "repo", "edit", full, "--description", desc], dry=dry)
     else:
         run(["gh", "repo", "create", full, "--public", "--description", desc, "--source", target, "--remote",
@@ -609,16 +614,80 @@ def publish(bundle):
         print(f"published: https://github.com/{full} ({signed})")
 
 
+def merge_previous(bundle, prev_dir, before):
+    """Keep what was published before (prev_dir: a copy of the bundle before re-export) where it is better: the best
+    result and the fastest ghost per leaderboard, for the rider and for others, so updates from different devices
+    (PlayCover, iPhone, iPad) only ever add or improve. Returns the merged manifest."""
+    path = os.path.join(bundle, MANIFEST)
+    m = json.load(open(path))
+    if not before:
+        return m
+    if before["rider"]["game_hash"] != m["rider"]["game_hash"]:
+        raise BundleError(f"this save is a different rider ({m['rider']['name']}, {m['rider']['game_hash']}) than the "
+                          f"bundle's ({before['rider']['name']}, {before['rider']['game_hash']}); not merged")
+    key = lambda e: (e["faults"], e["time_ms"])
+    res = {e["leaderboard"]: e for e in m["results"]}
+    for e in before["results"]:
+        if e["leaderboard"] not in res or key(e) < key(res[e["leaderboard"]]):
+            res[e["leaderboard"]] = e
+    m["results"] = [res[k] for k in sorted(res)]
+
+    def keep_faster(new_list, old_list):
+        cur = {g["leaderboard"]: g for g in new_list}
+        for g in old_list:
+            if g["leaderboard"] not in cur or g["time_ms"] < cur[g["leaderboard"]]["time_ms"]:
+                dst = os.path.join(bundle, g["file"])
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copyfile(os.path.join(prev_dir, g["file"]), dst)
+                cur[g["leaderboard"]] = g
+        return [cur[k] for k in sorted(cur)]
+
+    m["ghosts"] = keep_faster(m["ghosts"], before["ghosts"])
+    if "others" in m or "others" in before:
+        others = {o["game_hash"]: o for o in m.get("others", [])}
+        for o in before.get("others", []):
+            n = others.setdefault(o["game_hash"], {"game_hash": o["game_hash"], "ghosts": []})
+            if o.get("name") and not n.get("name"):
+                n["name"] = o["name"]
+            n["ghosts"] = keep_faster(n["ghosts"], o["ghosts"])
+        m["others"] = [others[h] for h in sorted(others)]
+    if "avatar" not in m["rider"] and "avatar" in before["rider"]:
+        shutil.copyfile(os.path.join(prev_dir, before["rider"]["avatar"]["file"]), os.path.join(bundle, "avatar.png"))
+        m["rider"]["avatar"] = before["rider"]["avatar"]
+    json.dump(m, open(path, "w"), indent=1, ensure_ascii=False)
+    write_text(bundle, m)
+    return m
+
+
 def update(bundle):
-    """Re-export with the options of the first export, show what changed since the last export, then publish."""
+    """Re-export (the first export's options, or --documents <dir> for another copy of the same profile, e.g. pulled
+    from an iPhone), merge with what the bundle had (best per leaderboard), show the changes, then publish."""
+    documents = opt("--documents")
     o_path = os.path.join(bundle, EXPORT_OPTIONS)
     if not os.path.exists(o_path):
         sys.exit(f"{bundle} has no {EXPORT_OPTIONS}: export it once with ghost_bundle.py export")
     o = json.load(open(o_path))
     before = json.load(open(os.path.join(bundle, MANIFEST))) if os.path.exists(os.path.join(bundle, MANIFEST)) else {}
-    export(o["documents"], bundle, app=o.get("app"), avatar=o.get("avatar"), name=o.get("name"),
-           lic=o.get("license", "CC0-1.0"), others=o.get("others"), with_names=o.get("with_names"))
-    after = json.load(open(os.path.join(bundle, MANIFEST)))
+    prev = tempfile.mkdtemp(prefix="tf-bundle-prev-")
+    try:
+        shutil.copytree(bundle, os.path.join(prev, "b"), ignore=shutil.ignore_patterns(".git"))
+        prev_dir = os.path.join(prev, "b")
+        try:
+            export(documents or o["documents"], bundle, app=o.get("app"), avatar=o.get("avatar"), name=o.get("name"),
+                   lic=o.get("license", "CC0-1.0"), others=o.get("others"), with_names=o.get("with_names"))
+            if documents:  # export recorded the other folder; keep the original as the default
+                json.dump(dict(json.load(open(o_path)), documents=o["documents"]), open(o_path, "w"), indent=1)
+            after = merge_previous(bundle, prev_dir, before)
+            check(bundle)
+        except BaseException:  # any failure (also sys.exit inside export): the bundle stays as it was
+            for f in os.listdir(bundle):  # put the previous bundle back
+                if f != ".git":
+                    p = os.path.join(bundle, f)
+                    shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+            shutil.copytree(prev_dir, bundle, dirs_exist_ok=True)
+            raise
+    finally:
+        shutil.rmtree(prev, ignore_errors=True)
     key = lambda e: (e["faults"], e["time_ms"])
     old_res = {e["leaderboard"]: e for e in before.get("results", [])}
     new_res = [e for e in after["results"] if e["leaderboard"] not in old_res]

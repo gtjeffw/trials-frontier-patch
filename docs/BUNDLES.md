@@ -87,8 +87,12 @@ incompatible gets a new `format_version`.
 ## Updates and redundancy
 
 - **Publishers update** with `ghost_bundle.py update <bundle>`: the same export options again (kept in the bundle
-  folder's `.export.json`, never published), a summary of new and better times, agreement, a new signed commit in
-  the same repository. Readers get it with their next `community.py update`.
+  folder's `.export.json`, never published), merged with what the bundle already had (best result and fastest
+  ghost per leaderboard, so an update never loses anything), a summary of new and better times, agreement, a new
+  signed commit pushed to the same repository. `--documents <dir>` takes this update from another copy of the same
+  profile: PlayCover's data, or an iPhone/iPad's Documents pulled with `scripts/ios_device.py pull-data` (iOS 17+)
+  or copied with Finder (file-sharing build). A different profile is refused. Readers get updates with their next
+  `community.py update`.
 - **Nothing is re-shared by accident.** Export takes the rider's own times and ghosts only from the save and the
   player's own entries in the local store; the community layer is never written into that store. `others` holds
   only opponent files the *original online game* downloaded: once the local server runs, the game also saves the
