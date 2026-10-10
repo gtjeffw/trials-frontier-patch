@@ -36,15 +36,11 @@ risk is content: `__getSaveFilePath` type 6 = `NSCachesDirectory + "/DLC"` (purg
 
 ## Robot challenge module (daily "beat this rider")
 
-The game still asks `GET /public/match/v1/robot?track_name=track<lb>&range=1&offset=<n>` (about once a minute on the
-map) and `match/v1/robot_v2?track_name=…&score=…&range=…` (mission ghosts). Known so far (static):
-`MatchMaking::parseMatchMakingResponse` reads `pid`; `parseMatchMakingResult` reads `player`, `drivetime`, `upgrades`,
-`data`, `score_value`, `replay_id`; the ghost then comes from `resultservice/v1/robot_replaydata?track_id=&time=&player=`
-(`GhostQueryObject::queryRobotGhost`) and is saved as `robot_ghost-<getHashCode(player)>-<lb>.robot`, with name and
-picture fetched through `/v1/profiles` and the avatar URL (`OnlineRobotMission::onGhostReceived`).
-Plan: a `TFRobots` module (inapp/, listed in `TFLocalServicesModules()`) + the same in the Python server, choosing an
-opponent ghost from the store near the player's best (`range`/`offset`), from the 383 imported opponents or any
-future ghost collection imported as riders. Decode the exact response nesting before implementing.
+Done (Python server + `inapp/src/TFRobots.m`, parity-tested): `match/v1/robot`, `match/v1/robot_v2`,
+`resultservice/v1/robot_replaydata` from the store's ghosts — other riders first (closest just slower than the
+player's best), the player's own ghost if no one else. Robots are the "Live Opponents" of the A.N.B.A. quest line
+(RobotmanManager). Still to check in play: that downloaded robot ghosts load (`SaveFile::processHeader` path in
+`OnlineRobotMission::onGhostReceived`) and A.N.B.A. progresses; how the PvP duels (`pvp_matches`) could be served.
 
 ## Community ghost bundles (self-published, consolidated)
 

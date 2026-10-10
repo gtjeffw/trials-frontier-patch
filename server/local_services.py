@@ -472,6 +472,82 @@ class Services:
         return {"profiles": [{"profileId": i, "userId": i, "idOnPlatform": i, "platformType": "uplay",
                               "nameOnPlatform": self.rider_name(i)} for i in ids if i]}
 
+    # ---- robots: "live opponents" for A.N.B.A. (RobotmanManager / OnlineRobotMission) and mission ghosts ----
+
+    def robot_candidates(self, track):
+        """Other riders' ghosts on a leaderboard (exact id, else same base track); the player's own only if there
+        is no one else. Each: (rider id, content id, ghost entry, drive time)."""
+        others, own = [], []
+        for cid, g in sorted(self.store["ghosts"].items(), key=lambda kv: int(kv[0])):
+            if not g.get("payload", True) or not (g["track_id"] == track or g["track_id"] & 0xFFFF == track):
+                continue
+            entry = (g["profile"], int(cid), g, g["metadata"].get("drive_time") or 0)
+            (own if g["profile"] == self.profile_id else others).append(entry)
+        exact = [e for e in others if e[2]["track_id"] == track]
+        return exact or others or [e for e in own if e[2]["track_id"] == track] or own
+
+    def pick_robot(self, track, target_ms=None, offset=0):
+        """Closest opponent just slower than the player's best (beatable but close); faster ones if none is
+        slower; the slowest when the player has no time. `offset` steps to the next candidate."""
+        cands = [c for c in self.robot_candidates(track) if c[3]]
+        if not cands:
+            return None
+        if target_ms is None:
+            best = self.store["results"].get("track%d" % track, {}).get(self.profile_id)
+            target_ms = best["drivetime"] if best else None
+        if target_ms is None:
+            order = sorted(cands, key=lambda c: (-c[3], c[1]))
+        else:
+            slower = sorted((c for c in cands if c[3] >= target_ms), key=lambda c: (c[3], c[1]))
+            faster = sorted((c for c in cands if c[3] < target_ms), key=lambda c: (-c[3], c[1]))
+            order = slower + faster
+        return order[offset % len(order)]
+
+    def robot_reply(self, pick, track):
+        rider, cid, g, ms = pick
+        st = self.store["results"].get("track%d" % g["track_id"], {}).get(rider) or {}
+        data = st.get("data", 0)
+        return {"player": rider, "drivetime": ms, "upgrades": st.get("upgrades", 0), "data": data,
+                "score_value": st.get("score_value", 360000000 - ms - (data & 0xFF) * 3600000), "replay_id": cid}
+
+    def robot(self, query):
+        m = re.search(r"(\d+)$", query.get("track_name", [""])[0])
+        if not m:
+            return None
+        track = int(m.group(1))
+        pick = self.pick_robot(track, offset=int(query.get("offset", ["0"])[0] or 0))
+        if not pick:
+            self.note(f"   no robot opponent for track {track}")
+            return None
+        self.note(f"   robot for track {track}: {self.rider_name(pick[0])} {pick[3]} ms (content {pick[1]})")
+        return self.robot_reply(pick, track)
+
+    def mission_ghost(self, query):
+        """match/v1/robot_v2?track_name=&score=&range=: an opponent near a target score_value."""
+        m = re.search(r"(\d+)$", query.get("track_name", [""])[0])
+        if not m:
+            return None
+        track, score = int(m.group(1)), int(query.get("score", ["0"])[0] or 0)
+        # score_value = 360000000 - time - faults * 3600000; a fault-free target time of the same score
+        target = 360000000 - score if 0 < score <= 360000000 else None
+        pick = self.pick_robot(track, target_ms=target)
+        if not pick:
+            self.note(f"   no mission ghost for track {track}")
+            return None
+        self.note(f"   mission ghost for track {track} (score {score}): {self.rider_name(pick[0])} {pick[3]} ms")
+        return self.robot_reply(pick, track)
+
+    def robot_replay(self, query):
+        """resultservice/v1/robot_replaydata?track_id=&time=&player=: that rider's ghost bytes."""
+        track = int(query.get("track_id", ["-1"])[0])
+        player = query.get("player", [""])[0]
+        hits = self.ghosts_for(player, track)
+        if "time" in query:
+            hits = [h for h in hits if h[1]["metadata"].get("drive_time") == int(query["time"][0])] or hits
+        if not hits:
+            return None
+        return open(self.ghost_path(hits[0][0]), "rb").read()
+
     # Requests the original services answered that have no local equivalent (yet). Answered 404 = "nothing
     # here", which the game treats like an unreachable service; logged as "not offered" instead of UNHANDLED.
     NOT_OFFERED = re.compile(r"/public/(targeting|pvp_matches|gift|match|liveevents)/")
@@ -520,6 +596,18 @@ class Services:
         if m and method == "PUT":
             status, reply = self.put_ghost_metadata(m.group(1), body)
             return status, {}, reply
+        if method == "GET" and p == "/public/match/v1/robot":
+            reply = self.robot(query)
+            if reply:
+                return 200, {}, reply
+        if method == "GET" and p == "/public/match/v1/robot_v2":
+            reply = self.mission_ghost(query)
+            if reply:
+                return 200, {}, reply
+        if method == "GET" and p == "/public/resultservice/v1/robot_replaydata":
+            data = self.robot_replay(query)
+            if data:
+                return 200, {}, data
         if method == "POST" and p == "/public/liveevents/v1/weekly_track_system/basic_info":
             return 200, {}, {}  # outfit data: any 200 ends the game's 10x retry
         m = re.fullmatch(r"/avatars/(?:([0-9a-fA-F-]{36})/default|fallback)_146_146\.png", p)

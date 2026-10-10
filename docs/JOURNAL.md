@@ -658,3 +658,18 @@ later an in-app loopback server). Static analysis only.
   points, so touchScale = 2 for any custom resolution. Tested: custom 1920×1080 (external display's size), full
   screen via the green button — touch, layout, keyboard joystick, races (donkey bike), leaderboards all fine.
   The 1366×1024 requirement is gone; per-axis float touch scaling would only matter for fractional scalers.
+
+## 2026-10-09 — Robots ("Live Opponents") served locally
+
+- Robots belong to A.N.B.A. (RobotmanManager / OnlineRobotMission: "repair memory blocks by defeating Live
+  Opponents"), a side quest line, not the main story (mission data has no robot tasks; one EVENT_BEAT_GHOST event).
+  `findOpponent` → `MatchMaking::getRobot` → `GET match/v1/robot?track_name=track<N>&range=&offset=` (type 0x47;
+  `parseMatchMakingResult`: flat {player, drivetime, upgrades, data, score_value, replay_id}) →
+  `OnlineGhostManager::getRobotGhost` → `GET resultservice/v1/robot_replaydata?track_id=&time=&player=` → saved as
+  `robot_ghost-<getHashCode(player)>-<lb>.robot`, then name/picture via `/v1/profiles` and the avatar URL. Any
+  failure → `RobotmanManager::onMatchMakingFailure` (next track), so missing robots never block.
+  `match/v1/robot_v2?track_name=&score=&range=` (type 0x48, `OnlineMission::getMissionGhost`) = mission ghosts.
+- Both servers now answer these from the store: other riders first (exact leaderboard, else same base track),
+  closest just slower than the player's best (faster ones after; slowest if the player has no time; `offset` steps);
+  the player's own ghost only if no one else has one; nothing → 404. Parity test extended (robot, own-only fallback,
+  none, robot_v2, robot_replaydata): PASS.

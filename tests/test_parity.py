@@ -82,7 +82,16 @@ def main():
         ghost_file = next(f for f in os.listdir(docs) if f.startswith("ghost_") and f.endswith(f"_{track}.bin"))
         ghost_bytes = open(os.path.join(docs, ghost_file), "rb").read()
         rid = robot[0]["profile"]
+        rtrack = robot[0]["track_id"]
+        others = {g["track_id"] for g in store["ghosts"].values() if g["profile"] != profile}
+        own_only = next((t for t, _ in own if t not in others and t & 0xFFFF not in {o & 0xFFFF for o in others}), track)
         steps = [
+            ("GET", f"/public/match/v1/robot?track_name=track{rtrack}&range=1&offset=0", None),
+            ("GET", f"/public/match/v1/robot?track_name=track{rtrack}&range=1&offset=1", None),
+            ("GET", f"/public/match/v1/robot?track_name=track{own_only}&range=1&offset=0", None),
+            ("GET", "/public/match/v1/robot?track_name=track65432&range=1&offset=0", None),
+            ("GET", f"/public/match/v1/robot_v2?track_name=track{rtrack}&score=359980000&range=1", None),
+            ("GET", "/public/resultservice/v1/robot_replaydata?track_id=%d&time=ROBOT_TIME&player=ROBOT_PLAYER" % rtrack, None),
             ("GET", "/v1/applications/4b8b5f28-3561-4195-9dc8-c450aca960ae/configuration", None),
             ("POST", "/v2/profiles/sessions", b"{}"),
             ("PUT", "/v1/profiles/sessions", b"{}"),
@@ -125,11 +134,14 @@ def main():
             ("GET", "/public/gift/v1/gifts", None),
             ("GET", "/public/nothing/here", None),
         ]
-        failures, new_id = 0, None
+        failures, new_id, robot_reply = 0, None, {}
         for method, path, body in steps:
             path = path.replace("NEWID", str(new_id))
+            path = path.replace("ROBOT_TIME", str(robot_reply.get("drivetime"))).replace("ROBOT_PLAYER", str(robot_reply.get("player")))
             a, b = call(7982, method, path, body), call(7983, method, path, body)
             same = a[0] == b[0] and normal(a[2]) == normal(b[2])
+            if "/match/v1/robot?" in path and a[0] == 200 and not robot_reply:
+                robot_reply = normal(a[2])
             if "contentId" in str(normal(a[2])) and method == "POST" and a[0] == 200:
                 new_id = normal(a[2])["contentId"]
             print(f"{'ok  ' if same else 'DIFF'} {a[0]} {method} {path[:90]}")

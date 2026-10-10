@@ -6,7 +6,7 @@
 @end
 
 NSArray<Class> *TFLocalServicesModules(void) {
-    return @[];  // e.g. NSClassFromString(@"TFRobots") once a robot-challenge module exists
+    return @[NSClassFromString(@"TFRobots")];  // robots / live opponents (TFRobots.m)
 }
 
 /// Router whose dispatch waits until the store is loaded.
