@@ -5,6 +5,7 @@
 static NSString *const kSandbox = @"triag_ip_lnch61_a_ws";
 static NSString *const kCommunityFormat = @"trials-frontier-community";
 static const NSInteger kCommunityBase = 1000000000;  // content ids of community ghosts
+static NSString *const kGlobalBoard = @"global_stats";  // the Hall of Fame (overall score), not a track
 
 static NSInteger I(id v) { return [v respondsToSelector:@selector(longLongValue)] ? (NSInteger)[v longLongValue] : 0; }
 
@@ -438,7 +439,13 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     [_lock lock];
     NSDictionary *board = [[self board:name] copy];
     [_lock unlock];
+    BOOL hallOfFame = [name isEqualToString:kGlobalBoard];  // highest overall score first
     NSArray *pids = [board.allKeys sortedArrayUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+        if (hallOfFame) {
+            double ga = [board[a][@"global_score"] doubleValue], gb = [board[b][@"global_score"] doubleValue];
+            if (ga != gb) return ga > gb ? NSOrderedAscending : NSOrderedDescending;
+            return [a compare:b];
+        }
         NSInteger fa = I(board[a][@"data"]) & 0xFF, fb = I(board[b][@"data"]) & 0xFF;
         if (fa != fb) return fa < fb ? NSOrderedAscending : NSOrderedDescending;
         NSInteger ta = I(board[a][@"drivetime"]), tb = I(board[b][@"drivetime"]);
@@ -491,6 +498,34 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     [self note:[NSString stringWithFormat:@"   result %@: %ldF %ld ms -> %@", name, (long)(I(new[@"data"]) & 0xFF), (long)I(new[@"drivetime"]),
                 improved ? @"NEW BEST" : [NSString stringWithFormat:@"not better than %ldF %ld ms", (long)(I(old[@"data"]) & 0xFF), (long)I(old[@"drivetime"])]]];
     return improved;
+}
+
+/// Hall of Fame: the overall score the game computes from all its best times and sends after every race (POST
+/// playerstats/v1/stats/global_stats; shown as global_score x 100000). One entry per player in the "global_stats"
+/// board, replaced by each newer value: an aggregate, not a copy of the track results.
+- (BOOL)submitGlobal:(NSDictionary *)update {
+    NSDictionary *st = [update[@"stats"] isKindOfClass:NSDictionary.class] ? update[@"stats"] : update;
+    if (![st[@"global_score"] isKindOfClass:NSNumber.class]) return NO;
+    double score = [st[@"global_score"] doubleValue];
+    NSMutableDictionary *new = [@{@"global_score": @(score)} mutableCopy];
+    for (NSString *k in @[@"data", @"drivetime", @"upgrades", @"submittime"]) new[k] = st[k] ?: @0;
+    [_lock lock];
+    NSMutableDictionary *board = _store[@"results"][kGlobalBoard] ?: (_store[@"results"][kGlobalBoard] = [NSMutableDictionary dictionary]);
+    NSDictionary *old = board[_profileId];
+    BOOL changed = !old || [old[@"global_score"] doubleValue] != score;
+    if (changed) {
+        board[_profileId] = new;
+        [self saveStore];
+    }
+    [_lock unlock];
+    NSNumberFormatter *f = [NSNumberFormatter new];
+    f.numberStyle = NSNumberFormatterDecimalStyle;
+    f.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    f.usesGroupingSeparator = YES;
+    f.groupingSize = 3;
+    [self note:[NSString stringWithFormat:@"   hall of fame: %@%@", [f stringFromNumber:@((long long)(score * 100000))],
+                changed ? @"" : @" (unchanged)"]];
+    return changed;
 }
 
 - (NSArray *)parseUpdates:(NSData *)body {
@@ -670,6 +705,12 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     }];
     [r route:@"GET" path:@"/public/playerstats/v1/stats/([^/]+)" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         return [TFResponse json:@{@"statboard": c[0], @"results": [w leaderboard:c[0] request:q][@"results"]}];
+    }];
+    [r route:@"POST" path:@"/public/playerstats/v1/stats/global_stats" handler:^TFResponse *(TFRequest *q, NSArray *c) {
+        BOOL changed = NO;
+        for (NSDictionary *up in [w parseUpdates:q.body])
+            if ([up isKindOfClass:NSDictionary.class]) changed |= [w submitGlobal:up];
+        return [TFResponse json:@{@"result": @{@"updated": changed ? @1 : @0}}];
     }];
     [r route:@"POST" path:@"/public/resultservice/v1/enhancestats/batch_update" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         NSMutableArray *done = [NSMutableArray array];

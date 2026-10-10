@@ -825,3 +825,17 @@ later an in-app loopback server). Static analysis only.
   score submit is unhandled) and tracks raced before naming (the game's in-memory cache keeps the entry it added
   with the name of that moment). Known, cosmetic, gone after a restart. Handling global_stats on the server (store
   the overall score, serve the Hall of Fame ranking) would likely refresh that list in-session too (TODO).
+
+## 2026-10-10 — Hall of Fame (overall ranking)
+
+- After every race the game sends `POST playerstats/v1/stats/global_stats` {"updates":[{"stats":{data, drivetime,
+  global_score, upgrades, submittime}}]} (`LeaderboardManager::updateHallOfFameScore` →
+  `OnlineLeaderboards::submitGlobalResult`); a ranking row's `stats.global_score` is shown ×100000
+  (`parseJsonLeaderboardEntry`, constant 100000.0 at 0x100af8020: global_score 10.582265 → 1,058,226 as on the
+  screenshot); the reply is read like a result submit (`{"result":{"updated":1}}`, `parseJsonSubmitResponse`).
+- Both servers now keep one entry per player in the `global_stats` board (replaced by each newer score; "updated"
+  only when it changed), rank it highest first, and serve it on `ranking/global_stats`. It is an aggregate the game
+  computes, not a copy of the per-track results (those stay one best per player and leaderboard), and bundles,
+  the community layer and robots only use `track<N>` boards, so it is never duplicated or re-shared. Other riders
+  have no overall score (bundles and the world records only carry track times). Parity test: first score, same
+  score (unchanged), higher score, ranking around/players: PASS.

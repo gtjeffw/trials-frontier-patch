@@ -76,7 +76,7 @@ config file.
 
 ## Other open items
 
-- **Hall of Fame (overall ranking):** handle `POST playerstats/v1/stats/global_stats` (after every race:
+- ~~**Hall of Fame (overall ranking)**~~ — done 2026-10-10 (see the journal). Was: handle `POST playerstats/v1/stats/global_stats` (after every race:
   {data, drivetime, global_score, upgrades, submittime}) and serve `ranking/global_stats` from it; the displayed
   value (e.g. 1,058,226 for global_score 14.68) needs its conversion decoded. Would give every player a working Hall
   of Fame and likely fix the name a new player sees there in the session where they pick it.

@@ -80,7 +80,8 @@ With `local-services` the game logs in silently, fetches its configuration and t
 - First start imports your best times and ghosts from the save, and the opponent ghosts and avatars the game had
   downloaded (`robot_ghost-*.robot`, `robot_image-*.robot`).
 - Results are kept best-only (fewer faults, then less time); the game uploads a ghost only for a new best, and the
-  server keeps one ghost per player and leaderboard.
+  server keeps one ghost per player and leaderboard. The Hall of Fame (overall score the game sends after every
+  race) is one entry per player, replaced by each newer score.
 - Requests with no local equivalent (gifts, PvP, weekly challenges, store targeting) are answered "nothing here".
 
 Development: build with `--server external`, then `python3 -I server/local_services.py` (logs every request; unknown

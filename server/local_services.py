@@ -20,7 +20,9 @@ inapp/: store.json + ghosts/<id>.bin + avatars/; a store in Library/LocalService
 seeded on start from the save's score table and the player's own ghost_<hash>_<leaderboard>.bin files. As with the
 original service, a submitted result (resultservice/v1/enhancestats/...) is "updated" only if it beats the stored
 one (fewer faults, then less time); the game uploads a ghost only after such a reply, and the store keeps one ghost
-per player and leaderboard, refusing a slower one.
+per player and leaderboard, refusing a slower one. The Hall of Fame (POST playerstats/v1/stats/global_stats after
+every race, the overall score the game computes from its best times; shown as global_score x 100000) is one entry
+per player in the "global_stats" board, replaced by each newer score and ranked highest first.
 
 Other riders: opponent ghosts the game downloaded (Documents/robot_ghost-*.robot, avatars robot_image-*.robot) are
 imported once. More come from a community layer (scripts/community.py: ghost bundles, the 2019 world records):
@@ -71,6 +73,7 @@ def game_hash(s):
 
 
 COMMUNITY_FORMAT, COMMUNITY_VERSION, COMMUNITY_BASE = "trials-frontier-community", 1, 1_000_000_000
+GLOBAL_BOARD = "global_stats"  # the Hall of Fame (overall score), not a track
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
@@ -471,7 +474,11 @@ class Services:
         return {}
 
     def leaderboard(self, name, query):
-        entries = sorted(self.board(name).items(), key=lambda kv: ((kv[1]["data"] & 0xFF), kv[1]["drivetime"], kv[0]))
+        if name == GLOBAL_BOARD:  # Hall of Fame: highest overall score first
+            order = lambda kv: (-float(kv[1].get("global_score", 0)), kv[0])
+        else:
+            order = lambda kv: ((kv[1]["data"] & 0xFF), kv[1]["drivetime"], kv[0])
+        entries = sorted(self.board(name).items(), key=order)
         rows = [{"player": pid, "rank": i + 1, "stats": {k: v for k, v in st.items() if k != "source"}}
                 for i, (pid, st) in enumerate(entries)]
         total = len(rows)
@@ -503,6 +510,26 @@ class Services:
         self.note(f"   result {name}: {new['data'] & 0xFF}F {new['drivetime']} ms -> "
                   + ("NEW BEST" if improved else f"not better than {old['data'] & 0xFF}F {old['drivetime']} ms"))
         return improved
+
+    def submit_global(self, update):
+        """Hall of Fame: the overall score the game computes from all its best times and sends after every race
+        (POST playerstats/v1/stats/global_stats; shown as global_score x 100000). One entry per player in the
+        "global_stats" board, replaced by each newer value: an aggregate, not a copy of the track results."""
+        st = update.get("stats", update)
+        try:
+            score = float(st.get("global_score"))
+        except (TypeError, ValueError):
+            return False
+        new = {"global_score": score, **{k: st.get(k, 0) for k in ("data", "drivetime", "upgrades", "submittime")}}
+        with self.lock:
+            board = self.store["results"].setdefault(GLOBAL_BOARD, {})
+            old = board.get(self.profile_id)
+            changed = old is None or old.get("global_score") != score
+            if changed:
+                board[self.profile_id] = new
+                self.save_store()
+        self.note(f"   hall of fame: {int(score * 100000):,}" + ("" if changed else " (unchanged)"))
+        return changed
 
     def parse_updates(self, body):
         try:
@@ -717,6 +744,9 @@ class Services:
         m = re.fullmatch(r"/public/playerstats/v1/stats/([^/]+)", p)
         if method == "GET" and m:
             return 200, {}, {"statboard": m.group(1), "results": self.leaderboard(m.group(1), query)["results"]}
+        if method == "POST" and p == "/public/playerstats/v1/stats/" + GLOBAL_BOARD:
+            changed = any([self.submit_global(up) for up in self.parse_updates(body)])
+            return 200, {}, {"result": {"updated": 1 if changed else 0}}
         m = re.fullmatch(r"/public/resultservice/v1/enhancestats/([^/]+)", p)
         if method == "POST" and m and m.group(1) == "batch_update":
             done = []
