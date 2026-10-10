@@ -894,3 +894,8 @@ later an in-app loopback server). Static analysis only.
   (--avatars, the store, the community layer) still come first; the fallback picture is a generated one too.
 - Parity test: profile ids covering all 96 pattern x shape combinations and all skin tones, plus the fallback,
   byte-identical and valid: PASS. Designed with the user over four preview rounds.
+- Trials Fresh now ships the way a release would: a community layer built into the app (`build.py --community`)
+  from the developer's bundle (re-exported with the other riders' ghosts, by hash only) and the 2019 world records,
+  in a separate community home (recovery/build/community-fresh; the unpublished GitHub source disabled, the
+  bundle added as a local folder): 502 riders, 2765 results, 498 ghosts. Checked on a scratch in-app server as a
+  new player: world-record holders, jayuph and other riders on the track boards, robots find opponents.
