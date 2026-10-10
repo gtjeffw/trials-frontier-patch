@@ -57,6 +57,21 @@ def normal(data):
     return strip(obj)
 
 
+def zlib_ok(png):
+    """The PNG's image data decompresses to 146 rows of a filter byte and 146 palette indices."""
+    import struct, zlib
+    i, idat = 8, b""
+    while i < len(png):
+        n = struct.unpack(">I", png[i:i + 4])[0]
+        if png[i + 4:i + 8] == b"IDAT":
+            idat += png[i + 8:i + 8 + n]
+        i += 12 + n
+    try:
+        return len(zlib.decompress(idat)) == 146 * 147
+    except zlib.error:
+        return False
+
+
 def wait(port):
     for _ in range(100):
         try:
@@ -296,6 +311,26 @@ def main():
         ok = names[0] == names[1] and names[0][1:] == ["Parity Name"] * 3 and before != "Parity Name"
         print(f"{'ok  ' if ok else 'DIFF'} change-name request adopted and kept: {names[0]} / {names[1]}")
         failures += not ok
+        # generated avatars: every pattern x shape (and every skin tone on open faces) byte-identical in both servers
+        want, ids = {(k, v) for k in range(12) for v in range(8)} | {("skin", t) for t in range(5)}, []
+        n = 0
+        while want:
+            pid = str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_URL, f"avatar-{n}"))
+            d = __import__("hashlib").sha256(pid.encode()).digest()
+            keys = {(d[4] % 12, d[8] & 7)} | ({("skin", d[9] % 5)} if d[8] & 4 else set())
+            if keys & want:
+                want -= keys
+                ids.append(pid)
+            n += 1
+        bad = 0
+        for pid in ids + [None]:
+            path = f"/avatars/{pid}/default_146_146.png" if pid else "/avatars/fallback_146_146.png"
+            a_, b_ = call(7982, "GET", path), call(7983, "GET", path)
+            ok_png = a_[0] == 200 and a_[2][:8] == b"\x89PNG\r\n\x1a\n" and zlib_ok(a_[2])
+            bad += not (ok_png and a_[0] == b_[0] and a_[2] == b_[2])
+        print(f"{'ok  ' if not bad else 'DIFF'} generated avatars identical in both servers ({len(ids)} riders + "
+              f"fallback, all {12 * 8} pattern/shape combinations)" + (f": {bad} differ" if bad else ""))
+        failures += bool(bad)
         # identities: same 32-bit hash = still different riders; the player's hash alone does not make a rider "me"
         ids = {}
         for port in (7982, 7983):

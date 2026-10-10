@@ -1,6 +1,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import "TFServices.h"
 #import "TFSave.h"
+#import "TFAvatar.h"
 
 static NSString *const kSandbox = @"triag_ip_lnch61_a_ws";
 static NSString *const kCommunityFormat = @"trials-frontier-community";
@@ -787,7 +788,7 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
         }
         NSString *community = [c[0] length] ? s->_communityAvatars[c[0]] : nil;
         NSData *d = community ? [NSData dataWithContentsOfFile:community] : nil;
-        return d ? [TFResponse data:d] : nil;
+        return [TFResponse data:d ?: TFAvatarPNG([c[0] length] ? c[0] : @"fallback")];  // a helmet in the rider's colours
     }];
     [r route:@"GET" path:@"/v1/profiles" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         NSMutableArray *out = [NSMutableArray array];

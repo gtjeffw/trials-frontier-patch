@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inapp")
-CORE = ["src/TFSave.m", "src/TFHTTP.m", "src/TFServices.m", "src/TFRobots.m", "src/TFLocalServices.m"]
+CORE = ["src/TFSave.m", "src/TFHTTP.m", "src/TFServices.m", "src/TFRobots.m", "src/TFAvatar.m", "src/TFLocalServices.m"]
 FLAGS = ["-fobjc-arc", "-O2", "-Wall", "-Wno-deprecated-declarations", "-fno-common", "-I", os.path.join(ROOT, "src"),
          "-framework", "Foundation", "-lz"]
 

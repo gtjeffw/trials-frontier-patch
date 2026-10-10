@@ -10,8 +10,10 @@ Listens on 127.0.0.1 only. The patched game sends every request here (see docs/J
   POST /v2/profiles/sessions                    mobile login library: create device account / get session ticket
   PUT  /v1/profiles/sessions                    ticket renewal
   .../public/...                                game server (leaderboards, ghosts)
-  GET  /avatars/<profileId>/default_146_146.png profile picture: <avatars dir>/<profileId>.png (146x146 PNG);
-  GET  /avatars/fallback_146_146.png            default picture: <avatars dir>/fallback.png
+  GET  /avatars/<profileId>/default_146_146.png profile picture: <avatars dir>/<profileId>.png (146x146 PNG), else
+                                                one from the store or the community layer, else a generated
+                                                helmet in the rider's own colours (server/avatars.py)
+  GET  /avatars/fallback_146_146.png            default picture: <avatars dir>/fallback.png, else a generated one
 Every request is logged; anything not handled yet is answered 404 and marked UNHANDLED so it can be implemented.
 The player's profile id and name are read from the container's Documents/player.bin unless given.
 
@@ -43,6 +45,9 @@ import time
 import uuid
 import zlib
 from urllib.parse import parse_qs, urlsplit
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder out
+import avatars  # noqa: E402  generated helmets for riders without a picture
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
@@ -816,6 +821,7 @@ class Services:
                     return 200, {}, open(os.path.join(d, name), "rb").read()
             if m.group(1) in self.community_avatars:
                 return 200, {}, open(self.community_avatars[m.group(1)], "rb").read()
+            return 200, {}, avatars.avatar_png(m.group(1) or "fallback")   # a helmet in the rider's own colours
         if method == "GET" and p == "/v1/profiles":
             return 200, {}, self.profiles(query)
         m = re.fullmatch(r"/v1/profiles/([0-9a-fA-F-]{36})", p)

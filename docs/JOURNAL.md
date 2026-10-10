@@ -880,3 +880,17 @@ later an in-app loopback server). Static analysis only.
   was never reached; the results-popup cache was the whole cause. Recorded local-services hashes recomputed;
   default build unchanged. The Python server no longer logs the Authorization header (the login library's account
   secret); old development logs that had it were moved to the Trash. To confirm: one more new-player run.
+
+## 2026-10-10 — Generated avatars (pixel-art helmets)
+
+- The game's placeholder for a missing picture looks like an error, so riders without one now get a generated
+  helmet: `server/avatars.py` and its port `inapp/src/TFAvatar.m`. From the sha256 of the rider's id: visor or
+  none, squint or round goggles, full or open face (the rider's profile, five skin tones), 16 shell / 12 accent
+  colours, 6 lens tints, 8 backgrounds, 12 patterns (plain, stripe, twin stripes, two-tone, diagonals, checkers,
+  dots, chevrons, flames, bolt, stars, race number); our own drawing, 32x32 cells at 4 px in a 146x146 PNG.
+- Byte-identical in both servers by design: integer maths with Python's floor division, fixed palettes, an
+  indexed-colour PNG (colours indexed in order of first appearance) whose zlib stream uses stored blocks, so no
+  compressor (whose output could differ between Python's and iOS's zlib) is involved; ~21.5 KB each. Real pictures
+  (--avatars, the store, the community layer) still come first; the fallback picture is a generated one too.
+- Parity test: profile ids covering all 96 pattern x shape combinations and all skin tones, plus the fallback,
+  byte-identical and valid: PASS. Designed with the user over four preview rounds.
