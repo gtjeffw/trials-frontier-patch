@@ -962,3 +962,22 @@ later an in-app loopback server). Static analysis only.
 - History cleaned as well (git filter-repo, backup bundle in the private workspace): the helper removed from every
   commit; the old journal sections, README paragraphs and commit messages that described the procedure replaced
   with the summaries. No tool names, steps or "spawn suspended"-style descriptions remain in files or messages.
+
+## 2026-10-10 — Seasonal content: all there, dormant
+
+- Packs: the app ships 41 packs, including the event/seasonal ones (`TrialsContentExtraDL_Snow`,
+  `TrialsTexturesDL_special_event`, `_snow`, `_dailyquest`, …); the code names no seasonal pack that is missing.
+- Text: Halloween, Christmas ("Trixmas"), Easter, pumpkins, candies, snowmen, dozens of named seasons.
+- Tracks: the seasonal levels are ordinary entries of `/conf/levels.txt` with their files bundled (Pumpkin
+  Patch, Pumpkin Desert, Candyland, Ghost Town, ~20 snow/ice tracks such as Snowman Haven, Frost Carnival).
+- Events are missions in the mission file (content 0xc4125fdb; text: a header line per mission, then tagged
+  lines). An event mission has an unlock `u,6,0,<start>,<end>` (Unix times): 99 dated windows, 2015-04 to
+  2019-12-31, e.g. "Wrath of the Pumpkin Queen" (Halloween, 2015-10-15..11-12: smash `HLW_PUMPKIN_00..02` on 42
+  tracks, beat a ghost, point prizes), "A Frontier Christmas" (2015-12-10..2016-01-07: deliver gifts), Rockin'
+  Rodeo, the Agent/Syndicate summer event (2015), Harley-Davidson Rally, a summer 2019 event, "Treasure Hunt!"
+  (2019-10-19..11-12), "Dakar Fever" (2019-12-16..31). Later seasonal events ("Halloween Heat", "Trixmas") exist
+  only as text. (Correction: the mission file is not "2019+ only".)
+- Logic: `tr::Mission::getTimeUntilUnlockEndTime` / `MissionManager::addAvailableMissions` compare type-6 windows
+  with `AntiCheating::getSystemTime()` (server-synchronised; the device clock only via a setting), so with the
+  real date every window is past and the events stay dormant. `SpecialEventManager` (75 functions),
+  `MiniEventManager` (online config), treasure hunt, KTM/rally popups, event leaderboards are all in the code.

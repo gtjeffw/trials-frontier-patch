@@ -76,6 +76,12 @@ config file.
 
 ## Other open items
 
+- **Seasonal events (revive):** the event missions (Halloween "Wrath of the Pumpkin Queen", "A Frontier Christmas",
+  Rodeo, Agent, Rally, Treasure Hunt, Dakar Fever) are complete in the bundled mission data but dated 2015–2019.
+  Idea: an optional content patch that moves each window to its season of the current year (or a server-provided
+  date mapping), then check in play what still needs the online service (event leaderboards, prize claims,
+  treasure hunt pieces, mini-event config). See the journal, "Seasonal content".
+
 - ~~**Hall of Fame (overall ranking)**~~ — done 2026-10-10 (see the journal). Was: handle `POST playerstats/v1/stats/global_stats` (after every race:
   {data, drivetime, global_score, upgrades, submittime}) and serve `ranking/global_stats` from it; the displayed
   value (e.g. 1,058,226 for global_score 14.68) needs its conversion decoded. Would give every player a working Hall
