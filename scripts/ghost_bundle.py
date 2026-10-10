@@ -212,7 +212,7 @@ def export(docs, out):
         "ghosts": ghost_list,
     }
     if others:
-        manifest["others"] = export_others(docs, out, ghash, raw if with_names else None)
+        manifest["others"] = export_others(docs, out, ghash, raw if with_names else None, names)
     write_text(out, manifest)
     json.dump(manifest, open(os.path.join(out, MANIFEST), "w"), indent=1, ensure_ascii=False)
     n_other = sum(len(o["ghosts"]) for o in manifest.get("others", []))
@@ -221,7 +221,7 @@ def export(docs, out):
     check(out)
 
 
-def export_others(docs, out, own_hash, raw=None):
+def export_others(docs, out, own_hash, raw=None, track_names_=None):
     """Opponent ghosts the game downloaded: robot_ghost-<HASH>-<LBHEX>.robot, by hash; with the save (raw) also the
     names it keeps for some of them, otherwise none (a rider's name is then theirs to publish in their own bundle)."""
     named = {"%08X" % game_hash(p): n for p, n in known_riders(raw).items()
@@ -242,8 +242,11 @@ def export_others(docs, out, own_hash, raw=None):
         r = riders.setdefault(h, {"game_hash": h, "ghosts": []})
         if h in named:
             r["name"] = named[h]
-        r["ghosts"].append({"leaderboard": lb, "track": lb & 0xFFFF, "time_ms": ms, "bike": ghost_bike(data),
-                            "file": rel, "sha256": sha256(data), "source": "downloaded-opponent"})
+        g = {"leaderboard": lb, "track": lb & 0xFFFF, "time_ms": ms, "bike": ghost_bike(data), "file": rel,
+             "sha256": sha256(data), "source": "downloaded-opponent"}
+        if (track_names_ or {}).get(lb & 0xFFFF):
+            g["track_name"] = track_names_[lb & 0xFFFF]
+        r["ghosts"].append(g)
     return [riders[h] for h in sorted(riders)]
 
 
