@@ -763,3 +763,19 @@ later an in-app loopback server). Static analysis only.
   failure restores the bundle. Tested: bundle from the old iPad copy (210 times, 102 ghosts) → update from PlayCover
   (+12 times, +11 ghosts) → update from the iPad copy again (no loss, 222/113); wrong rider refused and restored.
   The update push uses gh's login for that command only (`git -c credential.helper='!gh auth git-credential'`).
+
+## 2026-10-10 — Rider identity without hash collisions; players who were never on Ubisoft
+
+- Never-Ubisoft players already get a 128-bit identity: the server's random version-4 `new_player_profile`. The weak
+  spot was the 32-bit game hash used as the merge key (collisions likely at tens of thousands of riders: two
+  publishers merged, or a stranger skipped as "me"). Now consolidation keys a bundle's own rider by
+  `profile_sha256` (id `uuid5("trials-frontier-rider:" + sha)`), and the hash only links hash-only opponent ghosts,
+  and only when unambiguous; both servers recognise the player by sha256 and link a layer rider to a downloaded
+  opponent only when the hash is unique in the layer. Parity test: two riders sharing a hash stay apart, the
+  player's own bundle is skipped, a stranger with the player's hash shows: PASS.
+- Export falls back to the store's `new_player_profile` when the save has no profile id.
+- Names: offset 20 (Player+0x10) holds the platform (Ubisoft) name; a player who never logged in has it empty and
+  the tutorial nickname in a 24-byte field 148 bytes before the end of the save (found in the offline GTJeffW save;
+  empty in jayuph's; same layout, followed by u32 0x285, in all three saves). Servers and export now fall back to
+  it. To check in the Trials Fresh playthrough: whether the game copies the login's `nameOnPlatform` ("Rider"
+  before a nickname exists) into offset 20.

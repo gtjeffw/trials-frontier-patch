@@ -279,6 +279,11 @@ def wr_results(folder):
                     yield wr["riders"][e["r"]], oid | flags[cat], e["f"], e["t"], e["b"]
 
 
+def claimed_id(profile_sha256):
+    """Rider id of a bundle's own rider: from the profile id's sha256, so different players never share one."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-rider:" + profile_sha256))
+
+
 def result_entry(faults, ms, bike, source):
     return {"drivetime": ms, "data": (faults & 0xFF) | ((bike & 0x3F) << 8), "upgrades": 0, "submittime": 0,
             "score_value": 360000000 - ms - faults * 3600000, "extradata": 0, "source": source}
@@ -288,7 +293,7 @@ def cmd_build(out=None):
     out = out or os.path.join(HOME, "layer")
     cache = os.path.join(HOME, "cache")
     riders, results, ghosts, used, conflicts = {}, {}, {}, [], []
-    claims = {}   # game hash -> [(sort key, source id, manifest, folder)]
+    claims = {}   # profile sha256 -> [(sort key, source id, manifest, folder)]
     mentions = {}  # game hash -> [(source id, ghost entry, folder, name)]
 
     def better(new, old):
@@ -308,7 +313,8 @@ def cmd_build(out=None):
             if s["type"] == "bundle":
                 m = gb.check(folder)  # the cache is checked again: it is only a folder on disk
                 h = m["rider"]["game_hash"]
-                claims.setdefault(h, []).append(((not st.get("signed_by"), m["created"], s["id"]), s["id"], m, folder))
+                claims.setdefault(m["rider"]["profile_sha256"], []).append(
+                    ((not st.get("signed_by"), m["created"], s["id"]), s["id"], m, folder))
                 for o in m.get("others", []):
                     for g in o["ghosts"]:
                         mentions.setdefault(o["game_hash"], []).append((s["id"], g, folder, o.get("name")))
@@ -325,46 +331,57 @@ def cmd_build(out=None):
         except (gb.BundleError, OSError, ValueError, KeyError) as e:
             print(f"skip {s['id']}: {e}")
 
-    own_ghosts = {}  # (hash, lb) -> (time, file, sha) candidates
-    def offer(h, g, folder, source_id):
-        key = (h, g["leaderboard"])
+    # Identity: a bundle's own rider is known by profile_sha256 (from a 128-bit profile id: no collisions), riders
+    # seen only as downloaded opponents by the game's 32-bit hash. The hash only *links* the two, and only when it
+    # is unambiguous: exactly one claimed rider has it.
+    best_ghost = {}  # (rider id, lb) -> (time, source id, file)
+    def offer(rid, g, folder, source_id):
+        key = (rid, g["leaderboard"])
         cand = (g["time_ms"], source_id, os.path.join(folder, g["file"]))
-        if key not in own_ghosts or cand < own_ghosts[key]:
-            own_ghosts[key] = cand
+        if key not in best_ghost or cand < best_ghost[key]:
+            best_ghost[key] = cand
 
-    for h in sorted(claims):
-        cl = sorted(claims[h], key=lambda c: c[0])
+    claimed_by_hash = {}
+    for sha in sorted(claims):
+        cl = sorted(claims[sha], key=lambda c: c[0])
         _, sid, m, folder = cl[0]  # signed first, then the earliest bundle
         if len(cl) > 1:
-            conflicts.append({"game_hash": h, "used": sid, "also_claimed_by": [c[1] for c in cl[1:]]})
-        rid = gb.rider_id(h)
-        riders[rid] = {"name": m["rider"]["name"], "game_hash": h, "source": sid}
+            conflicts.append({"profile_sha256": sha, "used": sid, "also_claimed_by": [c[1] for c in cl[1:]]})
+        h = m["rider"]["game_hash"]
+        rid = claimed_id(sha)
+        claimed_by_hash.setdefault(h, []).append(rid)
+        riders[rid] = {"name": m["rider"]["name"], "game_hash": h, "profile_sha256": sha, "source": sid}
         if "avatar" in m["rider"]:
             riders[rid]["avatar"] = os.path.join(folder, m["rider"]["avatar"]["file"])
         for e in m["results"]:
             put_result(rid, e["leaderboard"], result_entry(e["faults"], e["time_ms"], e.get("bike") or 0, "community " + sid))
         for g in m["ghosts"]:
-            offer(h, g, folder, sid)
+            offer(rid, g, folder, sid)
+    for h, ids in sorted(claimed_by_hash.items()):
+        if len(ids) > 1:
+            conflicts.append({"game_hash": h, "riders": sorted(ids), "note": "32-bit hash shared by different riders; "
+                              "downloaded-opponent ghosts with this hash are kept apart"})
     for h in sorted(mentions):
-        rid = gb.rider_id(h)
+        ids = claimed_by_hash.get(h, [])
+        rid = ids[0] if len(ids) == 1 else gb.rider_id(h)
         for sid, g, folder, name in sorted(mentions[h], key=lambda x: (x[0], x[1]["leaderboard"])):
             if rid not in riders:
                 riders[rid] = {"name": "Rider " + h, "game_hash": h, "source": sid}
             if rider_name_ok(name) and riders[rid]["name"] == "Rider " + h:
                 riders[rid]["name"] = name
             put_result(rid, g["leaderboard"], result_entry(0, g["time_ms"], g.get("bike") or 0, "community " + sid))
-            offer(h, g, folder, sid)
+            offer(rid, g, folder, sid)
 
     # write the layer into a new folder, then swap
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     tmp = tempfile.mkdtemp(prefix="tf-layer-", dir=os.path.dirname(os.path.abspath(out)))
     os.makedirs(os.path.join(tmp, "ghosts"))
     os.makedirs(os.path.join(tmp, "avatars"))
-    for i, ((h, lb), (ms, sid, path)) in enumerate(sorted(own_ghosts.items())):
+    for i, ((rid, lb), (ms, sid, path)) in enumerate(sorted(best_ghost.items())):
         cid = COMMUNITY_BASE + i
         data = open(path, "rb").read()
         open(os.path.join(tmp, "ghosts", "%d.bin" % cid), "wb").write(data)
-        ghosts[str(cid)] = {"profile": gb.rider_id(h), "track_id": lb, "source": "community " + sid,
+        ghosts[str(cid)] = {"profile": rid, "track_id": lb, "source": "community " + sid,
                             "metadata": {"track_id": lb, "drive_time": ms, "size": len(data)}}
     for rid, r in riders.items():
         avatar = r.pop("avatar", None)
@@ -380,7 +397,7 @@ def cmd_build(out=None):
     shutil.rmtree(old, ignore_errors=True)
     n_res = sum(len(b) for b in results.values())
     print(f"layer {out}: {len(used)} sources, {len(riders)} riders, {n_res} results, {len(ghosts)} ghosts"
-          + (f"; {len(conflicts)} riders claimed by more than one bundle (signed, then earliest wins)" if conflicts else ""))
+          + (f"; {len(conflicts)} conflicts (see community.json)" if conflicts else ""))
     return out
 
 

@@ -57,11 +57,17 @@ README.md, LICENSE                 for people; the manifest is the source of tru
   ghost file (16-byte header, then zlib; version 3 bodies start with u32 bike, u32 drive time).
 - **source**: `save` (in the game's save when exported: the years of online play, possibly offline play since),
   `local-services` (played later in a patched game with local services), `downloaded-opponent`.
-- **Rider identity**: never the profile id itself. `game_hash` = the game's `mt::String::getHashCode` of the
-  profile id as 8 hex digits; the game names downloaded opponents' files after it (`robot_ghost-<HASH>-<lb>.robot`),
-  so bundles and the opponents in everyone's saves can be matched. It is only 32 bits, so collisions are possible:
-  `profile_sha256` = sha256 of `"trials-frontier-profile:" + profile id` settles them, and lets anyone who
-  already knows a profile id (from a save, or a future service) recognise it.
+- **Rider identity**: never the profile id itself. Profile ids are 128-bit UUIDs: Ubisoft's, or for a player who
+  was never on Ubisoft a random version-4 UUID the local server makes up on first start (kept in the store as
+  `new_player_profile`; the game stores it in its save). `profile_sha256` = sha256 of `"trials-frontier-profile:"
+  + profile id` is the rider's identity: different players never share one, and anyone who already knows a
+  profile id can recognise it. `game_hash` = the game's 32-bit `mt::String::getHashCode` of the profile id; the
+  game names downloaded opponents' files after it (`robot_ghost-<HASH>-<lb>.robot`), so it is all we know of most
+  opponents. With 32 bits, two riders sharing a hash become likely at tens of thousands of riders, so the hash is
+  only a *link*: consolidation keys a bundle's own rider by `profile_sha256`, and attaches hash-only opponent ghosts
+  to it only when exactly one claimed rider has that hash; servers recognise the player by `profile_sha256`
+  (a stranger with the player's hash still shows) and merge a layer rider with a downloaded opponent of the same
+  hash only when no other layer rider has it.
 - **Who is who**: `rider` is the publisher's own rider: the profile the export was made from (the save's own name,
   id hashes, best times and ghosts). `publisher.github` is the GitHub account that published it, and
   `publisher.statement` says, inside the signed manifest, that the rider is theirs. Everything under `others` is
@@ -118,10 +124,11 @@ community.json   {"format": "trials-frontier-community", "format_version": 1, "s
 ghosts/<content id>.bin, avatars/<rider id>.png
 ```
 
-Rider ids are the server's ids for riders known by hash (`uuid5(URL, "trials-frontier-robot:" + hash)`), world
-record riders `uuid5(URL, "trialstrackmap-rider:" + name)`; content ids start at 1000000000. When a hash is
-claimed as the own rider of several bundles, the signed and then the earliest one wins (listed in `conflicts`);
-names from `others` only fill in riders nobody claimed.
+Rider ids: a bundle's own rider `uuid5(URL, "trials-frontier-rider:" + profile_sha256)`, riders known only by hash
+the server's own id for them (`uuid5(URL, "trials-frontier-robot:" + hash)`), world-record riders
+`uuid5(URL, "trialstrackmap-rider:" + name)`; content ids start at 1000000000. When one profile is claimed by
+several bundles, the signed and then the earliest one wins; that and hashes shared by different claimed riders are
+listed in `conflicts`. Names from `others` only fill in riders nobody claimed.
 
 `install` copies the layer to `Documents/LocalServices/community` (game closed); `build.py --community` builds one
 into the app (used when the data has none: iPhone/iPad). Both servers overlay it when the store loads: riders merge

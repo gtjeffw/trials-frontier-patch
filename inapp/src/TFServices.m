@@ -1,3 +1,4 @@
+#import <CommonCrypto/CommonDigest.h>
 #import "TFServices.h"
 #import "TFSave.h"
 
@@ -53,6 +54,15 @@ static id jsonObject(NSData *d) {
 static BOOL placeholder(NSString *name) {
     if (!name.length) return YES;
     return [name rangeOfString:@"^(?i)rider( [0-9A-F]{8})?$" options:NSRegularExpressionSearch].location != NSNotFound;
+}
+
+static NSString *sha256Hex(NSString *s) {
+    NSData *d = [s dataUsingEncoding:NSUTF8StringEncoding];
+    uint8_t h[CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256(d.bytes, (CC_LONG)d.length, h);
+    NSMutableString *out = [NSMutableString string];
+    for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) [out appendFormat:@"%02x", h[i]];
+    return out;
 }
 
 static BOOL isUUID(NSString *s) {
@@ -212,9 +222,13 @@ static BOOL isUUID(NSString *s) {
     }
     _communityDir = [folder copy];
     NSString *own = [NSString stringWithFormat:@"%08X", TFGameHash(_profileId)];
+    NSString *ownSha = sha256Hex([@"trials-frontier-profile:" stringByAppendingString:_profileId]);
     NSMutableDictionary *byHash = [NSMutableDictionary dictionary];
     for (NSString *r in [[_store[@"riders"] allKeys] sortedArrayUsingSelector:@selector(compare:)])
         if (isUUID(r)) byHash[[NSString stringWithFormat:@"%08X", TFGameHash(r)]] = r;
+    NSCountedSet *hashCount = [NSCountedSet set];
+    for (NSDictionary *c in [layer[@"riders"] allValues])
+        if ([c[@"game_hash"] isKindOfClass:NSString.class]) [hashCount addObject:c[@"game_hash"]];
     NSMutableDictionary *ridMap = [NSMutableDictionary dictionary];
     NSFileManager *fm = NSFileManager.defaultManager;
     for (NSString *crid in [[layer[@"riders"] allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
@@ -222,11 +236,18 @@ static BOOL isUUID(NSString *s) {
         NSString *h = [c[@"game_hash"] isKindOfClass:NSString.class] ? c[@"game_hash"] : nil;
         NSString *avatar = [[folder stringByAppendingPathComponent:@"avatars"] stringByAppendingPathComponent:[crid stringByAppendingString:@".png"]];
         BOOL hasAvatar = [fm fileExistsAtPath:avatar];
-        if (h.length && [h isEqual:own]) {
-            if (hasAvatar) _communityAvatars[_profileId] = avatar;
+        // the player: by the sha256 of the profile id; a rider known only by the 32-bit hash, by the hash
+        NSString *sha = [c[@"profile_sha256"] isKindOfClass:NSString.class] ? c[@"profile_sha256"] : nil;
+        if ([sha isEqual:ownSha] || (h.length && [h isEqual:own] && !sha)) {
+            if (hasAvatar && [sha isEqual:ownSha]) _communityAvatars[_profileId] = avatar;
             continue;
         }
-        NSString *rid = (_store[@"riders"][crid] || !h.length) ? crid : (byHash[h] ?: crid);
+        // a downloaded opponent already in the store: linked by the hash only if no other layer rider has it
+        NSString *rid = crid;
+        if (!_store[@"riders"][crid] && h.length && [hashCount countForObject:h] == 1) {
+            NSString *robot = TFUUID5(TFNamespaceURL, [@"trials-frontier-robot:" stringByAppendingString:h]);
+            rid = _store[@"riders"][robot] ? robot : (byHash[h] ?: crid);
+        }
         ridMap[crid] = rid;
         if (hasAvatar) _communityAvatars[rid] = avatar;
         NSDictionary *cur = _store[@"riders"][rid];

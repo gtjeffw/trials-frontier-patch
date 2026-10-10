@@ -68,24 +68,45 @@ def wait(port):
     sys.exit(f"server on {port} did not start")
 
 
+def claimed_id(sha):
+    return str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_URL, "trials-frontier-rider:" + sha))
+
+
 def make_layer(work, docs):
-    """A community layer: a bundle of the test Documents (with the downloaded opponents) as a made-up rider."""
-    bundle, home = os.path.join(work, "bundle"), os.path.join(work, "community-home")
+    """A community layer from four bundles of the test Documents: "Parity Rider" (made-up identity, avatar, all the
+    downloaded opponents), "Parity Twin" (a different rider with the same 32-bit hash), "Player Hash Twin" (a
+    different rider whose hash equals the player's) and the player's own bundle (must be skipped)."""
+    home = os.path.join(work, "community-home")
     env = dict(os.environ, TF_COMMUNITY_HOME=home)
-    subprocess.run([sys.executable, "-I", os.path.join(SCRIPTS, "ghost_bundle.py"), "export", docs, bundle,
-                    "--include-others", "--name", "Parity Rider"], check=True, stdout=subprocess.DEVNULL)
-    m = json.load(open(os.path.join(bundle, "trials-frontier-bundle.json")))
-    png = b"\x89PNG\r\n\x1a\n" + b"parity" * 10
-    open(os.path.join(bundle, "avatar.png"), "wb").write(png)
-    m["rider"].update(game_hash=FAKE_HASH, profile_sha256="0" * 64,
-                      avatar={"file": "avatar.png", "sha256": __import__("hashlib").sha256(png).hexdigest()})
-    json.dump(m, open(os.path.join(bundle, "trials-frontier-bundle.json"), "w"))
     community = [sys.executable, "-I", os.path.join(SCRIPTS, "community.py")]
     subprocess.run(community + ["disable", "gtjeffw/trials-frontier-ghosts-jayuph"], env=env, check=True, stdout=subprocess.DEVNULL)
-    subprocess.run(community + ["add", bundle], env=env, check=True, stdout=subprocess.DEVNULL)
+    own = os.path.join(work, "bundle-own")
+    subprocess.run([sys.executable, "-I", os.path.join(SCRIPTS, "ghost_bundle.py"), "export", docs, own,
+                    "--include-others"], check=True, stdout=subprocess.DEVNULL)
+    m_own = json.load(open(os.path.join(own, "trials-frontier-bundle.json")))
+    png = b"\x89PNG\r\n\x1a\n" + b"parity" * 10
+    variants = {"bundle": ("Parity Rider", FAKE_HASH, "0" * 64, True),
+                "bundle-twin": ("Parity Twin", FAKE_HASH, "1" * 64, False),
+                "bundle-player-hash": ("Player Hash Twin", m_own["rider"]["game_hash"], "2" * 64, False)}
+    made = {}
+    for folder, (name, h, sha, others) in variants.items():
+        b = os.path.join(work, folder)
+        shutil.copytree(own, b)
+        m = json.load(open(os.path.join(b, "trials-frontier-bundle.json")))
+        m["rider"].update(name=name, game_hash=h, profile_sha256=sha)
+        if name == "Parity Rider":
+            open(os.path.join(b, "avatar.png"), "wb").write(png)
+            m["rider"]["avatar"] = {"file": "avatar.png", "sha256": __import__("hashlib").sha256(png).hexdigest()}
+        if not others:
+            m.pop("others", None)
+        json.dump(m, open(os.path.join(b, "trials-frontier-bundle.json"), "w"))
+        made[name] = claimed_id(sha)
+    for folder in ["bundle-own"] + list(variants):
+        subprocess.run(community + ["add", os.path.join(work, folder)], env=env, check=True, stdout=subprocess.DEVNULL)
     subprocess.run(community + ["sync"], env=env, check=True, stdout=subprocess.DEVNULL)
     subprocess.run(community + ["build"], env=env, check=True, stdout=subprocess.DEVNULL)
-    return os.path.join(home, "layer"), m
+    made["own"] = claimed_id(m_own["rider"]["profile_sha256"])
+    return os.path.join(home, "layer"), made
 
 
 def start(tfserver, work, docs, layer=None):
@@ -156,7 +177,7 @@ def main():
     for f in os.listdir(documents):
         if f == "player.bin" or re.fullmatch(r"(ghost_[0-9a-f]{8}_\d+\.bin|robot_(ghost|image)-.*\.robot)", f):
             shutil.copy(os.path.join(documents, f), docs)
-    layer, fake = make_layer(work, docs)
+    layer, made = make_layer(work, docs)
     for d in ("store-py", "store-native"):  # a store from an older version, with imported world records
         os.makedirs(os.path.join(work, d))
         json.dump(LEGACY, open(os.path.join(work, d, "store.json"), "w"))
@@ -174,7 +195,7 @@ def main():
         rtrack = robot[0]["track_id"]
         others = {g["track_id"] for g in store["ghosts"].values() if g["profile"] != profile}
         own_only = next((t for t, _ in own if t not in others and t & 0xFFFF not in {o & 0xFFFF for o in others}), track)
-        fake_rid = str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_URL, "trials-frontier-robot:" + FAKE_HASH))
+        fake_rid = made["Parity Rider"]
         layer_json = json.load(open(os.path.join(layer, "community.json")))
         fake_cid, fake_ghost = next((c, g) for c, g in sorted(layer_json["ghosts"].items()) if g["profile"] == fake_rid)
         fake_track = fake_ghost["track_id"]
@@ -255,6 +276,19 @@ def main():
         time_na = call(7983, "GET", "/profile/?epoch=1")[1].get("Server-Time")
         print(f"{'ok  ' if time_py and time_na else 'DIFF'} Server-Time header: {time_py} / {time_na}")
         failures += not (time_py and time_na)
+        # identities: same 32-bit hash = still different riders; the player's hash alone does not make a rider "me"
+        ids = {}
+        for port in (7982, 7983):
+            names = {e["profileId"]: e["nameOnPlatform"] for e in json.loads(call(port, "GET", "/v1/profiles?profileId="
+                     + ",".join(made.values()))[2])["profiles"]}
+            board = json.loads(call(port, "GET", f"/public/playerstats/v1/ranking/track{fake_track}?range=1,1000")[2])
+            ids[port] = (sorted(names[made[n]] for n in ("Parity Rider", "Parity Twin", "Player Hash Twin")),
+                         {r["player"] for r in board["results"]} & set(made.values()))
+        ok = all(v == (["Parity Rider", "Parity Twin", "Player Hash Twin"],
+                       {made["Parity Rider"], made["Parity Twin"], made["Player Hash Twin"]}) for v in ids.values())
+        print(f"{'ok  ' if ok else 'DIFF'} identities: a shared 32-bit hash keeps riders apart; the player's own "
+              f"bundle is skipped, a stranger with the player's hash is not")
+        failures += not ok
         sp = json.load(open(os.path.join(work, "store-py", "store.json")))
         sn = json.load(open(os.path.join(work, "store-native", "store.json")))
         same_store = sp == sn

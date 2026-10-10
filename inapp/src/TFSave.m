@@ -150,7 +150,10 @@ static NSString *cstringAt(NSData *raw, NSUInteger off, NSUInteger max, NSString
 }
 
 void TFReadProfile(NSData *raw, NSString **name, NSString **profileId) {
-    if (name) *name = cstringAt(raw, 20, 128, NSUTF8StringEncoding);
+    if (name) {  // the platform name, else the nickname typed in the tutorial (24 bytes, 148 before the end)
+        *name = cstringAt(raw, 20, 128, NSUTF8StringEncoding);
+        if (!(*name).length && raw.length >= 148) *name = cstringAt(raw, raw.length - 148, 24, NSUTF8StringEncoding);
+    }
     if (profileId) *profileId = cstringAt(raw, 276, 40, NSASCIIStringEncoding);
 }
 

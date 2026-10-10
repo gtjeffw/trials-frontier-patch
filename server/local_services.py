@@ -29,6 +29,7 @@ into store.json: riders merge by the game's hash of their profile id, a layer re
 stored one, layer ghosts keep their own content ids (from 1000000000) and files, and the player's own rider in
 the layer is skipped (only its avatar is used). They appear on GLOBAL; FRIENDS asks only for the player's own id.
 """
+import hashlib
 import json
 import os
 import re
@@ -139,6 +140,15 @@ def known_riders(raw):
     return out
 
 
+def save_name(raw):
+    """The player's name: the platform (Ubisoft) name at raw offset 20 (Player+0x10), else the nickname typed in
+    the tutorial (MenuzMissionTaskEnterName), a 24-byte field 148 bytes before the end of the save (version 114)."""
+    name = raw[20:20 + 128].split(b"\0")[0]
+    if not name and len(raw) >= 148:
+        name = raw[len(raw) - 148:len(raw) - 124].split(b"\0")[0]
+    return name.decode("utf-8", "replace")
+
+
 def read_profile(container):
     """(profile id, name) from player.bin: name at raw offset 20 (Player+0x10), profile id at 276 (Player+0x110).
     ("", "") before the game has written its first save."""
@@ -146,7 +156,7 @@ def read_profile(container):
     if not os.path.exists(path):
         return "", ""
     _, raw = decode(open(path, "rb").read())
-    name = raw[20:20 + 128].split(b"\0")[0].decode("utf-8", "replace")
+    name = save_name(raw)
     pid = raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace")
     return pid, name
 
@@ -284,17 +294,28 @@ class Services:
             return
         self.community_dir = folder
         own = "%08X" % game_hash(self.profile_id)
+        own_sha = hashlib.sha256(("trials-frontier-profile:" + self.profile_id).encode()).hexdigest()
         by_hash = {"%08X" % game_hash(r): r for r in sorted(self.store["riders"]) if UUID.fullmatch(r)}
+        hash_count = {}
+        for c in layer["riders"].values():
+            if c.get("game_hash"):
+                hash_count[c["game_hash"]] = hash_count.get(c["game_hash"], 0) + 1
         rid_map = {}
         for crid in sorted(layer["riders"]):
             c = layer["riders"][crid]
             h = c.get("game_hash")
             avatar = os.path.join(folder, "avatars", crid + ".png")
-            if h and h == own:
-                if os.path.isfile(avatar):
+            # the player: by the sha256 of the profile id; a rider known only by the 32-bit hash, by the hash
+            if c.get("profile_sha256") == own_sha or (h and h == own and not c.get("profile_sha256")):
+                if os.path.isfile(avatar) and c.get("profile_sha256") == own_sha:
                     self.community_avatars[self.profile_id] = avatar
                 continue
-            rid = crid if crid in self.store["riders"] or not h else by_hash.get(h, crid)
+            # a downloaded opponent already in the store: linked by the hash only if no other layer rider has it
+            robot = str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h)) if h else None
+            if crid in self.store["riders"] or not h or hash_count.get(h) != 1:
+                rid = crid
+            else:
+                rid = robot if robot in self.store["riders"] else by_hash.get(h, crid)
             rid_map[crid] = rid
             if os.path.isfile(avatar):
                 self.community_avatars[rid] = avatar

@@ -59,7 +59,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "server"))
 from datapack import read_file  # noqa: E402
-from local_services import decode, game_hash, ghost_drive_time, known_riders, read_scores  # noqa: E402
+from local_services import decode, game_hash, ghost_drive_time, known_riders, read_scores, save_name  # noqa: E402
 
 FORMAT, FORMAT_VERSION = "trials-frontier-bundle", 1
 MANIFEST, SIGNATURE = "trials-frontier-bundle.json", "trials-frontier-bundle.json.sig"
@@ -146,8 +146,12 @@ def export(docs, out, app=None, avatar=None, name=None, lic="CC0-1.0", others=Fa
     raw = decode(open(save, "rb").read())[1]
     pid = raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace")
     if not re.fullmatch(r"[0-9a-f-]{36}", pid):
-        sys.exit("the save has no profile id (a new player who never logged in has nothing to share yet)")
-    name = name or raw[20:20 + 128].split(b"\0")[0].decode("utf-8", "replace") or "Rider"
+        # a player who was never on Ubisoft: the local server made up a random (version 4) profile id for them
+        store_file = os.path.join(docs, "LocalServices", "store.json")
+        pid = json.load(open(store_file)).get("new_player_profile", "") if os.path.exists(store_file) else ""
+        if not re.fullmatch(r"[0-9a-f-]{36}", pid):
+            sys.exit("the save has no profile id and the local server has none either (start the patched game once)")
+    name = name or save_name(raw) or "Rider"
     ghash, psha = profile_hashes(pid)
     names = track_names(app) if app else {}
 
@@ -227,7 +231,7 @@ def export(docs, out, app=None, avatar=None, name=None, lic="CC0-1.0", others=Fa
     write_text(out, manifest)
     json.dump(manifest, open(os.path.join(out, MANIFEST), "w"), indent=1, ensure_ascii=False)
     json.dump({"documents": docs, "app": app and os.path.abspath(app), "avatar": avatar and os.path.abspath(avatar),
-               "name": name if name != raw[20:20 + 128].split(b"\0")[0].decode("utf-8", "replace") else None,
+               "name": name if name != save_name(raw) else None,
                "license": lic, "others": bool(others), "with_names": bool(with_names)},
               open(os.path.join(out, EXPORT_OPTIONS), "w"), indent=1)
     n_other = sum(len(o["ghosts"]) for o in manifest.get("others", []))
