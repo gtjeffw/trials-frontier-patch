@@ -765,7 +765,9 @@ class Services:
         if method == "GET" and p == "/profile/":
             return 200, {"Server-Time": "%.3f" % time.time()}, {}
         if p in ("/v2/profiles/sessions", "/v1/profiles/sessions") and method in ("POST", "PUT"):
-            return 200, {}, self.session()
+            sess = self.session()
+            self.note(f"   login as {sess['nameOnPlatform']}")
+            return 200, {}, sess
         if self.NOT_OFFERED.match(p):
             return 404, {"X-Local": "not-offered"}, {"errorCode": 404, "message": "not offered by the local server"}
         return None

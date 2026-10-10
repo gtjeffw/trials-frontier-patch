@@ -732,7 +732,9 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     }];
     [r route:nil path:@"/v[12]/profiles/sessions" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         if (![q.method isEqualToString:@"POST"] && ![q.method isEqualToString:@"PUT"]) return nil;
-        return [TFResponse json:[w session]];
+        NSDictionary *sess = [w session];
+        [w note:[NSString stringWithFormat:@"   login as %@", sess[@"nameOnPlatform"]]];
+        return [TFResponse json:sess];
     }];
 }
 

@@ -779,3 +779,16 @@ later an in-app loopback server). Static analysis only.
   empty in jayuph's; same layout, followed by u32 0x285, in all three saves). Servers and export now fall back to
   it. To check in the Trials Fresh playthrough: whether the game copies the login's `nameOnPlatform` ("Rider"
   before a nickname exists) into offset 20.
+
+## 2026-10-10 — Trials Fresh playthrough (new player, never on Ubisoft)
+
+- Played from scratch without gameplay problems: tutorial, races, results and ghost uploads (three new bests, ghosts
+  1000–1002), map leaderboards.
+- The game stored the server's made-up profile id (b326761d-…) in its save, and the tutorial name ("JBuff") in both
+  name fields (offset 20 and the 24-byte field 148 bytes before the end).
+- The post-race screen showed "Rider" while the map leaderboards showed "JBuff": the first login of that session
+  (before the save existed) answered "Rider" (also sent back by the game as `player_name` in targeting/configuration),
+  and the post-race screen uses the login's name, while the map asks `/v1/profiles`, which reads the save. Both
+  servers now log the name each login returns (`login as …`) to confirm that a restart logs in as the nickname.
+- Also seen (not blocking): `POST playerstats/v1/stats/global_stats` (overall score after each race) is unhandled;
+  a player without an avatar gets 404 for their picture and the fallback.
