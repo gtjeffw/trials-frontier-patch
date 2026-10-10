@@ -46,6 +46,10 @@ README.md, LICENSE                 for people; the manifest is the source of tru
 }
 ```
 
+- **others**: only with `export --include-others` (by hash, no names) or `--include-others-with-names` (adds the
+  in-game names the publisher's save keeps for some opponents; usernames are pseudonymous, but whether sharing them
+  is acceptable is the publisher's call, and `publish` lists them before asking for agreement).
+
 - **leaderboard**: the game's leaderboard id: track id in the low 16 bits, bike class in the high bits
   (`track | 0x10000 << (class - 1)`); event and weekly tracks have their own ids. `track` = `leaderboard & 0xFFFF`.
   `track_name` is optional (from the publisher's copy of the game).

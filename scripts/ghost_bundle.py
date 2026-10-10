@@ -2,7 +2,8 @@
 
 Usage:
   python3 -I ghost_bundle.py export  <game Documents dir> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
-                                     [--name <rider name>] [--license CC0-1.0|CC-BY-4.0] [--include-others]
+                                     [--name <rider name>] [--license CC0-1.0|CC-BY-4.0]
+                                     [--include-others | --include-others-with-names]
   python3 -I ghost_bundle.py check   <bundle dir> [--verify]
   python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--sign-key <ssh private key>] [--i-agree] [--dry-run]
   python3 -I ghost_bundle.py import  <bundle dir | https://github.com/<owner>/<repo> | <owner>/<repo>>
@@ -14,7 +15,9 @@ export   reads the save (player.bin), your ghost files and, if present, the loca
          LICENSE, avatar.png. Never the save itself (it holds other players' names and ids) and never your profile id:
          only two hashes of it (see docs/BUNDLES.md). --app adds track names from your copy of the game;
          --include-others adds the other riders' ghosts your game downloaded (others/<hash>/), by hash only:
-         their names come from their own bundles. Re-exporting into the same folder keeps its git history (for publish updates).
+         their names come from their own bundles. --include-others-with-names also adds the names your save has for
+         some of them (in-game names as the leaderboards showed them; whether sharing them is acceptable is yours
+         to judge). Re-exporting into the same folder keeps its git history (for publish updates).
 check    validates a bundle the way import does; --verify also checks the manifest signature against the
          publisher's SSH keys on GitHub.
 publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`, logged in) creates or updates a
@@ -43,7 +46,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "server"))
 from datapack import read_file  # noqa: E402
-from local_services import decode, game_hash, ghost_drive_time, read_scores  # noqa: E402
+from local_services import decode, game_hash, ghost_drive_time, known_riders, read_scores  # noqa: E402
 
 FORMAT, FORMAT_VERSION = "trials-frontier-bundle", 1
 MANIFEST, SIGNATURE = "trials-frontier-bundle.json", "trials-frontier-bundle.json.sig"
@@ -111,7 +114,8 @@ def track_names(app):
 
 def export(docs, out):
     app, avatar, name, lic = opt("--app"), opt("--avatar"), opt("--name"), opt("--license", default="CC0-1.0")
-    others = opt("--include-others", True)
+    with_names = opt("--include-others-with-names", True)
+    others = opt("--include-others", True) or with_names
     if lic not in LICENSES:
         sys.exit(f"--license: one of {', '.join(LICENSES)}")
     save = os.path.join(docs, "player.bin")
@@ -197,7 +201,7 @@ def export(docs, out):
         "ghosts": ghost_list,
     }
     if others:
-        manifest["others"] = export_others(docs, out, ghash)
+        manifest["others"] = export_others(docs, out, ghash, raw if with_names else None)
     write_text(out, manifest)
     json.dump(manifest, open(os.path.join(out, MANIFEST), "w"), indent=1, ensure_ascii=False)
     n_other = sum(len(o["ghosts"]) for o in manifest.get("others", []))
@@ -206,9 +210,11 @@ def export(docs, out):
     check(out)
 
 
-def export_others(docs, out, own_hash):
-    """Opponent ghosts the game downloaded: robot_ghost-<HASH>-<LBHEX>.robot, by hash only (no names: a rider's name
-    is theirs to publish in their own bundle)."""
+def export_others(docs, out, own_hash, raw=None):
+    """Opponent ghosts the game downloaded: robot_ghost-<HASH>-<LBHEX>.robot, by hash; with the save (raw) also the
+    names it keeps for some of them, otherwise none (a rider's name is then theirs to publish in their own bundle)."""
+    named = {"%08X" % game_hash(p): n for p, n in known_riders(raw).items()
+             if not re.fullmatch(r"(?i)rider( [0-9A-F]{8})?", n)} if raw else {}  # not the local server's placeholders
     riders = {}
     for f in sorted(os.listdir(docs)):
         m = re.fullmatch(r"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\.robot", f)
@@ -223,6 +229,8 @@ def export_others(docs, out, own_hash):
         os.makedirs(os.path.join(out, "others", h), exist_ok=True)
         open(os.path.join(out, rel), "wb").write(data)
         r = riders.setdefault(h, {"game_hash": h, "ghosts": []})
+        if h in named:
+            r["name"] = named[h]
         r["ghosts"].append({"leaderboard": lb, "track": lb & 0xFFFF, "time_ms": ms, "bike": ghost_bike(data),
                             "file": rel, "sha256": sha256(data), "source": "downloaded-opponent"})
     return [riders[h] for h in sorted(riders)]
@@ -394,9 +402,16 @@ CONSENT = """By publishing you confirm that:
 The bundle contains your rider name "{name}", two hashes of your profile id, your best times and ghost replays{avatar}.
 It does not contain your save, your profile id, or any game files."""
 
-OTHERS = """  - this bundle ALSO contains {n} other riders' ghosts that your game downloaded as opponents; you take
-    responsibility for sharing them;
+OTHERS = """  - this bundle ALSO contains {n} other riders' ghosts that your game downloaded as opponents{names}; you
+    take responsibility for sharing them;
 """
+
+
+def names_note(others):
+    named = [o["name"] for o in others if o.get("name")]
+    if not named:
+        return " (by hash only, no names)"
+    return f",\n    {len(named)} of them WITH their in-game names ({', '.join(named[:5])}{', …' if len(named) > 5 else ''})"
 
 
 def publish(bundle):
@@ -415,7 +430,7 @@ def publish(bundle):
     print(f"\nPublish {bundle} as https://github.com/{full} (public)\n")
     print(CONSENT.format(license=m["license"], name=m["rider"]["name"],
                          avatar=" and avatar" if "avatar" in m["rider"] else "",
-                         others=OTHERS.format(n=len(others)) if others else ""))
+                         others=OTHERS.format(n=len(others), names=names_note(others)) if others else ""))
     if not agreed:
         if input('\nType "I agree" to publish: ').strip().lower() != "i agree":
             sys.exit("not published")

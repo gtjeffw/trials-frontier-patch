@@ -720,3 +720,6 @@ later an in-app loopback server). Static analysis only.
   opponents are stored under their real id, matched via the hash), better times only, one ghost per rider and
   leaderboard. Tested: new player importing a bundle, re-import (no change), own bundle into own game (nothing
   added), a bundle with 384 opponents into a store that already has them (merged, no duplicates).
+- `--include-others-with-names`: like `--include-others`, plus the in-game names the save keeps for some opponents
+  (pseudonymous usernames; the publisher decides, and `publish` names them in the agreement text). The local
+  server's own placeholders ("Rider <hash>"), which the game may have saved, are never exported as names.

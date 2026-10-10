@@ -48,7 +48,8 @@ Players publish *their own* runs as GitHub repositories; no central host, each p
 Done 2026-10-10: `scripts/ghost_bundle.py` (export / check / publish / import / search) and the format in
 `docs/BUNDLES.md`: GitHub topic `trials-frontier-bundle` for discovery, rider by game hash + sha256 of the profile
 id (never the id), optional SSH signature tied to the publisher's GitHub keys, strict validation, import merges
-with downloaded opponents by hash. Other riders' ghosts only with `--include-others`, by hash only.
+with downloaded opponents by hash. Other riders' ghosts only with `--include-others` (by hash) or
+`--include-others-with-names` (plus the names the save keeps for some of them).
 
 - **Contributing without a jailbreak:** unencrypted Finder/iTunes backup of an old device that still has the game →
   `scripts/extract_app_domain.py` → `Documents/player.bin` + `ghost_<hash>_<lb>.bin` → `ghost_bundle.py export`.
