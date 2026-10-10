@@ -102,6 +102,8 @@ def main():
             ("GET", f"/public/playerstats/v1/stats/track{track}?players={profile}", None),
             ("GET", f"/public/playerstats/v1/ranking/global_stats?around={profile},20", None),
             ("GET", f"/v1/profiles?profileId={profile},{rid},00000000-0000-0000-0000-000000000000", None),
+            ("GET", f"/v1/profiles/{rid}", None),
+            ("GET", f"/v1/profiles/{profile}", None),
             ("POST", "/public/resultservice/v1/replay_id", json.dumps({"profile_id": profile, "track_name": f"track{track}",
                                                                        "drive_time": own_ms, "faults": 0, "bike": 1}).encode()),
             ("POST", "/public/resultservice/v1/replay_id", json.dumps({"profile_id": rid, "track_name": f"track{robot[0]['track_id']}",

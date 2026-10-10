@@ -550,6 +550,11 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
         }
         return [TFResponse json:@{@"profiles": out}];
     }];
+    [r route:@"GET" path:@"/v1/profiles/([0-9a-fA-F-]{36})" handler:^TFResponse *(TFRequest *q, NSArray *c) {
+        // OnlineUbiservices::getPlayerProfile (robots): one profile object
+        return [TFResponse json:@{@"profileId": c[0], @"userId": c[0], @"idOnPlatform": c[0], @"platformType": @"uplay",
+                                  @"nameOnPlatform": [w riderName:c[0]]}];
+    }];
     [r route:@"GET" path:@"/v1/applications/[^/]+/configuration" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         return [TFResponse json:@{@"configuration": @{@"sandboxes": @[@{@"name": kSandbox, @"friendlyName": kSandbox, @"url": w.base}]}}];
     }];

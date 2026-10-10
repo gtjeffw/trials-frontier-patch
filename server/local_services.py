@@ -618,6 +618,11 @@ class Services:
                     return 200, {}, open(os.path.join(d, name), "rb").read()
         if method == "GET" and p == "/v1/profiles":
             return 200, {}, self.profiles(query)
+        m = re.fullmatch(r"/v1/profiles/([0-9a-fA-F-]{36})", p)
+        if method == "GET" and m:  # OnlineUbiservices::getPlayerProfile (robots): one profile object
+            i = m.group(1)
+            return 200, {}, {"profileId": i, "userId": i, "idOnPlatform": i, "platformType": "uplay",
+                             "nameOnPlatform": self.rider_name(i)}
         if method == "GET" and re.fullmatch(r"/v1/applications/[^/]+/configuration", p):
             return 200, {}, {"configuration": {"sandboxes": [
                 {"name": GAME_SERVER_SANDBOX, "friendlyName": GAME_SERVER_SANDBOX, "url": self.base}]}}

@@ -673,3 +673,8 @@ later an in-app loopback server). Static analysis only.
   closest just slower than the player's best (faster ones after; slowest if the player has no time; `offset` steps);
   the player's own ghost only if no one else has one; nothing → 404. Parity test extended (robot, own-only fallback,
   none, robot_v2, robot_replaydata): PASS.
+- In play (PlayCover): the game took the robot, downloaded the ghost via robot_replaydata and saved
+  `robot_ghost-<hash>-<lb>.robot` (the ghost format is accepted), then asked `GET /v1/profiles/<id>`
+  (`OnlineUbiservices::getPlayerProfile`, one profile object, parsed by `parseProfileJson`) — added to both servers
+  (parity: PASS). After that: robot → ghost → profile → avatar all answered (other rider on The Trebuchet) and the
+  game stopped re-requesting (opponent accepted).
