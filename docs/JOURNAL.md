@@ -643,3 +643,8 @@ later an in-app loopback server). Static analysis only.
   iPhone 15 Pro (iOS 26) next to the original app.
 - `ios_device.py push-data` stages the files and copies them in one devicectl transfer (folder copies work;
   1747 files in seconds), replacing the app's Documents.
+- iPad Air 2 (iOS 15.6.1): devicectl (CoreDevice) does not manage devices below iOS 17 ("unavailable"). After running
+  any app on the iPad from Xcode once (registers it in the free profile), the same signed .ipa installs with
+  `ideviceinstaller -u <udid> install <signed.ipa>` (libimobiledevice 1.2 syntax). Data: on this jailbroken iPad via
+  SSH + tar into the app container (found by bundle id in `.com.apple.mobile_container_manager.metadata.plist`);
+  for other iOS < 17 devices the `file-sharing` option lets players drag the files in with Finder.

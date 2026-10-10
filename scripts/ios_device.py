@@ -11,7 +11,9 @@ Usage:
 (~/Library/Containers/com.ubisoft.redlynx.trialsfrontier/Data/Documents). push-data copies player.bin, ghost_*.bin,
 robot_*.robot and LocalServices/ (the server store) in one transfer and REPLACES the app's Documents; close the game
 on the device first, or it will save over them.
-Works for development-signed installs (scripts/sign_ios.py).
+Works for development-signed installs (scripts/sign_ios.py) on iOS 17 and later (devicectl/CoreDevice). For older
+iOS: install with `ideviceinstaller -u <udid> install <signed.ipa>` and copy the data with Finder (build with the
+file-sharing option: Finder > the device > Files > Trials).
 """
 import os
 import shutil
