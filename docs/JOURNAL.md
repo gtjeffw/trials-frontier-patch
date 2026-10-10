@@ -730,3 +730,7 @@ later an in-app loopback server). Static analysis only.
   `publisher.statement` (the rider is the publisher's own; `others` came from their game) and the bundle README
   says who published it. Tested: dry run; verification accepts the signing key and rejects others (this Mac's keys
   are not on the developer's GitHub account, so a real publish from here would create the signing key).
+- `publish --dry-run` now publishes nothing and leaves the bundle unchanged: it builds the repository exactly as it
+  would be pushed (publisher fields, README, signature if a GitHub-registered key exists, the commit under the
+  noreply address) as a local git repository `<bundle>-preview` (or `--preview-dir`; only an earlier preview is
+  ever replaced), prints the gh commands and a summary. Works without a gh login (placeholder account name).

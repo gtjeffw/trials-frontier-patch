@@ -105,7 +105,8 @@ your ghosts with `ghost_bundle.py import <repository>`; `ghost_bundle.py search`
 
 ```
 python3 -I scripts/ghost_bundle.py export <game Documents> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
-python3 -I scripts/ghost_bundle.py publish <bundle dir> [--sign-key ~/.ssh/<key on GitHub>]
+python3 -I scripts/ghost_bundle.py publish <bundle dir> --dry-run   # builds <bundle dir>-preview, publishes nothing
+python3 -I scripts/ghost_bundle.py publish <bundle dir>
 ```
 
 ## Other tools

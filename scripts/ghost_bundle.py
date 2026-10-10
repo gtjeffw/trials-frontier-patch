@@ -5,7 +5,8 @@ Usage:
                                      [--name <rider name>] [--license CC0-1.0|CC-BY-4.0]
                                      [--include-others | --include-others-with-names]
   python3 -I ghost_bundle.py check   <bundle dir> [--verify]
-  python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--sign-key <ssh private key>] [--i-agree] [--dry-run]
+  python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--sign-key <ssh private key>] [--i-agree]
+                                     [--dry-run [--preview-dir <dir>]]
   python3 -I ghost_bundle.py import  <bundle dir | https://github.com/<owner>/<repo> | <owner>/<repo>>
                                      [--container <game data dir>]
   python3 -I ghost_bundle.py search
@@ -26,6 +27,9 @@ publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`,
          always signed with an SSH key on your GitHub account (anyone can check it; a future fan server can use it
          to tie the rider's records to you): a key of yours already on GitHub is found automatically (or
          --sign-key); if there is none, publish offers to create a signing-only key and add it to your account.
+         --dry-run publishes nothing and leaves the bundle unchanged: it builds the repository exactly as it would
+         be pushed (files, README, signed manifest if you have a key on GitHub, the commit) as a local git
+         repository in <bundle dir>-preview, and prints the GitHub commands it would run.
 import   adds a bundle's riders, times and ghosts to the patched game's store (close the game first). Riders are
          keyed by the game's own hash of their profile id, so they merge with the "Rider <hash>" opponents your game
          downloaded back then. Default container: PlayCover's (com.ubisoft.redlynx.trialsfrontier).
@@ -483,65 +487,89 @@ def names_note(others):
 
 
 def publish(bundle):
-    repo, key, agreed, dry = opt("--repo"), opt("--sign-key"), opt("--i-agree", True), opt("--dry-run", True)
+    repo, key, agreed = opt("--repo"), opt("--sign-key"), opt("--i-agree", True)
+    dry, preview = opt("--dry-run", True), opt("--preview-dir")
     m = check(bundle)
-    if shutil.which("gh") is None:
-        sys.exit("needs the GitHub CLI: brew install gh, then gh auth login")
-    if subprocess.run(["gh", "auth", "status"], capture_output=True).returncode != 0:
-        sys.exit("not logged in to GitHub: gh auth login")
-    user = json.loads(run(["gh", "api", "user"]))
-    login, uid = user["login"], user["id"]
+    logged_in = shutil.which("gh") and subprocess.run(["gh", "auth", "status"], capture_output=True).returncode == 0
+    if logged_in:
+        user = json.loads(run(["gh", "api", "user"]))
+        login, uid = user["login"], user["id"]
+    elif dry:
+        login, uid = "YOUR-GITHUB-NAME", 0
+    else:
+        sys.exit("needs the GitHub CLI, logged in: brew install gh, then gh auth login")
     slug = re.sub(r"[^a-z0-9]+", "-", m["rider"]["name"].lower()).strip("-") or m["rider"]["game_hash"].lower()
     repo = repo or f"trials-frontier-ghosts-{slug}"
     full = f"{login}/{repo}"
     others = m.get("others", [])
-    print(f"\nPublish {bundle} as https://github.com/{full} (public)\n")
+    print(f"\n{'PREVIEW of publishing' if dry else 'Publish'} {bundle} as https://github.com/{full} (public)\n")
     print(CONSENT.format(license=m["license"], name=m["rider"]["name"],
                          avatar=" and avatar" if "avatar" in m["rider"] else "",
                          others=OTHERS.format(n=len(others), names=names_note(others)) if others else ""))
-    if not agreed:
-        if input('\nType "I agree" to publish: ').strip().lower() != "i agree":
+    if dry:
+        # everything happens in a copy: the repository exactly as it would be pushed, as a local git repository
+        target = os.path.abspath(preview or bundle.rstrip("/") + "-preview")
+        marker = os.path.join(target, ".git", "trials-frontier-preview")
+        if os.path.exists(target):
+            if not os.path.exists(marker):
+                sys.exit(f"{target} exists and is not an earlier preview; choose --preview-dir")
+            shutil.rmtree(target)
+        shutil.copytree(bundle, target, symlinks=True)
+    else:
+        target = bundle
+        if not agreed and input('\nType "I agree" to publish: ').strip().lower() != "i agree":
             sys.exit("not published")
 
-    key = key or find_key(login) or (None if dry else create_key(login))
-    print(f"signing with {key or '(a new signing key, created on a real run)'}")
+    key = key or (find_key(login) if logged_in else None) or (None if dry else create_key(login))
     m["publisher"] = {"github": login, "statement": STATEMENT}
-    json.dump(m, open(os.path.join(bundle, MANIFEST), "w"), indent=1, ensure_ascii=False)
-    write_text(bundle, m)
-    sig = os.path.join(bundle, SIGNATURE)
+    json.dump(m, open(os.path.join(target, MANIFEST), "w"), indent=1, ensure_ascii=False)
+    write_text(target, m)
+    sig = os.path.join(target, SIGNATURE)
     if os.path.exists(sig):
         os.remove(sig)
-    if not dry:
-        run(["ssh-keygen", "-Y", "sign", "-f", key, "-n", SIGN_NAMESPACE, os.path.join(bundle, MANIFEST)])
-        err = verify_with_keys(bundle, login, github_keys(login))
-        if err:  # never publish a signature nobody can check
+    if key:
+        run(["ssh-keygen", "-Y", "sign", "-f", key, "-n", SIGN_NAMESPACE, os.path.join(target, MANIFEST)])
+        err = verify_with_keys(target, login, github_keys(login))
+        if err and not dry:  # never publish a signature nobody can check
             os.remove(sig)
             sys.exit(f"the signature does not verify against github.com/{login}'s keys ({err}); not published.\n"
                      f"Is {key}.pub on your GitHub account (Settings > SSH and GPG keys)?")
+        signed = f"signed with {key}" + (f" (does NOT verify against github.com/{login}: {err})" if err else
+                                         f", verifies against github.com/{login}")
+    else:
+        signed = "NOT signed in this preview: a real publish offers to create a signing key and add it to GitHub"
 
     noreply = f"{uid}+{login}@users.noreply.github.com"
-    if not os.path.isdir(os.path.join(bundle, ".git")):
-        run(["git", "init", "-q", "-b", "main"], cwd=bundle, dry=dry)
-    run(["git", "config", "user.name", login], cwd=bundle, dry=dry)
-    run(["git", "config", "user.email", noreply], cwd=bundle, dry=dry)  # never your private email
-    run(["git", "add", "-A"], cwd=bundle, dry=dry)
-    if dry or subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=bundle).returncode != 0:
-        run(["git", "commit", "-q", "-m", f"Trials Frontier ghosts of {m['rider']['name']} ({m['created']})"],
-            cwd=bundle, dry=dry)
+    if not os.path.isdir(os.path.join(target, ".git")):
+        run(["git", "init", "-q", "-b", "main"], cwd=target)
+    if dry:
+        open(marker, "w").write("made by ghost_bundle.py publish --dry-run\n")
+    run(["git", "config", "user.name", login], cwd=target)
+    run(["git", "config", "user.email", noreply], cwd=target)  # never your private email
+    run(["git", "add", "-A"], cwd=target)
+    if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=target).returncode != 0:
+        run(["git", "commit", "-q", "-m", f"Trials Frontier ghosts of {m['rider']['name']} ({m['created']})"], cwd=target)
     desc = (f"Trials Frontier (iOS) best times and ghosts of {m['rider']['name']} "
             f"- {FORMAT} v{FORMAT_VERSION}, rider {m['rider']['game_hash']}")
-    exists = subprocess.run(["gh", "repo", "view", full], capture_output=True).returncode == 0
+    exists = logged_in and subprocess.run(["gh", "repo", "view", full], capture_output=True).returncode == 0
     if exists:
-        remotes = run(["git", "remote"], cwd=bundle, dry=dry)
-        if "origin" not in remotes.split():
-            run(["git", "remote", "add", "origin", f"https://github.com/{full}.git"], cwd=bundle, dry=dry)
-        run(["git", "push", "-u", "origin", "main"], cwd=bundle, dry=dry)
+        if "origin" not in run(["git", "remote"], cwd=target).split():
+            run(["git", "remote", "add", "origin", f"https://github.com/{full}.git"], cwd=target, dry=dry)
+        run(["git", "push", "-u", "origin", "main"], cwd=target, dry=dry)
         run(["gh", "repo", "edit", full, "--description", desc], dry=dry)
     else:
-        run(["gh", "repo", "create", full, "--public", "--description", desc, "--source", bundle, "--remote",
+        run(["gh", "repo", "create", full, "--public", "--description", desc, "--source", target, "--remote",
              "origin", "--push"], dry=dry)
     run(["gh", "repo", "edit", full] + [a for t in TOPICS for a in ("--add-topic", t)], dry=dry)
-    print(f"{'(dry run) ' if dry else ''}published: https://github.com/{full}")
+    if dry:
+        files = subprocess.run(["git", "ls-files"], cwd=target, capture_output=True, text=True).stdout.split()
+        size = sum(os.path.getsize(os.path.join(target, f)) for f in files)
+        print(f"\nPreview (nothing was published; {bundle} is unchanged): {target}\n"
+              f"  {len(files)} files, {size // 1024} KB, {signed}\n"
+              f"  description: {desc}\n  topics: {', '.join(TOPICS)}\n"
+              f"  look at README.md and {MANIFEST} there, or: git -C {target} show --stat")
+    else:
+        print(f"published: https://github.com/{full} ({signed})")
 
 
 # ---- import ----
