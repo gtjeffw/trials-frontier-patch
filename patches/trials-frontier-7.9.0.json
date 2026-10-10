@@ -10,10 +10,10 @@
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
     "patched_executable": "5f372089ac8ad791434d93209fd039624b29e160524bd60d25718fa46f71466b",
     "patched_executable_with": {
-      "local-services": "6a68b80bfaebb8541092521ca2c51317bec508cdaa9b8299542ca5738bb88c10",
-      "local-services,open-all-levels": "e9c4fd8aa90272ee010a44d518e817c33c5aa1f44ea89fc044ff822b9743f16a",
-      "local-services,open-all-levels,orphan-levels": "e661045ecd95bb1fbbc0160e7bbce3ffbb4a20f4a9bb714ecf1426723c5e21e6",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "d2dfa590b28bff61a1a8fbad786e488dea22a3882f4675013bb858022cdd197e"
+      "local-services": "10bba9a8ef7e128ca1361d7bc62ed283bf8bed185b348170d1fcdab71fbf8f15",
+      "local-services,open-all-levels": "cc32a01d4ab0955d3442ee7e7ddf32c4fec59aefd9b1dc8f3109b8465e9e5fba",
+      "local-services,open-all-levels,orphan-levels": "57809a6b9c96dab57dd1c7909098f306d30888fd0711dc52ffa99574d038eb0b",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "9e85053e206b050796be49e2efbdb75405178f931c2cdd3116bc5e42721b5fd1"
     }
   },
   "encryption": {
@@ -1688,6 +1688,21 @@
       ],
       "function": "tr::OnlineAuthenticationUPlay::finishLoginSequence",
       "reason": "The Playground (Uplay) login completes again whenever the network state changes and copies its cached session's nameOnPlatform into the player's name. That session is made at app start, so for a new player it holds the name from before they chose one, and it put the placeholder back after the tutorial's naming. The mobile login (OnlineAuthenticationMobile::parseTicketData) already sets the name, preferring the chosen one; the profile id copy and the rest of the login are unchanged."
+    },
+    {
+      "id": "local-services-results-cache-follows-name",
+      "group": "local-services",
+      "vmaddr": "0x100347e94",
+      "original": "00410491",
+      "replacement": "00410091",
+      "original_asm": [
+        "add x0, x8, #0x110          ; hash of Player+0x110 (profile id)"
+      ],
+      "replacement_asm": [
+        "add x0, x8, #0x10           ; hash of Player+0x10 (name)"
+      ],
+      "function": "tr::PopupStateLeaderboardImprovement::checkPlayerOnlineProfile",
+      "reason": "The results popup keeps its own copies of the leaderboards it showed (including the player's own entry and name) and drops them only when the hash it keeps changes; that was the profile id, which a new player keeps when they pick their name in the tutorial, so boards first loaded before naming (the Hall of Fame, the tutorial's first tracks) kept showing the old placeholder for the rest of the session. Hashing the name instead drops them when the name changes (offline there is one profile, whose name changes at most on renaming)."
     },
     {
       "id": "open-all-levels",

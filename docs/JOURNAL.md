@@ -860,3 +860,12 @@ later an in-app loopback server). Static analysis only.
   server cannot fix it. Patch `local-services-uplay-login-keeps-name` (0x1002e04a0: the memcpy into Player+0x10 and
   its terminator → nop); the mobile login keeps setting the name. Recorded local-services build hashes updated;
   the default build is unchanged (5f372089…).
+- Fourth run (with the probe): the game's own name field stayed "JBuzz" from the rename to the end, yet the results
+  popup showed "Rider" (Pike Alley: JBuzz / Hall of Fame Rider; Cave Entrance = track 1097: Rider / Rider). So
+  the popup does not read the current name: `PopupStateLeaderboardImprovement` keeps its own map of the
+  leaderboards it showed (own entry and name included, set from Player+0x10 when a board is first loaded) and
+  clears it only in `checkPlayerOnlineProfile` when the hash of Player+0x110 (profile id) changes. A new player
+  keeps the profile id when naming, so boards first loaded before naming (Hall of Fame, the first tracks) kept the
+  placeholder. Patch `local-services-results-cache-follows-name`: hash Player+0x10 instead (0x100347e94
+  `add x0, x8, #0x110` → `#0x10`). The earlier Uplay patch stays (that login path would copy a stale name if it
+  completes); whether it actually ran is not known, since the patch prevents the write the probe would have shown.
