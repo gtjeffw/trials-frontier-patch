@@ -1,0 +1,27 @@
+{
+ "format": "trials-frontier-sources",
+ "format_version": 1,
+ "comment": "Default community sources, used by scripts/community.py. Your own list (add/remove/enable/disable) overrides these by id.",
+ "sources": [
+  {
+   "id": "gtjeffw/trials-frontier-ghosts-jayuph",
+   "type": "bundle",
+   "repo": "gtjeffw/trials-frontier-ghosts-jayuph",
+   "enabled": true,
+   "note": "jayuph's best times and ghosts (the patch author's own rider)"
+  },
+  {
+   "id": "world-records-2019",
+   "type": "trialstrackmap-wr",
+   "repo": "dutscher/trialstrackmap",
+   "commit": "9917e5cad4653c8c26d371218b0d06679c6abd88",
+   "files": {
+    "database/wr/wrrider.json": "5e9067c714869a9466f9120394501c15769698f289592f946603d2649d0cdf4a",
+    "database/trackdata/ids.json": "d24609338c67481d8c4774042f2e2147c409bc44993c1f5cae272211d0febe82"
+   },
+   "license": "MIT",
+   "enabled": false,
+   "note": "world records of December 2019 from the community track map (times only, no ghosts); optional"
+  }
+ ]
+}

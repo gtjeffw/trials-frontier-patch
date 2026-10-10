@@ -41,11 +41,7 @@ BOOL TFLocalServicesStart(TFLocalServicesConfig *config, NSError **error) {
     [keep addObject:server];
     [keep addObject:services];  // route handlers hold it weakly
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        [services loadStore];
-        NSFileManager *fm = NSFileManager.defaultManager;
-        if (config.worldRecords && config.worldRecordIds && [fm fileExistsAtPath:config.worldRecords] &&
-            [fm fileExistsAtPath:config.worldRecordIds])
-            [services importWorldRecords:config.worldRecords ids:config.worldRecordIds];
+        [services loadStore:config.communityDir];
         log([NSString stringWithFormat:@"listening on %@ for %@ (%@); documents %@", services.base, services.name,
              services.profileId, config.documentsDir]);
         dispatch_group_leave(router.ready);

@@ -2,6 +2,8 @@
 #import "TFSave.h"
 
 static NSString *const kSandbox = @"triag_ip_lnch61_a_ws";
+static NSString *const kCommunityFormat = @"trials-frontier-community";
+static const NSInteger kCommunityBase = 1000000000;  // content ids of community ghosts
 
 static NSInteger I(id v) { return [v respondsToSelector:@selector(longLongValue)] ? (NSInteger)[v longLongValue] : 0; }
 
@@ -39,6 +41,22 @@ static id jsonObject(NSData *d) {
     void (^_log)(NSString *);
     NSString *_fixedName;
     NSDate *_saveDate;
+    // community layer (see loadCommunity:): what it replaced, its ghosts and avatars
+    NSMutableDictionary<NSString *, NSMutableDictionary *> *_shadowResults;  // board -> rider -> old entry or NSNull
+    NSMutableDictionary *_shadowRiders;                                     // rider -> old entry or NSNull
+    NSMutableSet<NSString *> *_communityGhosts;
+    NSMutableDictionary<NSString *, NSString *> *_communityAvatars;
+    NSString *_communityDir;
+}
+
+/// The names the server makes up for riders it knows only by hash.
+static BOOL placeholder(NSString *name) {
+    if (!name.length) return YES;
+    return [name rangeOfString:@"^(?i)rider( [0-9A-F]{8})?$" options:NSRegularExpressionSearch].location != NSNotFound;
+}
+
+static BOOL isUUID(NSString *s) {
+    return [s rangeOfString:@"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" options:NSRegularExpressionSearch].location != NSNotFound;
 }
 
 - (instancetype)initWithDocuments:(NSString *)documentsDir dataDir:(NSString *)dataDir port:(uint16_t)port
@@ -99,8 +117,13 @@ static id jsonObject(NSData *d) {
 
 #pragma mark - store
 
-- (void)loadStore {
+- (void)loadStore:(NSString *)communityDir {
     [_lock lock];
+    _shadowResults = [NSMutableDictionary dictionary];
+    _shadowRiders = [NSMutableDictionary dictionary];
+    _communityGhosts = [NSMutableSet set];
+    _communityAvatars = [NSMutableDictionary dictionary];
+    _communityDir = nil;
     NSFileManager *fm = NSFileManager.defaultManager;
     [fm createDirectoryAtPath:[_dataDir stringByAppendingPathComponent:@"ghosts"] withIntermediateDirectories:YES attributes:nil error:nil];
     NSMutableDictionary *s = jsonObject([NSData dataWithContentsOfFile:[_dataDir stringByAppendingPathComponent:@"store.json"]]);
@@ -145,17 +168,138 @@ static id jsonObject(NSData *d) {
     }
     if (!_store[@"riders"]) _store[@"riders"] = [NSMutableDictionary dictionary];
     seeded += [self importRobots];
+    [self dropLegacyWorldRecords];
+    [self loadCommunity:communityDir ?: [_dataDir stringByAppendingPathComponent:@"community"]];
     [self saveStore];
     NSInteger results = 0;
     for (NSDictionary *b in [_store[@"results"] allValues]) results += b.count;
-    [self note:[NSString stringWithFormat:@"store %@: %ld results, %lu ghosts, %lu other riders (%ld imported now)", _dataDir,
-                (long)results, (unsigned long)[_store[@"ghosts"] count], (unsigned long)[_store[@"riders"] count], (long)seeded]];
+    [self note:[NSString stringWithFormat:@"store %@: %ld results, %lu ghosts, %lu other riders (%ld imported now, %lu ghosts from the community layer)",
+                _dataDir, (long)results, (unsigned long)[_store[@"ghosts"] count], (unsigned long)[_store[@"riders"] count],
+                (long)seeded, (unsigned long)_communityGhosts.count]];
     [_lock unlock];
+}
+
+/// World records used to be imported into the store; they now come from the community layer.
+- (void)dropLegacyWorldRecords {
+    if (!_store[@"world_records_imported"]) return;
+    [_store removeObjectForKey:@"world_records_imported"];
+    NSMutableSet *gone = [NSMutableSet set];
+    for (NSString *rid in [_store[@"riders"] allKeys])
+        if ([_store[@"riders"][rid][@"source"] isEqual:@"wr2019"]) [gone addObject:rid];
+    [_store[@"riders"] removeObjectsForKeys:gone.allObjects];
+    for (NSString *name in [_store[@"results"] allKeys]) {
+        NSMutableDictionary *board = _store[@"results"][name];
+        for (NSString *rid in board.allKeys)
+            if ([board[rid][@"source"] isEqual:@"wr2019"]) [board removeObjectForKey:rid];
+        if (!board.count) [_store[@"results"] removeObjectForKey:name];
+    }
+    [self note:[NSString stringWithFormat:@"removed %lu world-record riders imported by an older version (now: community layer)",
+                (unsigned long)gone.count]];
+}
+
+/// Overlay the community layer (scripts/community.py): riders merge by the game's hash of their profile id, a layer
+/// result shows only where it beats the stored one, layer ghosts keep their own content ids and files, the player's
+/// own rider is skipped (only its avatar is used). Nothing of it is written into store.json (see -persisted).
+- (void)loadCommunity:(NSString *)folder {
+    NSString *path = [folder stringByAppendingPathComponent:@"community.json"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:path]) return;
+    NSDictionary *layer = jsonObject([NSData dataWithContentsOfFile:path]);
+    if (![layer isKindOfClass:NSDictionary.class] || ![layer[@"format"] isEqual:kCommunityFormat] || I(layer[@"format_version"]) != 1 ||
+        ![layer[@"riders"] isKindOfClass:NSDictionary.class] || ![layer[@"results"] isKindOfClass:NSDictionary.class] ||
+        ![layer[@"ghosts"] isKindOfClass:NSDictionary.class]) {
+        [self note:[NSString stringWithFormat:@"community layer %@: unreadable or unsupported format; ignored", folder]];
+        return;
+    }
+    _communityDir = [folder copy];
+    NSString *own = [NSString stringWithFormat:@"%08X", TFGameHash(_profileId)];
+    NSMutableDictionary *byHash = [NSMutableDictionary dictionary];
+    for (NSString *r in [[_store[@"riders"] allKeys] sortedArrayUsingSelector:@selector(compare:)])
+        if (isUUID(r)) byHash[[NSString stringWithFormat:@"%08X", TFGameHash(r)]] = r;
+    NSMutableDictionary *ridMap = [NSMutableDictionary dictionary];
+    NSFileManager *fm = NSFileManager.defaultManager;
+    for (NSString *crid in [[layer[@"riders"] allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
+        NSDictionary *c = layer[@"riders"][crid];
+        NSString *h = [c[@"game_hash"] isKindOfClass:NSString.class] ? c[@"game_hash"] : nil;
+        NSString *avatar = [[folder stringByAppendingPathComponent:@"avatars"] stringByAppendingPathComponent:[crid stringByAppendingString:@".png"]];
+        BOOL hasAvatar = [fm fileExistsAtPath:avatar];
+        if (h.length && [h isEqual:own]) {
+            if (hasAvatar) _communityAvatars[_profileId] = avatar;
+            continue;
+        }
+        NSString *rid = (_store[@"riders"][crid] || !h.length) ? crid : (byHash[h] ?: crid);
+        ridMap[crid] = rid;
+        if (hasAvatar) _communityAvatars[rid] = avatar;
+        NSDictionary *cur = _store[@"riders"][rid];
+        NSString *name = [c[@"name"] isKindOfClass:NSString.class] ? c[@"name"] : nil;
+        if (!cur || (placeholder(cur[@"name"]) && !placeholder(name))) {
+            if (!_shadowRiders[rid]) _shadowRiders[rid] = cur ?: (id)NSNull.null;
+            _store[@"riders"][rid] = [@{@"name": name.length ? name : [@"Rider " stringByAppendingString:h ?: @"?"],
+                                        @"source": @"community"} mutableCopy];
+        }
+    }
+    NSInteger shown = 0;
+    for (NSString *name in [[layer[@"results"] allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
+        NSDictionary *entries = layer[@"results"][name];
+        for (NSString *crid in [[entries allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
+            NSString *rid = ridMap[crid];
+            if (!rid) continue;
+            NSMutableDictionary *board = _store[@"results"][name] ?: (_store[@"results"][name] = [NSMutableDictionary dictionary]);
+            NSDictionary *old = board[rid];
+            if (!better(entries[crid], old)) continue;
+            NSMutableDictionary *sb = _shadowResults[name] ?: (_shadowResults[name] = [NSMutableDictionary dictionary]);
+            if (!sb[rid]) {
+                sb[rid] = old ?: (id)NSNull.null;
+                shown++;
+            }
+            board[rid] = [entries[crid] mutableCopy];
+        }
+    }
+    NSArray *cids = [[layer[@"ghosts"] allKeys] sortedArrayUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+        return [@(a.longLongValue) compare:@(b.longLongValue)];
+    }];
+    for (NSString *cid in cids) {
+        NSDictionary *g = layer[@"ghosts"][cid];
+        NSString *rid = ridMap[g[@"profile"]];
+        if (!rid || cid.longLongValue < kCommunityBase || _store[@"ghosts"][cid]) continue;
+        NSMutableDictionary *e = [g mutableCopy];
+        e[@"profile"] = rid;
+        _store[@"ghosts"][cid] = e;
+        [_communityGhosts addObject:cid];
+    }
+    [self note:[NSString stringWithFormat:@"community layer %@: %lu riders, %ld results shown, %lu ghosts", folder,
+                (unsigned long)ridMap.count, (long)shown, (unsigned long)_communityGhosts.count]];
+}
+
+/// The store without the community layer.
+- (NSDictionary *)persisted {
+    if (!_shadowResults.count && !_shadowRiders.count && !_communityGhosts.count) return _store;
+    NSMutableDictionary *out = [_store mutableCopy];
+    NSMutableDictionary *results = [_store[@"results"] mutableCopy];
+    for (NSString *name in _shadowResults) {
+        NSMutableDictionary *board = [results[name] mutableCopy];
+        [_shadowResults[name] enumerateKeysAndObjectsUsingBlock:^(NSString *rid, id old, BOOL *stop) {
+            if (old == NSNull.null) [board removeObjectForKey:rid];
+            else board[rid] = old;
+        }];
+        if (board.count) results[name] = board;
+        else [results removeObjectForKey:name];  // a board only the layer had
+    }
+    out[@"results"] = results;
+    NSMutableDictionary *riders = [_store[@"riders"] mutableCopy];
+    [_shadowRiders enumerateKeysAndObjectsUsingBlock:^(NSString *rid, id old, BOOL *stop) {
+        if (old == NSNull.null) [riders removeObjectForKey:rid];
+        else riders[rid] = old;
+    }];
+    out[@"riders"] = riders;
+    NSMutableDictionary *ghosts = [_store[@"ghosts"] mutableCopy];
+    [ghosts removeObjectsForKeys:_communityGhosts.allObjects];
+    out[@"ghosts"] = ghosts;
+    return out;
 }
 
 - (void)saveStore {
     [_lock lock];
-    NSData *d = [NSJSONSerialization dataWithJSONObject:_store options:NSJSONWritingPrettyPrinted | NSJSONWritingWithoutEscapingSlashes error:nil];
+    NSData *d = [NSJSONSerialization dataWithJSONObject:[self persisted] options:NSJSONWritingPrettyPrinted | NSJSONWritingWithoutEscapingSlashes error:nil];
     [d writeToFile:[_dataDir stringByAppendingPathComponent:@"store.json"] atomically:YES];
     [_lock unlock];
 }
@@ -169,6 +313,9 @@ static id jsonObject(NSData *d) {
 }
 
 - (NSString *)ghostPath:(id)cid {
+    NSString *key = [NSString stringWithFormat:@"%ld", (long)I(cid)];
+    if ([_communityGhosts containsObject:key])
+        return [[_communityDir stringByAppendingPathComponent:@"ghosts"] stringByAppendingPathComponent:[key stringByAppendingString:@".bin"]];
     return [[_dataDir stringByAppendingPathComponent:@"ghosts"] stringByAppendingPathComponent:[NSString stringWithFormat:@"%ld.bin", (long)I(cid)]];
 }
 
@@ -224,41 +371,6 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     }
     _store[@"robots_imported"] = @YES;
     return count;
-}
-
-- (void)importWorldRecords:(NSString *)wrPath ids:(NSString *)idsPath {
-    [_lock lock];
-    if (_store[@"world_records_imported"]) { [_lock unlock]; return; }
-    NSDictionary *wr = jsonObject([NSData dataWithContentsOfFile:wrPath]);
-    NSString *idsText = [NSString stringWithContentsOfFile:idsPath encoding:NSUTF8StringEncoding error:nil] ?: @"";
-    NSRegularExpression *comments = [NSRegularExpression regularExpressionWithPattern:@"^\\s*//.*$" options:NSRegularExpressionAnchorsMatchLines error:nil];
-    idsText = [comments stringByReplacingMatchesInString:idsText options:0 range:NSMakeRange(0, idsText.length) withTemplate:@""];
-    NSMutableDictionary *site = [NSMutableDictionary dictionary];
-    for (NSDictionary *e in jsonObject([idsText dataUsingEncoding:NSUTF8StringEncoding])) site[@(I(e[@"id"]))] = e[@"oid"];
-    NSDictionary *flags = @{@"n": @0, @"d": @0x10000, @"c": @0x100000};
-    NSInteger count = 0;
-    for (NSString *sid in wr[@"tracks"]) {
-        NSNumber *oid = site[@(sid.integerValue)];
-        if (!oid) continue;
-        NSDictionary *plats = wr[@"tracks"][sid];
-        for (NSString *plat in plats) {
-            if (![plat isEqualToString:@"a"] && ![plat isEqualToString:@"i"]) continue;
-            NSDictionary *cats = plats[plat];
-            for (NSString *cat in cats) {
-                NSDictionary *e = cats[cat];
-                if (![e isKindOfClass:NSDictionary.class] || !flags[cat]) continue;
-                NSString *name = wr[@"riders"][I(e[@"r"])];
-                NSString *rid = TFUUID5(TFNamespaceURL, [@"trialstrackmap-rider:" stringByAppendingString:name]);
-                [self addRider:rid name:name source:@"wr2019"];
-                count += [self addResult:[NSString stringWithFormat:@"track%ld", (long)(I(oid) | I(flags[cat]))] rider:rid
-                                  faults:I(e[@"f"]) ms:I(e[@"t"]) bike:I(e[@"b"]) source:@"wr2019"];
-            }
-        }
-    }
-    _store[@"world_records_imported"] = wrPath.lastPathComponent;
-    [self saveStore];
-    [_lock unlock];
-    [self note:[NSString stringWithFormat:@"world records %@: %ld results added", wrPath.lastPathComponent, (long)count]];
 }
 
 #pragma mark - leaderboards and results
@@ -572,7 +684,9 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
             NSData *d = [NSData dataWithContentsOfFile:[dir stringByAppendingPathComponent:file]];
             if (d) return [TFResponse data:d];
         }
-        return nil;
+        NSString *community = [c[0] length] ? s->_communityAvatars[c[0]] : nil;
+        NSData *d = community ? [NSData dataWithContentsOfFile:community] : nil;
+        return d ? [TFResponse data:d] : nil;
     }];
     [r route:@"GET" path:@"/v1/profiles" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         NSMutableArray *out = [NSMutableArray array];

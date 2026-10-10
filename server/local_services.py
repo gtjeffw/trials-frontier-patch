@@ -2,7 +2,7 @@
 
 Usage: python3 -I server/local_services.py [--container <app container Data dir>] [--port 7979]
                                            [--profile-id <uuid>] [--name <name>] [--avatars <dir>] [--log <file>]
-                                           [--data <dir>] [--world-records wrrider.json --world-record-ids ids.json]
+                                           [--data <dir>] [--community <layer dir>]
 
 Listens on 127.0.0.1 only. The patched game sends every request here (see docs/JOURNAL.md, "Online services probe"):
   GET  /v1/applications/<appId>/configuration   app configuration; its sandbox "triag_ip_lnch61_a_ws" names the game server
@@ -23,8 +23,11 @@ one (fewer faults, then less time); the game uploads a ghost only after such a r
 per player and leaderboard, refusing a slower one.
 
 Other riders: opponent ghosts the game downloaded (Documents/robot_ghost-*.robot, avatars robot_image-*.robot) are
-imported once; the 2019 world records from dutscher/trialstrackmap (MIT; not shipped here) can be added with
---world-records/--world-record-ids. They appear on GLOBAL; FRIENDS asks only for the player's own id.
+imported once. More come from a community layer (scripts/community.py: ghost bundles, the 2019 world records):
+<data>/community (installed by community.py) or --community. It is overlaid when the store loads and never written
+into store.json: riders merge by the game's hash of their profile id, a layer result shows only where it beats the
+stored one, layer ghosts keep their own content ids (from 1000000000) and files, and the player's own rider in
+the layer is skipped (only its avatar is used). They appear on GLOBAL; FRIENDS asks only for the player's own id.
 """
 import json
 import os
@@ -63,6 +66,15 @@ def game_hash(s):
         x = (x + n * c) & 0xFFFFFFFF
         n = ((n & 0xFFFF) * 18000 + (n >> 16)) & 0xFFFFFFFF
     return x
+
+
+COMMUNITY_FORMAT, COMMUNITY_VERSION, COMMUNITY_BASE = "trials-frontier-community", 1, 1_000_000_000
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def placeholder(name):
+    """The names the server makes up for riders it knows only by hash."""
+    return not name or re.fullmatch(r"(?i)rider( [0-9A-F]{8})?", name) is not None
 
 
 def read_scores(raw):
@@ -200,8 +212,10 @@ class Services:
 
     # ---- persistent store (results and ghosts), seeded from the save and its ghost files ----
 
-    def load_store(self, data_dir):
+    def load_store(self, data_dir, community=None):
         self.data_dir = data_dir
+        self.shadow_results, self.shadow_riders, self.community_ghosts, self.community_avatars = {}, {}, set(), {}
+        self.community_dir = None
         os.makedirs(os.path.join(data_dir, "ghosts"), exist_ok=True)
         self.lock = threading.RLock()
         path = os.path.join(data_dir, "store.json")
@@ -232,10 +246,105 @@ class Services:
                 seeded += 1
         self.store.setdefault("riders", {})
         seeded += self.import_robots()
+        self.drop_legacy_world_records()
+        self.load_community(community)
         self.save_store()
         self.note(f"store {data_dir}: {sum(len(b) for b in self.store['results'].values())} results, "
                   f"{len(self.store['ghosts'])} ghosts, {len(self.store['riders'])} other riders "
-                  f"({seeded} imported now)")
+                  f"({seeded} imported now, {len(self.community_ghosts)} ghosts from the community layer)")
+
+    def drop_legacy_world_records(self):
+        """World records used to be imported into the store; they now come from the community layer."""
+        if not self.store.pop("world_records_imported", None):
+            return
+        gone = {rid for rid, r in self.store["riders"].items() if r.get("source") == "wr2019"}
+        for rid in gone:
+            del self.store["riders"][rid]
+        for name in list(self.store["results"]):
+            board = self.store["results"][name]
+            for rid in [r for r, st in board.items() if st.get("source") == "wr2019"]:
+                del board[rid]
+            if not board:
+                del self.store["results"][name]
+        self.note(f"removed {len(gone)} world-record riders imported by an older version (now: community layer)")
+
+    def load_community(self, folder):
+        """Overlay the community layer (see the module notes); shadow_* remember what it replaced, for save_store."""
+        folder = folder or os.path.join(self.data_dir, "community")
+        path = os.path.join(folder, "community.json")
+        if not os.path.exists(path):
+            return
+        try:
+            layer = json.load(open(path))
+        except ValueError as e:
+            self.note(f"community layer {folder} unreadable ({e}); ignored")
+            return
+        if layer.get("format") != COMMUNITY_FORMAT or layer.get("format_version") != COMMUNITY_VERSION:
+            self.note(f"community layer {folder}: format {layer.get('format_version')} not supported; ignored")
+            return
+        self.community_dir = folder
+        own = "%08X" % game_hash(self.profile_id)
+        by_hash = {"%08X" % game_hash(r): r for r in sorted(self.store["riders"]) if UUID.fullmatch(r)}
+        rid_map = {}
+        for crid in sorted(layer["riders"]):
+            c = layer["riders"][crid]
+            h = c.get("game_hash")
+            avatar = os.path.join(folder, "avatars", crid + ".png")
+            if h and h == own:
+                if os.path.isfile(avatar):
+                    self.community_avatars[self.profile_id] = avatar
+                continue
+            rid = crid if crid in self.store["riders"] or not h else by_hash.get(h, crid)
+            rid_map[crid] = rid
+            if os.path.isfile(avatar):
+                self.community_avatars[rid] = avatar
+            cur = self.store["riders"].get(rid)
+            if cur is None or (placeholder(cur.get("name")) and not placeholder(c.get("name"))):
+                self.shadow_riders.setdefault(rid, cur)
+                self.store["riders"][rid] = {"name": c.get("name") or "Rider " + (h or "?"), "source": "community"}
+        for name in sorted(layer["results"]):
+            for crid, st in sorted(layer["results"][name].items()):
+                rid = rid_map.get(crid)
+                if rid is None:
+                    continue
+                board = self.store["results"].setdefault(name, {})
+                if self.better(st, board.get(rid)):
+                    self.shadow_results.setdefault((name, rid), board.get(rid))
+                    board[rid] = st
+        for cid in sorted(layer["ghosts"], key=int):
+            g = layer["ghosts"][cid]
+            rid = rid_map.get(g["profile"])
+            if rid is None or int(cid) < COMMUNITY_BASE or cid in self.store["ghosts"]:
+                continue
+            self.store["ghosts"][cid] = dict(g, profile=rid)
+            self.community_ghosts.add(cid)
+        self.note(f"community layer {folder}: {len(rid_map)} riders, {len(self.shadow_results)} results shown, "
+                  f"{len(self.community_ghosts)} ghosts")
+
+    def persisted(self):
+        """The store without the community layer."""
+        if not (self.shadow_results or self.shadow_riders or self.community_ghosts):
+            return self.store
+        out = dict(self.store)
+        out["results"] = dict(self.store["results"])
+        for (name, rid), old in self.shadow_results.items():
+            if out["results"][name] is self.store["results"][name]:
+                out["results"][name] = dict(self.store["results"][name])
+            if old is None:
+                out["results"][name].pop(rid, None)
+            else:
+                out["results"][name][rid] = old
+        for name in {name for name, _ in self.shadow_results}:
+            if not out["results"][name]:  # a board only the layer had
+                del out["results"][name]
+        out["riders"] = dict(self.store["riders"])
+        for rid, old in self.shadow_riders.items():
+            if old is None:
+                out["riders"].pop(rid, None)
+            else:
+                out["riders"][rid] = old
+        out["ghosts"] = {k: v for k, v in self.store["ghosts"].items() if k not in self.community_ghosts}
+        return out
 
     def add_rider(self, rider_id, name, source):
         self.store["riders"].setdefault(rider_id, {"name": name, "source": source})
@@ -284,32 +393,6 @@ class Services:
         self.store["robots_imported"] = True
         return count
 
-    def import_world_records(self, wr_path, ids_path):
-        """2019 world records from dutscher/trialstrackmap (MIT): wrrider.json {riders[], tracks{siteId: {a|i:
-        {n|d|c: {r, b, f, t}}}}} + trackdata/ids.json (site id -> game level id "oid"; JSON with // comments).
-        Categories: n = track<id>, d (donkey) = track<id | 0x10000>, c (crazy) = track<id | 0x100000>."""
-        wr = json.load(open(wr_path))
-        site = {e["id"]: e["oid"] for e in json.loads(re.sub(r"^\s*//.*$", "", open(ids_path).read(), flags=re.M))}
-        flags = {"n": 0, "d": 0x10000, "c": 0x100000}
-        count = 0
-        with self.lock:
-            for sid, plats in wr["tracks"].items():
-                oid = site.get(int(sid))
-                if oid is None:
-                    continue
-                for plat, cats in plats.items():
-                    if plat not in ("a", "i"):
-                        continue
-                    for cat, e in cats.items():
-                        if not isinstance(e, dict) or cat not in flags:
-                            continue
-                        name = wr["riders"][e["r"]]
-                        rid = str(uuid.uuid5(uuid.NAMESPACE_URL, "trialstrackmap-rider:" + name))
-                        self.add_rider(rid, name, "wr2019")
-                        count += self.add_result("track%d" % (oid | flags[cat]), rid, e["f"], e["t"], e["b"], "wr2019")
-            self.save_store()
-        self.note(f"world records {os.path.basename(wr_path)}: {count} results added")
-
     def new_id(self):
         with self.lock:
             cid = self.store["next_id"]
@@ -317,12 +400,14 @@ class Services:
             return cid
 
     def ghost_path(self, cid):
+        if str(int(cid)) in self.community_ghosts:
+            return os.path.join(self.community_dir, "ghosts", "%d.bin" % int(cid))
         return os.path.join(self.data_dir, "ghosts", "%d.bin" % int(cid))
 
     def save_store(self):
         with self.lock:
             tmp = os.path.join(self.data_dir, "store.json.tmp")
-            json.dump(self.store, open(tmp, "w"), indent=1)
+            json.dump(self.persisted(), open(tmp, "w"), indent=1)
             os.replace(tmp, os.path.join(self.data_dir, "store.json"))
 
     @staticmethod
@@ -644,6 +729,8 @@ class Services:
             for d in (self.avatars, os.path.join(self.data_dir, "avatars")):
                 if d and os.path.isfile(os.path.join(d, name)):
                     return 200, {}, open(os.path.join(d, name), "rb").read()
+            if m.group(1) in self.community_avatars:
+                return 200, {}, open(self.community_avatars[m.group(1)], "rb").read()
         if method == "GET" and p == "/v1/profiles":
             return 200, {}, self.profiles(query)
         m = re.fullmatch(r"/v1/profiles/([0-9a-fA-F-]{36})", p)
@@ -715,12 +802,7 @@ def main():
         data, old = os.path.join(container, "Documents", "LocalServices"), os.path.join(container, "Library", "LocalServices")
         if not os.path.exists(data) and os.path.isdir(old):
             os.rename(old, data)
-    services.load_store(data)
-    wr, wr_ids = opt("--world-records"), opt("--world-record-ids")
-    if wr and wr_ids and not services.store.get("world_records_imported"):
-        services.import_world_records(wr, wr_ids)
-        services.store["world_records_imported"] = os.path.basename(wr)
-        services.save_store()
+    services.load_store(data, opt("--community"))
     Handler.services = services
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     services.note(f"listening on {services.base} for {services.name} ({services.profile_id}); container {container}")

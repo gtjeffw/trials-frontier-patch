@@ -60,7 +60,7 @@ the silent switch.
 | `--with file-sharing` | shows the game's data (save, ghosts, server store) in Finder and the Files app — for iPhone/iPad |
 | `--bundle-id`, `--display-name` | a second copy next to the original with its own data (iPhone/iPad, or PlayCover: one at a time) |
 | `--avatars <dir>` | `<profileId>.png` (146×146) pictures shown on the leaderboards, e.g. your own Ubisoft avatar |
-| `--world-records` + `--world-record-ids` | add the 2019 world records from [dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap) (MIT; `database/wr/wrrider.json` and `database/trackdata/ids.json`, downloaded by you) |
+| `--community [<layer>]` | build other riders into the app (see *Other riders*; for iPhone/iPad, where `community.py install` cannot reach the data) |
 
 The always-on patch groups are `compat` (runs outside a team-signed install, without the dead content bucket),
 `privacy` (ads, cross-promotion, analytics SDKs off), `offline` (no Ubisoft/RedLynx services; the online code itself is
@@ -99,14 +99,28 @@ Packs from the game's download folder (`Library/Caches/DLC` on the device) can b
 ## Sharing your ghosts
 
 `scripts/ghost_bundle.py` turns your best times and ghosts into a *bundle* and publishes it as a public GitHub
-repository (`gh` login; you confirm that the runs are yours; commits use your GitHub noreply address). Others race
-your ghosts with `ghost_bundle.py import <repository>`; `ghost_bundle.py search` lists published bundles (topic
-`trials-frontier-bundle`). Bundles never contain your save, your profile id or game files. Format: `docs/BUNDLES.md`.
+repository (`gh` login; you confirm that the runs are yours; commits use your GitHub noreply address; the manifest
+is signed with an SSH key on your GitHub account). `ghost_bundle.py update` publishes your new best times later.
+Bundles never contain your save, your profile id or game files. Format: `docs/BUNDLES.md`.
 
 ```
 python3 -I scripts/ghost_bundle.py export <game Documents> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
 python3 -I scripts/ghost_bundle.py publish <bundle dir> --dry-run   # builds <bundle dir>-preview, publishes nothing
 python3 -I scripts/ghost_bundle.py publish <bundle dir>
+python3 -I scripts/ghost_bundle.py update <bundle dir>              # later: new best times
+```
+
+## Other riders
+
+`scripts/community.py` brings other riders' bundles (and, optionally, the 2019 world records from
+[dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap), MIT) into your game: a list of sources,
+fetched and checked into a local cache, merged into a *community layer* the local server reads. Your own results
+are never changed by it, and running `update` again picks up new and revised bundles.
+
+```
+python3 -I scripts/community.py enable world-records-2019      # optional
+python3 -I scripts/community.py add <owner>/<repo>             # any published bundle; `discover` lists them
+python3 -I scripts/community.py update                         # fetch, check, build, install (game closed)
 ```
 
 ## Other tools

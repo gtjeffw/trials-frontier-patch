@@ -33,8 +33,11 @@ __attribute__((constructor)) static void TFLocalServicesBoot(void) {
         c.dataDir = data;
         c.port = 7979;
         NSString *res = [[NSBundle.mainBundle resourcePath] stringByAppendingPathComponent:@"LocalServices"];
-        c.worldRecords = [res stringByAppendingPathComponent:@"wrrider.json"];      // optional, added at build time
-        c.worldRecordIds = [res stringByAppendingPathComponent:@"ids.json"];
+        // community layer: the one installed into the data (scripts/community.py install, updatable), else the one
+        // built into the app (build.py --community)
+        NSString *installed = [data stringByAppendingPathComponent:@"community"];
+        NSString *builtIn = [res stringByAppendingPathComponent:@"community"];
+        c.communityDir = [fm fileExistsAtPath:[installed stringByAppendingPathComponent:@"community.json"]] ? installed : builtIn;
         c.avatarsDir = [res stringByAppendingPathComponent:@"avatars"];
         c.log = ^(NSString *line) {
             [lock lock];

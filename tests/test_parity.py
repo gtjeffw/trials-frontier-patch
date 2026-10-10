@@ -5,7 +5,9 @@ Usage: python3 -I tests/test_parity.py <tfserver binary> <game Documents dir to 
 Both servers get a copy of the same Documents and an empty store, receive the same scripted requests (login,
 leaderboards, result submit, ghost search/download/upload/refusal, avatars, quiet and unhandled routes), and must give
 the same status codes and bodies (JSON compared as data, timestamps ignored; binary byte for byte). At the end the two
-stores must be equal. Then a new player: empty Documents (no save yet), each server makes up a profile id and keeps
+stores must be equal. A community layer (scripts/community.py build from a bundle of a made-up rider who also
+carries the downloaded opponents) is overlaid by both: its rider, results, ghosts and avatar must be served alike,
+and neither store may keep anything of it; an older store's imported world records are dropped. Then a new player: empty Documents (no save yet), each server makes up a profile id and keeps
 it, the name is "Rider" until a save appears and then the save's. Uses the player's own data, so nothing private is
 kept in the repository.
 """
@@ -22,6 +24,13 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PY_SERVER = os.path.join(HERE, "..", "server", "local_services.py")
+SCRIPTS = os.path.join(HERE, "..", "scripts")
+FAKE_HASH = "ABCDEF01"
+LEGACY = {"results": {"track1": {"0f0e0d0c-0000-5000-8000-000000000001": {
+              "drivetime": 1, "data": 0, "upgrades": 0, "submittime": 0, "score_value": 359999999, "extradata": 0,
+              "source": "wr2019"}}},
+          "riders": {"0f0e0d0c-0000-5000-8000-000000000001": {"name": "old world record", "source": "wr2019"}},
+          "ghosts": {}, "next_id": 1000, "world_records_imported": "wrrider.json"}
 TIME_KEYS = {"serverTime", "expiration"}
 
 
@@ -59,11 +68,32 @@ def wait(port):
     sys.exit(f"server on {port} did not start")
 
 
-def start(tfserver, work, docs):
+def make_layer(work, docs):
+    """A community layer: a bundle of the test Documents (with the downloaded opponents) as a made-up rider."""
+    bundle, home = os.path.join(work, "bundle"), os.path.join(work, "community-home")
+    env = dict(os.environ, TF_COMMUNITY_HOME=home)
+    subprocess.run([sys.executable, "-I", os.path.join(SCRIPTS, "ghost_bundle.py"), "export", docs, bundle,
+                    "--include-others", "--name", "Parity Rider"], check=True, stdout=subprocess.DEVNULL)
+    m = json.load(open(os.path.join(bundle, "trials-frontier-bundle.json")))
+    png = b"\x89PNG\r\n\x1a\n" + b"parity" * 10
+    open(os.path.join(bundle, "avatar.png"), "wb").write(png)
+    m["rider"].update(game_hash=FAKE_HASH, profile_sha256="0" * 64,
+                      avatar={"file": "avatar.png", "sha256": __import__("hashlib").sha256(png).hexdigest()})
+    json.dump(m, open(os.path.join(bundle, "trials-frontier-bundle.json"), "w"))
+    community = [sys.executable, "-I", os.path.join(SCRIPTS, "community.py")]
+    subprocess.run(community + ["disable", "gtjeffw/trials-frontier-ghosts-jayuph"], env=env, check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(community + ["add", bundle], env=env, check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(community + ["sync"], env=env, check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(community + ["build"], env=env, check=True, stdout=subprocess.DEVNULL)
+    return os.path.join(home, "layer"), m
+
+
+def start(tfserver, work, docs, layer=None):
+    extra = ["--community", layer] if layer else []
     procs = [subprocess.Popen([sys.executable, "-I", PY_SERVER, "--container", os.path.join(work, "Data"),
-                               "--data", os.path.join(work, "store-py"), "--port", "7982"],
+                               "--data", os.path.join(work, "store-py"), "--port", "7982"] + extra,
                               stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT),
-             subprocess.Popen([tfserver, "--documents", docs, "--data", os.path.join(work, "store-native"), "--port", "7983"],
+             subprocess.Popen([tfserver, "--documents", docs, "--data", os.path.join(work, "store-native"), "--port", "7983"] + extra,
                               stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)]
     wait(7982)
     wait(7983)
@@ -126,7 +156,11 @@ def main():
     for f in os.listdir(documents):
         if f == "player.bin" or re.fullmatch(r"(ghost_[0-9a-f]{8}_\d+\.bin|robot_(ghost|image)-.*\.robot)", f):
             shutil.copy(os.path.join(documents, f), docs)
-    procs = start(tfserver, work, docs)
+    layer, fake = make_layer(work, docs)
+    for d in ("store-py", "store-native"):  # a store from an older version, with imported world records
+        os.makedirs(os.path.join(work, d))
+        json.dump(LEGACY, open(os.path.join(work, d, "store.json"), "w"))
+    procs = start(tfserver, work, docs, layer)
     try:
         profile = json.loads(call(7982, "POST", "/v2/profiles/sessions", b"{}")[2])["profileId"]
         store = json.load(open(os.path.join(work, "store-py", "store.json")))
@@ -140,7 +174,18 @@ def main():
         rtrack = robot[0]["track_id"]
         others = {g["track_id"] for g in store["ghosts"].values() if g["profile"] != profile}
         own_only = next((t for t, _ in own if t not in others and t & 0xFFFF not in {o & 0xFFFF for o in others}), track)
+        fake_rid = str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_URL, "trials-frontier-robot:" + FAKE_HASH))
+        layer_json = json.load(open(os.path.join(layer, "community.json")))
+        fake_cid, fake_ghost = next((c, g) for c, g in sorted(layer_json["ghosts"].items()) if g["profile"] == fake_rid)
+        fake_track = fake_ghost["track_id"]
         steps = [
+            ("GET", f"/public/playerstats/v1/ranking/track{fake_track}?range=1,50", None),
+            ("GET", f"/v1/profiles/{fake_rid}", None),
+            ("GET", f"/v1/profiles?profileId={fake_rid},{rid}", None),
+            ("GET", f"/avatars/{fake_rid}/default_146_146.png", None),
+            ("GET", f"/public/userstorage/v2/search/ghost/get_ghost?track_id={fake_track}&players={fake_rid}&limit=1", None),
+            ("GET", f"/public/userstorage/v2/content/ghost/{fake_cid}/payload", None),
+            ("GET", f"/public/match/v1/robot?track_name=track{fake_track}&range=1&offset=0", None),
             ("GET", f"/public/match/v1/robot?track_name=track{rtrack}&range=1&offset=0", None),
             ("GET", f"/public/match/v1/robot?track_name=track{rtrack}&range=1&offset=1", None),
             ("GET", f"/public/match/v1/robot?track_name=track{own_only}&range=1&offset=0", None),
@@ -215,6 +260,14 @@ def main():
         same_store = sp == sn
         print(f"{'ok  ' if same_store else 'DIFF'} stores equal ({len(sp['ghosts'])} ghosts, "
               f"{sum(len(b) for b in sp['results'].values())} results)")
+        leaked = [k for k in sp["ghosts"] if int(k) >= 1_000_000_000] + \
+            [r for r, e in sp["riders"].items() if e.get("source") in ("community", "wr2019") or r == fake_rid] + \
+            [b for b, e in sp["results"].items() if fake_rid in e or any(st.get("source", "").startswith(("community", "wr2019"))
+                                                                         for st in e.values())] + \
+            [k for k in ("world_records_imported",) if k in sp]
+        print(f"{'ok  ' if not leaked else 'DIFF'} nothing of the community layer or the old world records in the store"
+              + (f": {leaked[:5]}" if leaked else ""))
+        failures += bool(leaked)
         if not same_store:
             failures += 1
             for k in sorted(set(sp) | set(sn)):

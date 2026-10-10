@@ -3,7 +3,7 @@
 Usage: python3 -I build_ipa.py <TrialsFrontier.app from device> <patched executable> <out.ipa>
        [--spec patches/trials-frontier-7.9.0.json] [--groups g,g] [--with g,g]
        [--inapp <dir with libTFLocalServices.dylib>] [--avatars <dir of <profileId>.png>]
-       [--world-records wrrider.json --world-record-ids ids.json] [--dlc-from <folder>]
+       [--community <layer dir>] [--dlc-from <folder>]
        [--bundle-id <id>] [--display-name <name>]
 
 With --spec, the spec's "plist_patches" (optionally limited to --groups) are applied to the bundle's plists;
@@ -11,8 +11,8 @@ plists are re-serialised as sorted binary plists so the output stays reproducibl
 inside the bundle's own datapacks (scripts/datapack.py); like executable patches, those in "optional_groups" apply
 only with --with (or when named in --groups). "bundle_files" add files to the app for the selected groups: the
 embedded-server group adds Frameworks/libTFLocalServices.dylib from --inapp (built by scripts/build_inapp.py). With
-embedded-server, --avatars and --world-records/--world-record-ids add the player's own extras to the app's
-LocalServices/ folder (read by the in-app server; never part of this repository). With the compat group, "bundle_dlc"
+embedded-server, --avatars and --community (a layer built by scripts/community.py) add the player's own extras to
+the app's LocalServices/ folder (read by the in-app server; never part of this repository). With the compat group, "bundle_dlc"
 fills the app's DLC/ folder (where the dlc-folder-in-bundle patch makes the game look for downloaded packs) with the
 packs selected by scripts/dlcpacks.py, plus the player's own downloaded packs from --dlc-from. --bundle-id and
 --display-name change CFBundleIdentifier / CFBundleDisplayName (to install next to the original on a device).
@@ -44,7 +44,7 @@ def opt(name):
 
 
 spec_path, groups, extra = opt("--spec"), opt("--groups"), opt("--with")
-inapp, avatars, wr, wr_ids = opt("--inapp"), opt("--avatars"), opt("--world-records"), opt("--world-record-ids")
+inapp, avatars, community = opt("--inapp"), opt("--avatars"), opt("--community")
 dlc_from = opt("--dlc-from")
 bundle_id, display_name = opt("--bundle-id"), opt("--display-name")
 app_dir, exe_path, out = sys.argv[1:4]
@@ -84,14 +84,18 @@ if spec_path:
             print(f"pack {bd['folder']}/{name}: {why}")
         for line in notes:
             print("note:", line)
-    if any(not k.startswith("DLC/") for k in extra_files) and (avatars or wr):
+    if any(not k.startswith("DLC/") for k in extra_files) and (avatars or community):
         if avatars:
             for name in sorted(os.listdir(avatars)):
                 if name.endswith(".png"):
                     extra_files["LocalServices/avatars/" + name] = (os.path.join(avatars, name), False)
-        if wr and wr_ids:
-            extra_files["LocalServices/wrrider.json"] = (wr, False)
-            extra_files["LocalServices/ids.json"] = (wr_ids, False)
+        if community:
+            if not os.path.isfile(os.path.join(community, "community.json")):
+                sys.exit(f"--community {community}: no community.json (build one with scripts/community.py build)")
+            for root, _, names in os.walk(community):
+                for name in sorted(names):
+                    rel = os.path.relpath(os.path.join(root, name), community)
+                    extra_files["LocalServices/community/" + rel] = (os.path.join(root, name), False)
 if bundle_id or display_name:
     ident = plist_edits.setdefault("Info.plist", {})
     if bundle_id:

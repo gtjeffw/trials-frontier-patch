@@ -734,3 +734,26 @@ later an in-app loopback server). Static analysis only.
   would be pushed (publisher fields, README, signature if a GitHub-registered key exists, the commit under the
   noreply address) as a local git repository `<bundle>-preview` (or `--preview-dir`; only an earlier preview is
   ever replaced), prints the gh commands and a summary. Works without a gh login (placeholder account name).
+
+## 2026-10-10 — Community layer: many bundles, consolidated, incremental
+
+- `scripts/community.py` (list / add / remove / enable / disable / discover / sync / build / install / update /
+  status): sources = `community/sources.json` (the author's bundle; the 2019 world records from trialstrackmap,
+  pinned commit 9917e5c and file sha256, disabled by default) + the user's own list. `sync` fetches each enabled
+  source (bundles: shallow clone, `ghost_bundle.check`, signature against the publisher's GitHub keys; world
+  records: two raw files at the pinned commit) into a cache, replacing a cached copy only with one that passes;
+  failures keep the last good copy. `build` consolidates from scratch (riders by game hash; claimed own riders:
+  signed then earliest wins; best result and fastest ghost per rider and leaderboard; deterministic ids from
+  1000000000) into a layer; `install` swaps it into `Documents/LocalServices/community` (game closed).
+- Servers (Python and native): overlay the layer at load (installed layer, else one built into the app by
+  `build.py --community`), never persist it (`persisted()` restores what it replaced), route its ghosts and
+  avatars, skip the player's own rider; the old `--world-records` import is gone and a store's imported world
+  records are dropped once (they come from the layer now). Parity test extended (made-up rider with avatar plus all
+  downloaded opponents as a layer; legacy world records): PASS, and nothing of the layer in either store.
+- `ghost_bundle.py import` removed (replaced by the layer). `ghost_bundle.py update`: re-export with the saved
+  options (`.export.json`, excluded from git), summary of changes, publish. Export's `others` now only takes robot
+  files the store imported at first start (the original game's downloads): the developer's Documents had 387, of
+  which 2 were opponents the local robot module had served, now excluded, so community ghosts are never
+  re-published as one's own downloads.
+- Developer's PlayCover install: store backed up, `world-records-2019` enabled, layer installed (118 riders, 2158
+  results), app rebuilt with the same options (executable unchanged, ca220a37…).

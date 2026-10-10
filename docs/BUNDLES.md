@@ -79,13 +79,48 @@ README.md, LICENSE                 for people; the manifest is the source of tru
 
 ## Rules for readers
 
-Bundles are untrusted input. `check` (also run by `import`) refuses anything unexpected: unknown format version,
+Bundles are untrusted input. `check` (also run by `community.py sync` and `build`) refuses anything unexpected: unknown format version,
 wrong types or ranges, file names outside the patterns above, symlinks, files over 2 MB, sha256 mismatches, and
 ghosts whose drive time differs from the manifest. New optional keys may be added within format 1; anything
 incompatible gets a new `format_version`.
 
-## Import
+## Updates and redundancy
 
-`import` adds the rider (and any `others`) to the patched game's store: riders are keyed by `game_hash`, so a
-downloaded opponent "Rider 1A2B3C4D" gets its name and further ghosts from the rider's own bundle; best times only
-improve; one ghost per rider and leaderboard (the faster one). Your own bundle adds nothing to your own game.
+- **Publishers update** with `ghost_bundle.py update <bundle>`: the same export options again (kept in the bundle
+  folder's `.export.json`, never published), a summary of new and better times, agreement, a new signed commit in
+  the same repository. Readers get it with their next `community.py update`.
+- **Nothing is re-shared by accident.** Export takes the rider's own times and ghosts only from the save and the
+  player's own entries in the local store; the community layer is never written into that store. `others` holds
+  only opponent files the *original online game* downloaded: once the local server runs, the game also saves the
+  robot opponents it serves (which may come from other people's bundles), so with a store only the files it
+  imported at its first start are exported.
+- **Bounded growth.** Every bundle has at most one ghost per rider and leaderboard, and consolidation keeps one
+  (the fastest) per rider and leaderboard over all sources, so many bundles carrying the same opponent cost
+  download size only, never duplicates in the game.
+
+## Community layer (what the game reads)
+
+`scripts/community.py` keeps a list of sources (defaults in `community/sources.json`: the patch author's bundle,
+and the 2019 world records from dutscher/trialstrackmap, pinned commit and sha256, disabled until enabled; plus
+your own additions), fetches them into a cache (`sync`: only a newer copy that passes every check replaces the
+cached one; failures keep the last good copy), and `build`s a layer from scratch, so revisions and removals in a
+source show up:
+
+```
+community.json   {"format": "trials-frontier-community", "format_version": 1, "sources": [...], "conflicts": [...],
+                  "riders": {<rider id>: {"name", "game_hash", "source"}},
+                  "results": {"track<leaderboard>": {<rider id>: <result as in store.json>}},
+                  "ghosts": {<content id>: {"profile", "track_id", "source", "metadata"}}}
+ghosts/<content id>.bin, avatars/<rider id>.png
+```
+
+Rider ids are the server's ids for riders known by hash (`uuid5(URL, "trials-frontier-robot:" + hash)`), world
+record riders `uuid5(URL, "trialstrackmap-rider:" + name)`; content ids start at 1000000000. When a hash is
+claimed as the own rider of several bundles, the signed and then the earliest one wins (listed in `conflicts`);
+names from `others` only fill in riders nobody claimed.
+
+`install` copies the layer to `Documents/LocalServices/community` (game closed); `build.py --community` builds one
+into the app (used when the data has none: iPhone/iPad). Both servers overlay it when the store loads: riders merge
+with the store's own (by id, else by the game hash of a named opponent's real profile id), a layer result shows
+only where it beats the stored one, the player's own rider is skipped (its avatar is used), and nothing of the
+layer is ever written to `store.json` (tests/test_parity.py checks this).

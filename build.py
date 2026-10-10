@@ -4,7 +4,7 @@ Usage:
   python3 -I build.py --app <TrialsFrontier.app> --work <work dir>
                       [--page <page.bin> | --decrypted <decrypted TrialsFrontier executable>]
                       [--server embedded|external|none] [--with group,group,...]
-                      [--avatars <dir>] [--world-records wrrider.json --world-record-ids ids.json]
+                      [--avatars <dir>] [--community [<layer dir>]]
                       [--bundle-id <id>] [--display-name <name>]
                       [--install] [--keymap] [--dry-run]
 
@@ -22,6 +22,9 @@ Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.
             external = local-services only; run server/local_services.py (or tfserver) yourself, e.g. for development;
             none     = no local services (everything online stays off).
 --with:     optional extras: coins-for-gems, open-all-levels, orphan-levels, dev-levels, file-sharing (see README).
+--community: build a community layer into the app (other riders' bundles, optional 2019 world records; see
+            scripts/community.py): the given layer folder, or the one `community.py update` made. Used when the
+            game's data has no installed layer (`community.py install`, the way to update it later).
 --bundle-id / --display-name: a second copy next to the original app, with its own data: on iPhone/iPad (then sign
             with scripts/sign_ios.py) or in PlayCover (e.g. a fresh game besides your own; run one at a time, both
             serve on port 7979).
@@ -35,6 +38,8 @@ import sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 SPEC = os.path.join(ROOT, "patches", "trials-frontier-7.9.0.json")
 PY = [sys.executable, "-I"]
+COMMUNITY_HOME = os.environ.get("TF_COMMUNITY_HOME") or os.path.expanduser(
+    "~/Library/Application Support/trials-frontier-patch/community")
 
 
 def opt(name, flag=False, default=None):
@@ -111,7 +116,13 @@ def main():
     page, decrypted = opt("--page"), opt("--decrypted")
     server = opt("--server", default="embedded")
     extra = [g for g in (opt("--with", default="") or "").split(",") if g]
-    avatars, wr, wr_ids = opt("--avatars"), opt("--world-records"), opt("--world-record-ids")
+    avatars = opt("--avatars")
+    community = None
+    if "--community" in sys.argv:  # optional value: default the layer of scripts/community.py
+        i = sys.argv.index("--community")
+        nxt = sys.argv[i + 1] if i + 1 < len(sys.argv) else None
+        community = nxt if nxt and not nxt.startswith("--") else os.path.join(COMMUNITY_HOME, "layer")
+        del sys.argv[i:i + (2 if nxt and not nxt.startswith("--") else 1)]
     bundle_id, display_name = opt("--bundle-id"), opt("--display-name")
     install, keymap, dry = opt("--install", True), opt("--keymap", True), opt("--dry-run", True)
     if not app or not work or server not in ("embedded", "external", "none") or len(sys.argv) > 1:
@@ -152,8 +163,8 @@ def main():
         ipa_cmd += ["--inapp", inapp]
         if avatars:
             ipa_cmd += ["--avatars", avatars]
-        if wr and wr_ids:
-            ipa_cmd += ["--world-records", wr, "--world-record-ids", wr_ids]
+        if community:
+            ipa_cmd += ["--community", community]
     if bundle_id:
         ipa_cmd += ["--bundle-id", bundle_id]
     if display_name:

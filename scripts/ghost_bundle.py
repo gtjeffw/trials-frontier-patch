@@ -1,14 +1,13 @@
-"""Share Trials Frontier best times and ghosts as "bundles", and race other riders' bundles in your patched game.
+"""Share Trials Frontier best times and ghosts as "bundles" (to race other riders' bundles: scripts/community.py).
 
 Usage:
   python3 -I ghost_bundle.py export  <game Documents dir> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
                                      [--name <rider name>] [--license CC0-1.0|CC-BY-4.0]
                                      [--include-others | --include-others-with-names]
+  python3 -I ghost_bundle.py update  <bundle dir> [--dry-run]
   python3 -I ghost_bundle.py check   <bundle dir> [--verify]
   python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--sign-key <ssh private key>] [--i-agree]
                                      [--dry-run [--preview-dir <dir>]]
-  python3 -I ghost_bundle.py import  <bundle dir | https://github.com/<owner>/<repo> | <owner>/<repo>>
-                                     [--container <game data dir>]
   python3 -I ghost_bundle.py search
 
 export   reads the save (player.bin), your ghost files and, if present, the local services store (newer runs from
@@ -18,8 +17,14 @@ export   reads the save (player.bin), your ghost files and, if present, the loca
          --include-others adds the other riders' ghosts your game downloaded (others/<hash>/), by hash only:
          their names come from their own bundles. --include-others-with-names also adds the names your save has for
          some of them (in-game names as the leaderboards showed them; whether sharing them is acceptable is yours
-         to judge). Re-exporting into the same folder keeps its git history (for publish updates).
-check    validates a bundle the way import does; --verify also checks the manifest signature against the
+         to judge). Others' ghosts are only those the original game downloaded: robot opponents the local
+         server served later (possibly from other people's bundles) are never re-shared. Re-exporting into the same
+         folder keeps its git history (for publish updates).
+update   re-exports a bundle with the options of its first export (kept in the bundle folder's .export.json, never
+         published), shows the new and better times since then, and publishes the update (agreement, signature,
+         a new commit in the same repository; --dry-run builds the preview instead). Run it whenever you have
+         new best times.
+check    validates a bundle the way scripts/community.py does before using it; --verify also checks the manifest signature against the
          publisher's SSH keys on GitHub.
 publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`, logged in) creates or updates a
          public repository <you>/trials-frontier-ghosts-<name> with the topics that make bundles findable. Commits
@@ -30,9 +35,6 @@ publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`,
          --dry-run publishes nothing and leaves the bundle unchanged: it builds the repository exactly as it would
          be pushed (files, README, signed manifest if you have a key on GitHub, the commit) as a local git
          repository in <bundle dir>-preview, and prints the GitHub commands it would run.
-import   adds a bundle's riders, times and ghosts to the patched game's store (close the game first). Riders are
-         keyed by the game's own hash of their profile id, so they merge with the "Rider <hash>" opponents your game
-         downloaded back then. Default container: PlayCover's (com.ubisoft.redlynx.trialsfrontier).
 search   lists published bundles (GitHub topic trials-frontier-bundle).
 """
 import datetime
@@ -70,6 +72,10 @@ LICENSES = {
     "CC-BY-4.0": ("Creative Commons Attribution 4.0 International", "https://creativecommons.org/licenses/by/4.0/"),
 }
 MAX_GHOST, MAX_AVATAR, MAX_ENTRIES = 2_000_000, 512_000, 5000
+
+
+class BundleError(Exception):
+    pass
 
 
 def opt(name, flag=False, default=None):
@@ -123,10 +129,12 @@ def track_names(app):
 
 # ---- export ----
 
-def export(docs, out):
-    app, avatar, name, lic = opt("--app"), opt("--avatar"), opt("--name"), opt("--license", default="CC0-1.0")
-    with_names = opt("--include-others-with-names", True)
-    others = opt("--include-others", True) or with_names
+EXPORT_OPTIONS = ".export.json"  # how the bundle was exported (local paths): for `update`, never published
+
+
+def export(docs, out, app=None, avatar=None, name=None, lic="CC0-1.0", others=False, with_names=False):
+    others = others or with_names
+    docs, out = os.path.abspath(docs), os.path.abspath(out)
     if lic not in LICENSES:
         sys.exit(f"--license: one of {', '.join(LICENSES)}")
     save = os.path.join(docs, "player.bin")
@@ -212,24 +220,32 @@ def export(docs, out):
         "ghosts": ghost_list,
     }
     if others:
-        manifest["others"] = export_others(docs, out, ghash, raw if with_names else None, names)
+        manifest["others"] = export_others(docs, out, ghash, raw if with_names else None, names, store)
     write_text(out, manifest)
     json.dump(manifest, open(os.path.join(out, MANIFEST), "w"), indent=1, ensure_ascii=False)
+    json.dump({"documents": docs, "app": app and os.path.abspath(app), "avatar": avatar and os.path.abspath(avatar),
+               "name": name if name != raw[20:20 + 128].split(b"\0")[0].decode("utf-8", "replace") else None,
+               "license": lic, "others": bool(others), "with_names": bool(with_names)},
+              open(os.path.join(out, EXPORT_OPTIONS), "w"), indent=1)
     n_other = sum(len(o["ghosts"]) for o in manifest.get("others", []))
     print(f"wrote {out}: {name} ({ghash}), {len(results)} best times, {len(ghost_list)} ghosts"
           + (f", {len(manifest['others'])} other riders with {n_other} ghosts" if others else ""))
     check(out)
 
 
-def export_others(docs, out, own_hash, raw=None, track_names_=None):
+def export_others(docs, out, own_hash, raw=None, track_names_=None, store=None):
     """Opponent ghosts the game downloaded: robot_ghost-<HASH>-<LBHEX>.robot, by hash; with the save (raw) also the
-    names it keeps for some of them, otherwise none (a rider's name is then theirs to publish in their own bundle)."""
+    names it keeps for some of them, otherwise none (a rider's name is then theirs to publish in their own bundle).
+    Only files from the original online game: once the local server runs, the game also saves the robot opponents
+    it serves (possibly from other people's bundles), so with a store only the files it imported at its first start
+    count (their names are the ghosts' "source")."""
+    original = {g.get("source") for g in store["ghosts"].values()} if store else None
     named = {"%08X" % game_hash(p): n for p, n in known_riders(raw).items()
              if not re.fullmatch(r"(?i)rider( [0-9A-F]{8})?", n)} if raw else {}  # not the local server's placeholders
     riders = {}
     for f in sorted(os.listdir(docs)):
         m = re.fullmatch(r"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\.robot", f)
-        if not m:
+        if not m or (original is not None and f not in original):
             continue
         h, lb = m.group(1).zfill(8), int(m.group(2), 16)
         data = open(os.path.join(docs, f), "rb").read()
@@ -307,7 +323,7 @@ def write_text(out, m):
 def check(bundle, verify=False):
     """Validate a bundle (untrusted input: anything else is refused). Returns the manifest."""
     def fail(msg):
-        sys.exit(f"not a valid bundle ({bundle}): {msg}")
+        raise BundleError(f"not a valid bundle ({bundle}): {msg}")
     real = os.path.realpath(bundle)
     path = os.path.join(real, MANIFEST)
     if not os.path.isfile(path) or os.path.islink(path) or os.path.getsize(path) > 20_000_000:
@@ -383,19 +399,32 @@ def check(bundle, verify=False):
                             or not isinstance(pub.get("statement", ""), str)):
         fail("publisher")
     if verify:
-        verify_signature(real, m)
+        print(f"signature ok: signed by an SSH key of github.com/{verify_signature(real, m)}")
     return m
 
 
+_KEYS = {}
+
+
 def github_keys(login):
-    """The public SSH keys of a GitHub account ("<type> <base64>"): authentication and signing keys."""
+    """The public SSH keys of a GitHub account ("<type> <base64>"): authentication and signing keys. Through `gh`
+    when it is logged in (higher rate limit), else the public API; cached per run."""
+    if login in _KEYS:
+        return _KEYS[login]
+    use_gh = shutil.which("gh") and subprocess.run(["gh", "auth", "status"], capture_output=True).returncode == 0
     keys = []
     for kind in ("keys", "ssh_signing_keys"):
         try:
-            with urllib.request.urlopen(f"https://api.github.com/users/{login}/{kind}", timeout=20) as r:
-                keys += [" ".join(k["key"].split()[:2]) for k in json.load(r)]
-        except (OSError, ValueError, KeyError):
+            if use_gh:
+                r = subprocess.run(["gh", "api", f"users/{login}/{kind}"], capture_output=True, text=True, timeout=30)
+                items = json.loads(r.stdout) if r.returncode == 0 else []
+            else:
+                with urllib.request.urlopen(f"https://api.github.com/users/{login}/{kind}", timeout=20) as r:
+                    items = json.load(r)
+            keys += [" ".join(k["key"].split()[:2]) for k in items]
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
             pass
+    _KEYS[login] = keys
     return keys
 
 
@@ -416,14 +445,15 @@ def verify_with_keys(bundle, login, keys):
     return None if r.returncode == 0 else (r.stderr.strip() or r.stdout.strip() or "does not verify")
 
 
-def verify_signature(bundle, m):
+def verify_signature(bundle, m, keys=None):
+    """The GitHub login whose SSH key signed the manifest; BundleError if it is unsigned or does not verify."""
     login = (m.get("publisher") or {}).get("github")
     if not login or not re.fullmatch(r"[A-Za-z0-9-]{1,39}", str(login)):
-        sys.exit("not signed: no publisher")
-    err = verify_with_keys(bundle, login, github_keys(login))
+        raise BundleError("not signed: no publisher")
+    err = verify_with_keys(bundle, login, github_keys(login) if keys is None else keys)
     if err:
-        sys.exit(f"signature does NOT match github.com/{login}: {err}")
-    print(f"signature ok: signed by an SSH key of github.com/{login}")
+        raise BundleError(f"signature does NOT match github.com/{login}: {err}")
+    return login
 
 
 # ---- publish ----
@@ -545,6 +575,10 @@ def publish(bundle):
     noreply = f"{uid}+{login}@users.noreply.github.com"
     if not os.path.isdir(os.path.join(target, ".git")):
         run(["git", "init", "-q", "-b", "main"], cwd=target)
+    exclude = os.path.join(target, ".git", "info", "exclude")
+    os.makedirs(os.path.dirname(exclude), exist_ok=True)
+    if EXPORT_OPTIONS not in (open(exclude).read().split() if os.path.exists(exclude) else []):
+        open(exclude, "a").write(f"\n{EXPORT_OPTIONS}\n")  # local paths: never published
     if dry:
         open(marker, "w").write("made by ghost_bundle.py publish --dry-run\n")
     run(["git", "config", "user.name", login], cwd=target)
@@ -575,118 +609,30 @@ def publish(bundle):
         print(f"published: https://github.com/{full} ({signed})")
 
 
-# ---- import ----
-
-def fetch(src):
-    """A local bundle folder, or a GitHub repository cloned (shallow) into a temporary folder."""
-    if os.path.isdir(src):
-        return src, None, os.path.abspath(src)
-    m = re.fullmatch(r"(?:https://github\.com/)?([A-Za-z0-9-]{1,39})/([A-Za-z0-9._-]{1,100}?)(?:\.git)?/?", src)
-    if not m:
-        sys.exit(f"{src}: not a folder or a GitHub repository")
-    tmp = tempfile.mkdtemp(prefix="tf-bundle-")
-    url = f"https://github.com/{m.group(1)}/{m.group(2)}.git"
-    r = subprocess.run(["git", "clone", "-q", "--depth", "1", "-c", "core.symlinks=false", url, tmp], capture_output=True, text=True)
-    if r.returncode != 0:
-        shutil.rmtree(tmp, ignore_errors=True)
-        sys.exit(f"could not fetch {url}: {r.stderr.strip()}")
-    return tmp, tmp, url
-
-
-def import_bundle(src):
-    container = opt("--container", default=DEFAULT_CONTAINER)
-    if subprocess.run(["pgrep", "-x", "TrialsFrontier"], capture_output=True).returncode == 0:
-        sys.exit("close the game first (pkill -x TrialsFrontier): it keeps its store in memory and would overwrite this")
-    data_dir = os.path.join(container, "Documents", "LocalServices")
-    store_path = os.path.join(data_dir, "store.json")
-    if not os.path.exists(store_path):
-        sys.exit(f"no store at {store_path}: start the patched game (local services) once first")
-    path, tmp, origin = fetch(src)
-    try:
-        m = check(path)
-        store = json.load(open(store_path))
-        store.setdefault("riders", {})
-        own = None
-        save = os.path.join(container, "Documents", "player.bin")
-        if os.path.exists(save):
-            raw = decode(open(save, "rb").read())[1]
-            own = profile_hashes(raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace"))[0]
-        added = {"riders": 0, "results": 0, "ghosts": 0}
-        r = m["rider"]
-        if r["game_hash"] == own:
-            print(f"{r['name']} is you: your own times are already in the game; importing only the others")
-        else:
-            rid = take_rider(store, r["game_hash"], r["name"], origin, added)
-            if "avatar" in r:
-                os.makedirs(os.path.join(data_dir, "avatars"), exist_ok=True)
-                shutil.copyfile(os.path.join(path, "avatar.png"), os.path.join(data_dir, "avatars", rid + ".png"))
-            for e in m["results"]:
-                added["results"] += add_result(store, rid, e, origin)
-            for g in m["ghosts"]:
-                added["ghosts"] += add_ghost(store, data_dir, rid, g, path, origin)
-        for o in m.get("others", []):
-            if o["game_hash"] == own:
-                continue
-            rid = take_rider(store, o["game_hash"], o.get("name"), origin, added)
-            for g in o["ghosts"]:
-                added["ghosts"] += add_ghost(store, data_dir, rid, g, path, origin)
-                added["results"] += add_result(store, rid, {**g, "faults": 0}, origin)
-        store.setdefault("bundles", {})[origin] = {"rider": r["name"], "game_hash": r["game_hash"], "created": m["created"]}
-        tmp_path = store_path + ".tmp"
-        json.dump(store, open(tmp_path, "w"), indent=1)
-        os.replace(tmp_path, store_path)
-        print(f"imported {origin}: {added['riders']} new riders, {added['results']} better times, "
-              f"{added['ghosts']} ghosts (on GLOBAL next time you start the game)")
-    finally:
-        if tmp:
-            shutil.rmtree(tmp, ignore_errors=True)
-
-
-def take_rider(store, ghash, name, origin, added):
-    """The stored rider with this hash (named opponents are stored under their real profile id, others under
-    rider_id(hash)), else a new one."""
-    rid = next((r for r in store["riders"] if re.fullmatch(r"[0-9a-f-]{36}", r) and "%08X" % game_hash(r) == ghash),
-               rider_id(ghash))
-    entry = store["riders"].get(rid)
-    if entry is None:
-        store["riders"][rid] = {"name": name or "Rider " + ghash, "source": "bundle " + origin}
-        added["riders"] += 1
-    elif name and entry.get("name", "").startswith("Rider "):  # a downloaded opponent gets its name back
-        entry["name"] = name
-    return rid
-
-
-def add_result(store, rid, e, origin):
-    ms, faults, bike = e["time_ms"], e.get("faults") or 0, e.get("bike") or 0
-    new = {"drivetime": ms, "data": (faults & 0xFF) | ((bike & 0x3F) << 8), "upgrades": 0, "submittime": 0,
-           "score_value": 360000000 - ms - faults * 3600000, "extradata": 0, "source": "bundle"}
-    board = store["results"].setdefault("track%d" % e["leaderboard"], {})
-    old = board.get(rid)
-    if old is None or (faults, ms) < (old["data"] & 0xFF, old["drivetime"]):
-        board[rid] = new
-        return 1
-    return 0
-
-
-def add_ghost(store, data_dir, rid, g, path, origin):
-    """One ghost per rider and leaderboard: a faster one replaces the stored one."""
-    lb = g["leaderboard"]
-    held = [(cid, e) for cid, e in store["ghosts"].items() if e["profile"] == rid and e["track_id"] == lb]
-    if held and all(e["metadata"].get("drive_time", 0) <= g["time_ms"] for _, e in held):
-        return 0
-    for cid, _ in held:
-        del store["ghosts"][cid]
-        p = os.path.join(data_dir, "ghosts", "%d.bin" % int(cid))
-        if os.path.exists(p):
-            os.remove(p)  # replaced by the faster ghost; the bundle stays the source
-    cid = store["next_id"]
-    store["next_id"] += 1
-    data = open(os.path.join(path, g["file"]), "rb").read()
-    os.makedirs(os.path.join(data_dir, "ghosts"), exist_ok=True)
-    open(os.path.join(data_dir, "ghosts", "%d.bin" % cid), "wb").write(data)
-    store["ghosts"][str(cid)] = {"profile": rid, "track_id": lb, "source": "bundle " + origin,
-                                 "metadata": {"track_id": lb, "drive_time": g["time_ms"], "size": len(data)}}
-    return 1
+def update(bundle):
+    """Re-export with the options of the first export, show what changed since the last export, then publish."""
+    o_path = os.path.join(bundle, EXPORT_OPTIONS)
+    if not os.path.exists(o_path):
+        sys.exit(f"{bundle} has no {EXPORT_OPTIONS}: export it once with ghost_bundle.py export")
+    o = json.load(open(o_path))
+    before = json.load(open(os.path.join(bundle, MANIFEST))) if os.path.exists(os.path.join(bundle, MANIFEST)) else {}
+    export(o["documents"], bundle, app=o.get("app"), avatar=o.get("avatar"), name=o.get("name"),
+           lic=o.get("license", "CC0-1.0"), others=o.get("others"), with_names=o.get("with_names"))
+    after = json.load(open(os.path.join(bundle, MANIFEST)))
+    key = lambda e: (e["faults"], e["time_ms"])
+    old_res = {e["leaderboard"]: e for e in before.get("results", [])}
+    new_res = [e for e in after["results"] if e["leaderboard"] not in old_res]
+    better = [e for e in after["results"] if e["leaderboard"] in old_res and key(e) < key(old_res[e["leaderboard"]])]
+    old_gh = {g["leaderboard"]: g["sha256"] for g in before.get("ghosts", [])}
+    changed = [g for g in after["ghosts"] if old_gh.get(g["leaderboard"]) != g["sha256"]]
+    print(f"since the last export: {len(new_res)} new and {len(better)} better times, {len(changed)} new or changed ghosts")
+    for e in (new_res + better)[:20]:
+        print(f"  {e.get('track_name') or 'track %d' % e['track']:30} {e['faults']}F {e['time_ms'] / 1000:.3f} s"
+              + (" (new)" if e in new_res else f" (was {old_res[e['leaderboard']]['time_ms'] / 1000:.3f} s)"))
+    if not (new_res or better or changed or "--dry-run" in sys.argv):
+        print("nothing new to publish")
+        return
+    publish(bundle)
 
 
 def search():
@@ -701,11 +647,22 @@ def search():
 
 
 def main():
+    try:
+        cli()
+    except BundleError as e:
+        sys.exit(str(e))
+
+
+def cli():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     cmd = sys.argv[1]
     if cmd == "export" and len(sys.argv) >= 4:
-        export(sys.argv[2], sys.argv[3])
+        export(sys.argv[2], sys.argv[3], app=opt("--app"), avatar=opt("--avatar"), name=opt("--name"),
+               lic=opt("--license", default="CC0-1.0"), others=opt("--include-others", True),
+               with_names=opt("--include-others-with-names", True))
+    elif cmd == "update" and len(sys.argv) >= 3:
+        update(sys.argv[2])
     elif cmd == "check" and len(sys.argv) >= 3:
         verify = opt("--verify", True)
         m = check(sys.argv[2], verify)
@@ -713,8 +670,6 @@ def main():
               f" {len(m.get('others', []))} other riders")
     elif cmd == "publish" and len(sys.argv) >= 3:
         publish(sys.argv[2])
-    elif cmd == "import" and len(sys.argv) >= 3:
-        import_bundle(sys.argv[2])
     elif cmd == "search":
         search()
     else:

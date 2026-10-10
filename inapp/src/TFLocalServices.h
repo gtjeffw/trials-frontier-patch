@@ -8,8 +8,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy) NSString *dataDir;                    // store directory
 @property(nonatomic) uint16_t port;                              // 7979 (patched into the game)
 @property(nonatomic, copy, nullable) NSString *avatarsDir;       // extra avatars (<profileId>.png), optional
-@property(nonatomic, copy, nullable) NSString *worldRecords;     // wrrider.json, optional
-@property(nonatomic, copy, nullable) NSString *worldRecordIds;   // ids.json, optional
+@property(nonatomic, copy, nullable) NSString *communityDir;     // community layer; default <dataDir>/community
 @property(nonatomic, copy, nullable) NSString *profileId;        // default: from player.bin
 @property(nonatomic, copy, nullable) NSString *name;             // default: from player.bin
 @property(nonatomic, copy, nullable) void (^log)(NSString *line);

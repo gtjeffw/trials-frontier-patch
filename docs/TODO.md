@@ -54,8 +54,8 @@ with downloaded opponents by hash. Other riders' ghosts only with `--include-oth
 - **Contributing without a jailbreak:** unencrypted Finder/iTunes backup of an old device that still has the game →
   `scripts/extract_app_domain.py` → `Documents/player.bin` + `ghost_<hash>_<lb>.bin` → `ghost_bundle.py export`.
   Write a short guide.
-- **`import --all`** (or a consolidate step): every bundle from `search`, merged; flag outliers (e.g. far below the
-  2019 world records). Ghost data cannot be fully verified (cheating); best-effort.
+- ~~Consolidate many bundles~~ — done: `scripts/community.py` (sources list, cache, layer overlaid by both servers).
+  Still open: flag outliers (e.g. far below the 2019 world records); ghost data cannot be fully verified.
 - **Announcement / collecting service** (later): receives bundle URLs on publish, or simply crawls the topic.
 - Bundles carry ghosts and times only, never game assets.
 
@@ -76,12 +76,9 @@ config file.
 
 ## Other open items
 
-- **Fetch community high scores automatically:** a tool (or a `build.py` option) that downloads
-  `database/wr/wrrider.json` and `database/trackdata/ids.json` from dutscher/trialstrackmap (MIT) at a pinned
-  commit, checks them (sha256 / JSON shape), caches them in the work folder and passes them to `--world-records`.
-  Must never break a build: no network, a changed repository or bad data → a warning and the build goes on without
-  them (or with the cached copy). Maybe also `database/backup/bonxyResults.json` (another leaderboard snapshot) for
-  more riders and times.
+- ~~**Fetch community high scores automatically**~~ — done: the `world-records-2019` source of `community.py`
+  (pinned commit and sha256, cached, never breaks anything). Maybe also `database/backup/bonxyResults.json` (another
+  leaderboard snapshot) as a further source type.
 
 - ~~Touch scaling for any window size / full screen~~ — works since `screen-size-from-native-bounds`: render size =
   configured window × scaler, touches in window points, so any custom resolution with an integer scaler (2) is fine,
@@ -100,7 +97,7 @@ config file.
   `/v1/profiles` name). Only the best run has a ghost (the game keeps one ghost file per leaderboard and uploads only
   after `"updated"`), so #2–#5 are times without a ghost.
 - ~~**GLOBAL tab: the player's single best among other riders.**~~ Done: downloaded opponents + optional 2019
-  world records (`--world-records`). Candidates: 2019 world records from
+  world records (now a `community.py` source). Candidates: 2019 world records from
   dutscher/trialstrackmap `database/wr/wrrider.json` (MIT; ~360 tracks × iOS/Android × normal/donkey/crazy, rider
   name, bike, faults, time) and its git history (2015–2019 snapshots). World records only, so roughly 2–6 entries per
   track, no ghosts. tf.lforo.com top-10 lists have no licence (ask the owner first). Ask the user before downloading;

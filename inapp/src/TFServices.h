@@ -24,11 +24,10 @@ NS_ASSUME_NONNULL_BEGIN
                        avatarsDir:(nullable NSString *)avatarsDir log:(void (^)(NSString *line))log;
 - (void)note:(NSString *)line;
 
-/// Load store.json (if any) and import what is new: own results and ghosts from the save, downloaded opponents.
-- (void)loadStore;
+/// Load store.json (if any) and import what is new: own results and ghosts from the save, downloaded opponents; then
+/// overlay the community layer (communityDir, default <dataDir>/community; never written into store.json).
+- (void)loadStore:(nullable NSString *)communityDir;
 - (void)saveStore;
-/// Optional 2019 world records (dutscher/trialstrackmap wrrider.json + ids.json); imported once.
-- (void)importWorldRecords:(NSString *)wrPath ids:(NSString *)idsPath;
 
 // Store helpers for modules.
 - (NSInteger)newId;
