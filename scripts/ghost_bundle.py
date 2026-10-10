@@ -7,7 +7,7 @@ Usage:
   python3 -I ghost_bundle.py update  <bundle dir> [--documents <dir>] [--dry-run]
   python3 -I ghost_bundle.py check   <bundle dir>
   python3 -I ghost_bundle.py verify  <owner/repo>
-  python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--i-agree]
+  python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--i-agree [--share-names]]
                                      [--dry-run [--preview-dir <dir>]]
   python3 -I ghost_bundle.py search
 
@@ -466,24 +466,62 @@ def run(cmd, cwd=None, dry=False, check_=True):
     return r.stdout
 
 
-CONSENT = """By publishing you confirm that:
-  - the times and ghosts listed as yours were recorded by you, in your own game, and you have the right to share
-    them and release them under {license};
-{others}  - you understand this is PUBLIC and lasting: anyone can copy, archive and redistribute it, and deleting
-    the repository later will not remove copies.
-The bundle contains your rider name "{name}", two hashes of your profile id, your best times and ghost replays{avatar}.
-It does not contain your save, your profile id, or any game files."""
-
-OTHERS = """  - this bundle ALSO contains {n} other riders' ghosts that your game downloaded as opponents{names}; you
-    take responsibility for sharing them;
-"""
+LICENCE_TERMS = {
+    "CC0-1.0": ("This means you give up your copyright and related rights in this data, as far as the law allows.\n"
+                "   Anyone may copy, change, share and use it, for any purpose, including commercial use, without\n"
+                "   asking you and without crediting you. You cannot take this back later."),
+    "CC-BY-4.0": ("This means anyone may copy, change, share and use it, for any purpose, including commercial use,\n"
+                  "   as long as they credit you ({credit}). You keep your copyright, but you cannot take the\n"
+                  "   licence back later."),
+}
 
 
-def names_note(others):
+def consent_text(m, full):
+    """What the publisher must confirm (shown by publish and update; also in a dry run)."""
+    r, lic = m["rider"], m["license"]
+    others = m.get("others", [])
     named = [o["name"] for o in others if o.get("name")]
-    if not named:
-        return " (by hash only, no names)"
-    return f",\n    {len(named)} of them WITH their in-game names ({', '.join(named[:5])}{', …' if len(named) > 5 else ''})"
+    n_other = sum(len(o["ghosts"]) for o in others)
+    lines = [f"You are about to publish a Trials Frontier ghost bundle as a PUBLIC GitHub repository:",
+             f"  https://github.com/{full}", "",
+             "WHAT IS INCLUDED",
+             f"  - Your rider \"{r['name']}\": {len(m['results'])} best times, {len(m['ghosts'])} ghost replays"
+             + (", your avatar picture." if "avatar" in r else "."),
+             "  - Two hashes of your profile id (not the id itself), so tools can match your rider across bundles."]
+    if others:
+        lines.append(f"  - {n_other} ghosts of {len(others)} other riders that your game downloaded as opponents "
+                     "(see OTHER RIDERS).")
+    lines += ["  Not included: your save file, your profile id, any game files.", "",
+              "PLEASE CONFIRM EACH OF THE FOLLOWING", "",
+              "1. This is your own rider.",
+              f"   \"{r['name']}\" is the Trials Frontier profile you played yourself: your own main account, not another",
+              "   person's save or account. The times and ghosts listed as yours were recorded by you.", "",
+              f"2. You release this data under {LICENSES[lic][0]}.",
+              f"   {LICENSES[lic][1]}",
+              "   " + LICENCE_TERMS[lic].format(credit=f"{full.split('/')[0]} / {r['name']}"), "",
+              "3. You understand how it is expected to be used, and that other uses cannot be predicted or controlled.",
+              "   It is meant to be integrated into Trials Frontier play and history: games patched with",
+              "   trials-frontier-patch (leaderboards, ghosts to race, opponents), high-score and world-record tracking",
+              "   sites, game-preservation archives and future fan servers. Once public, anyone may use it in ways",
+              "   nobody can foresee.", "",
+              "4. You understand it is public and lasting.",
+              "   It can be copied, mirrored and archived as soon as it is published. Deleting the repository later",
+              "   will not remove those copies."]
+    if others and not named:
+        lines += ["", "5. OTHER RIDERS: you take responsibility for sharing them.",
+                  f"   The bundle includes {n_other} ghost replays and times of {len(others)} other riders, which your game",
+                  "   downloaded as opponents. They are other people's runs. They are identified only by a hash of their",
+                  "   profile id, without names."]
+    elif named:
+        shown = ", ".join(named[:8]) + (", …" if len(named) > 8 else "")
+        lines += ["", "5. OTHER RIDERS, WITH THEIR NAMES: you take responsibility for sharing them.",
+                  f"   The bundle includes {n_other} ghost replays and times of {len(others)} other riders, which your game",
+                  f"   downloaded as opponents. {len(named)} of them {'is' if len(named) == 1 else 'are'} shown WITH the "
+                  f"in-game name your save kept: {shown}.",
+                  "   In-game names are pseudonyms, but they can identify real people, and these players did not choose",
+                  "   to publish. Only share them if you are comfortable doing so; you can publish without names instead",
+                  "   (export with --include-others)."]
+    return "\n".join(lines), named
 
 
 def gh(*args, input_=None, dry=False):
@@ -497,7 +535,7 @@ def gh(*args, input_=None, dry=False):
 
 
 def publish(bundle):
-    repo, agreed = opt("--repo"), opt("--i-agree", True)
+    repo, agreed, share_names = opt("--repo"), opt("--i-agree", True), opt("--share-names", True)
     dry, preview = opt("--dry-run", True), opt("--preview-dir")
     m = check(bundle)
     logged_in = gh_ready()
@@ -512,12 +550,15 @@ def publish(bundle):
     repo = repo or f"trials-frontier-ghosts-{slug}"
     full = f"{login}/{repo}"
     others = m.get("others", [])
-    print(f"\n{'PREVIEW of publishing' if dry else 'Publish'} {bundle} as https://github.com/{full} (public)\n")
-    print(CONSENT.format(license=m["license"], name=m["rider"]["name"],
-                         avatar=" and avatar" if "avatar" in m["rider"] else "",
-                         others=OTHERS.format(n=len(others), names=names_note(others)) if others else ""))
-    if not dry and not agreed and input('\nType "I agree" to publish: ').strip().lower() != "i agree":
-        sys.exit("not published")
+    text, named = consent_text(m, full)
+    print(("\n(PREVIEW: nothing is published, nothing is asked)\n" if dry else "\n") + text + "\n")
+    if not dry:
+        if not agreed and input('Type "I agree" to confirm all of the above and publish: ').strip().lower() != "i agree":
+            sys.exit("not published")
+        what = "this name" if len(named) == 1 else f"these {len(named)} names"
+        if named and not share_names and input(f'Type "share names" to confirm sharing {what}: '
+                                               ).strip().lower() != "share names":
+            sys.exit("not published (to publish without names, export again with --include-others)")
 
     # the files exactly as published: the bundle plus the publisher, never the local export options
     m["publisher"] = {"github": login, "statement": STATEMENT}

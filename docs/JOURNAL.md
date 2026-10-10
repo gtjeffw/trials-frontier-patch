@@ -916,3 +916,19 @@ later an in-app loopback server). Static analysis only.
   rider are merged; other accounts' claims are ignored and listed. Tested with three local bundles (faked status:
   alice newer, bob older, bob's second repo with a better time): bob's two merged, alice ignored. Decided with the
   user: the community cache keeps no .git (bundles are trusted at sync; a future server can keep full clones).
+
+## 2026-10-10 — Publishing agreement; licences of every source
+
+- `publish` (and `update`) now show a full agreement, filled in from the bundle: what is included and not; then
+  confirmations that (1) the rider is the publisher's own main account, (2) the licence and what it means (CC0:
+  anyone may use it for any purpose, no credit, irrevocable; CC-BY: credit required), (3) the expected uses
+  (patched games, record-tracking sites, archives, fan servers; others unforeseeable), (4) public and lasting,
+  (5) with others: responsibility, and with names a warning plus a separate "share names" confirmation
+  (`--i-agree`, `--share-names` for scripted runs). Drafted and approved with the user.
+- Licences: each source keeps its own (bundles: the publisher's choice, may grow beyond CC0/CC-BY; world records
+  MIT). `community.py` shows them (`list`), records them per source in `community.json`, prints a summary after
+  `build` and writes `NOTICE.md` into the layer (sources, publishers, licences, links, commits, the MIT text, now
+  fetched and sha256-pinned with the world records). Docs (README, BUNDLES.md *Licences*) say: playing is fine;
+  republishing, passing on a layer or app, or serving publicly requires honouring every source's licence.
+- Local folder sources get ids `local/<folder>` (the absolute path, which ended up in layers and in apps built
+  with them, stays only in the user's own sources list). Trials Fresh and the main game's layer rebuilt.

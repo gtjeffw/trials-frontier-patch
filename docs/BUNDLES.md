@@ -82,6 +82,24 @@ README.md, LICENSE                 for people; the manifest is the source of tru
   save with that profile id; they can show the save privately to the server), and the same rider across several
   devices or bundles. Conflicting claims to one rider are for such a server to resolve.
 
+## Licences: check every bundle
+
+Each bundle carries its own licence, chosen by its publisher (`license` in the manifest, and its `LICENSE` file):
+today `CC0-1.0` (public domain dedication, the default) or `CC-BY-4.0` (credit required); future versions of the
+tools may allow others. The optional 2019 world records are MIT (their copyright notice must travel with copies).
+
+- **Playing:** using bundles in your own patched game is what they are published for.
+- **Republishing, passing on a layer or an app with one built in, or serving the data publicly** (a website, a
+  fan server, an archive): check and honour the licence of **every** source, e.g. credit CC-BY publishers and
+  keep the MIT notice. `community.py build` prints a licence summary and writes `NOTICE.md` into the layer (each
+  source, its publisher, licence, link and commit, plus licence texts that must travel); `community.json` records
+  the licence of each source, and every result and ghost names the source it came from.
+- **Publishing your own bundle:** `publish` explains the licence you grant (CC0: anyone may use it for any purpose
+  without credit, irrevocably) and asks you to confirm it, that the rider is your own, how the data is expected to
+  be used (patched games, record-tracking sites, archives, fan servers; other uses cannot be foreseen), that it is
+  public and lasting, and, with `others`, that you take responsibility for sharing them (names need a separate
+  "share names" confirmation).
+
 ## Rules for readers
 
 Bundles are untrusted input. `check` (also run by `community.py sync` and `build`) refuses anything unexpected: unknown format version,

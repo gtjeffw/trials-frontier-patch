@@ -25,6 +25,12 @@ records); anything that fails keeps the last good copy. build always starts from
 data in a source is reflected; it is deterministic for the same cache. The layer never touches your own results:
 the server overlays it when it loads and never writes it into your store.
 
+LICENCES: every source has its own licence (a bundle's manifest `license`, chosen by its publisher; the world
+records are MIT). Using the layer in your own game is what the sources are published for. If you republish the
+data, pass on a layer or an app with one built in, or serve it publicly (a website, a fan server), check and honour
+the licence of EVERY source: some require credit (CC-BY, MIT's copyright notice), and future bundles may use other
+licences. build writes NOTICE.md into the layer: each source, its publisher, licence and link.
+
 Your data: ~/Library/Application Support/trials-frontier-patch/community/ (sources.json, cache/, layer/), or
 $TF_COMMUNITY_HOME. Install target: <container>/Documents/LocalServices/community; default container PlayCover's
 (com.ubisoft.redlynx.trialsfrontier). For iPhone/iPad: build.py --community puts the layer into the app, and
@@ -110,8 +116,15 @@ def cmd_add(arg):
     unsigned = gb.opt("--unsigned-ok", True)
     if os.path.isdir(arg):
         path = os.path.abspath(arg)
-        set_user(path, type="bundle", path=path, enabled=True, allow_unsigned=True)
-        print(f"added local bundle {path}")
+        # the id ends up in the layer (and in apps built with it): never the local path
+        taken = {x["id"]: x.get("path") for x in sources()}
+        base = "local/" + re.sub(r"[^A-Za-z0-9._-]+", "-", os.path.basename(path.rstrip("/"))), 1
+        sid, n = base
+        while sid in taken and taken[sid] != path:
+            n += 1
+            sid = f"{base[0]}-{n}"
+        set_user(sid, type="bundle", path=path, enabled=True, allow_unsigned=True)
+        print(f"added local bundle {path} as {sid}")
         return
     repo = parse_repo(arg)
     if not repo:
@@ -156,7 +169,8 @@ def cmd_list():
                  if good.get("signed_by") else "")) if good else "not fetched"
         if st.get("last_error"):
             state += f"; last sync failed: {st['last_error'][:80]}"
-        print(f"{'on ' if s.get('enabled', True) else 'off'} {s['id']:45} {s['type']:18} {s['origin']:18} {state}")
+        lic = (good or {}).get("license") or s.get("license") or "?"
+        print(f"{'on ' if s.get('enabled', True) else 'off'} {s['id']:45} {s['type']:18} {s['origin']:18} {lic:10} {state}")
         if s.get("note"):
             print(f"    {s['note']}")
 
@@ -203,7 +217,8 @@ def sync_bundle(s, dest):
         signed_by = gb.verify_repo(s["repo"], publisher, commit)
     published = gb.github_get(f"repos/{s['repo']}").get("created_at") if s.get("repo") else None
     return {"commit": commit, "fetched": now(), "signed_by": signed_by, "rider": m["rider"]["name"],
-            "game_hash": m["rider"]["game_hash"], "created": m["created"], "published": published}
+            "game_hash": m["rider"]["game_hash"], "created": m["created"], "published": published,
+            "license": m["license"]}
 
 
 def sync_wr(s, dest):
@@ -215,7 +230,7 @@ def sync_wr(s, dest):
         if hashlib.sha256(data).hexdigest() != want:
             raise gb.BundleError(f"{path}: sha256 differs from the pinned value")
         open(os.path.join(dest, os.path.basename(path)), "wb").write(data)
-    return {"commit": s["commit"], "fetched": now(), "signed_by": None}
+    return {"commit": s["commit"], "fetched": now(), "signed_by": None, "license": s.get("license")}
 
 
 def cmd_sync():
@@ -233,7 +248,8 @@ def cmd_sync():
             if s["type"] == "bundle":
                 info = sync_bundle(s, new)
             elif s["type"] == "trialstrackmap-wr":
-                if st.get("good", {}).get("commit") == s["commit"] and os.path.isdir(target):
+                if st.get("good", {}).get("commit") == s["commit"] and all(
+                        os.path.exists(os.path.join(target, os.path.basename(f))) for f in s["files"]):
                     print(f"ok   {sid}: unchanged (pinned {s['commit'][:10]})")
                     ok += 1
                     continue
@@ -247,7 +263,8 @@ def cmd_sync():
             changed = st.get("good", {}).get("commit") != info["commit"]
             st = {"good": info}
             print(f"ok   {sid}: {'updated to' if changed else 'unchanged'} {info['commit'][:10]}"
-                  + (f", signed by GitHub for {info['signed_by']}" if info.get("signed_by") else ", not checked (local)"))
+                  + (f", signed by GitHub for {info['signed_by']}" if info.get("signed_by") else
+                     ", sha256 pinned" if s["type"] == "trialstrackmap-wr" else ", not checked (local folder)"))
             ok += 1
         except (gb.BundleError, OSError, ValueError) as e:
             st["last_error"], st["last_attempt"] = str(e), now()
@@ -327,7 +344,8 @@ def cmd_build(out=None):
                     for g in o["ghosts"]:
                         mentions.setdefault(o["game_hash"], []).append((s["id"], g, folder, o.get("name")))
                 used.append({"id": s["id"], "type": "bundle", "commit": st["commit"], "signed_by": st.get("signed_by"),
-                             "rider": m["rider"]["name"], "game_hash": h})
+                             "rider": m["rider"]["name"], "game_hash": h, "license": m["license"],
+                             "url": f"https://github.com/{s['repo']}" if s.get("repo") else None})
             elif s["type"] == "trialstrackmap-wr":
                 n = 0
                 for name, lb, faults, ms, bike in wr_results(folder):
@@ -335,7 +353,11 @@ def cmd_build(out=None):
                     riders.setdefault(rid, {"name": name, "source": s["id"]})
                     put_result(rid, lb, result_entry(faults, ms, bike, "community " + s["id"]))
                     n += 1
-                used.append({"id": s["id"], "type": s["type"], "commit": st["commit"], "results": n})
+                used.append({"id": s["id"], "type": s["type"], "commit": st["commit"], "results": n,
+                             "license": s.get("license"), "attribution": s.get("attribution"),
+                             "url": f"https://github.com/{s['repo']}/tree/{s['commit']}",
+                             "license_text": open(os.path.join(folder, "LICENSE")).read()
+                             if os.path.exists(os.path.join(folder, "LICENSE")) else None})
         except (gb.BundleError, OSError, ValueError, KeyError) as e:
             print(f"skip {s['id']}: {e}")
 
@@ -405,15 +427,38 @@ def cmd_build(out=None):
     layer = {"format": LAYER_FORMAT, "format_version": LAYER_VERSION, "sources": used, "conflicts": conflicts,
              "riders": riders, "results": results, "ghosts": ghosts}
     write_json(os.path.join(tmp, "community.json"), layer)
+    write_notice(os.path.join(tmp, "NOTICE.md"), used)
     old = tmp + ".old"
     if os.path.exists(out):
         os.rename(out, old)
     os.rename(tmp, out)
     shutil.rmtree(old, ignore_errors=True)
     n_res = sum(len(b) for b in results.values())
+    counts = {}
+    for u in used:
+        counts[u.get("license") or "unknown"] = counts.get(u.get("license") or "unknown", 0) + 1
+    print("licences: " + ", ".join(f"{k} ({v})" for k, v in sorted(counts.items())) +
+          " - fine for your own game; to republish, pass on or serve this data, honour each source's licence (NOTICE.md)")
     print(f"layer {out}: {len(used)} sources, {len(riders)} riders, {n_res} results, {len(ghosts)} ghosts"
           + (f"; {len(conflicts)} conflicts (see community.json)" if conflicts else ""))
     return out
+
+
+def write_notice(path, used):
+    """NOTICE.md for a layer: every source, its publisher, licence and link (and licence texts that must travel)."""
+    lines = ["# Sources of this community layer", "",
+             "Each source keeps its own licence. Using this layer in your own game is what the sources are published "
+             "for. If you republish this data, pass this layer on (also inside an app) or serve it publicly, honour "
+             "the licence of every source below: some require credit or that their notice travels with the data.", ""]
+    for u in used:
+        who = f"rider {u['rider']}, published by github.com/{u['signed_by']}" if u.get("signed_by") else \
+            (f"rider {u['rider']} (local folder, publisher not checked)" if u.get("rider") else u.get("attribution") or "")
+        lines.append(f"- **{u['id']}** ({u['type']}): {who}; licence **{u.get('license') or 'unknown'}**"
+                     + (f"; {u['url']}" if u.get("url") else "") + f"; commit {u['commit'][:12]}")
+    for u in used:
+        if u.get("license_text"):
+            lines += ["", f"## {u['id']}: licence text", "", "```", u["license_text"].rstrip(), "```"]
+    open(path, "w").write("\n".join(lines) + "\n")
 
 
 # ---- install ----

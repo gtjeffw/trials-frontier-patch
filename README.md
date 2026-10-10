@@ -120,6 +120,11 @@ python3 -I scripts/ghost_bundle.py update <bundle dir> [--documents <iPhone/iPad
 fetched and checked into a local cache, merged into a *community layer* the local server reads. Your own results
 are never changed by it, and running `update` again picks up new and revised bundles.
 
+Each source keeps its own licence (bundles: chosen by their publishers; the world records: MIT). Playing with them
+is fine; if you republish the data, pass on a layer or an app with one built in, or serve it publicly, check and
+honour every source's licence: `community.py build` prints them and writes `NOTICE.md` into the layer
+(`docs/BUNDLES.md`, *Licences*).
+
 ```
 python3 -I scripts/community.py enable world-records-2019      # optional
 python3 -I scripts/community.py add <owner>/<repo>             # any published bundle; `discover` lists them
