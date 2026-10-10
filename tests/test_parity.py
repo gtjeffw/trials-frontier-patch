@@ -279,7 +279,7 @@ def main():
         # the game's change-name request (tutorial / options): the name inside the login token is adopted
         b64 = lambda t: __import__("base64").b64encode(t.encode()).decode()
         rename = {"Authorization": "UbiMobile_v1 t=" + b64("acct-1:secret:" + b64("Parity Name"))}
-        plain = {"Authorization": "UbiMobile_v1 t=" + b64("acct-1:secret")}
+        plain = {"Authorization": "UbiMobile_v1 t=" + b64("acct-1:secret:" + b64("Rider"))}  # library echoes the placeholder
         names = []
         for port in (7982, 7983):
             names.append([json.loads(call(port, "POST", "/v2/profiles/sessions", b"{}", h)[2])["nameOnPlatform"]

@@ -77,7 +77,7 @@ static NSString *requestedName(TFRequest *q) {
     if (parts.count != 3) return nil;
     NSData *inner = [[NSData alloc] initWithBase64EncodedString:parts[2] options:0];
     NSString *name = inner ? [[NSString alloc] initWithData:inner encoding:NSUTF8StringEncoding] : nil;
-    if (!name.length || name.length > 32) return nil;
+    if (!name.length || name.length > 32 || placeholder(name)) return nil;  // a normal login echoes our placeholder
     for (NSUInteger i = 0; i < name.length; i++)
         if ([NSCharacterSet.controlCharacterSet characterIsMember:[name characterAtIndex:i]]) return nil;
     return name;

@@ -810,3 +810,12 @@ later an in-app loopback server). Static analysis only.
   with it and keep it in the store (`player_name`, which takes priority over the save). Parity test: rename
   adopted and kept, plain logins change nothing: PASS. The existing Trials Fresh profile repairs itself at its next
   login (the game repeats the request every login).
+- Second new-player run: post-race showed JBuff for the new best, but a "global" list still showed "Rider"; the map
+  showed JBuff. Findings: every login token has the three-field form (a normal login carries the name the library
+  last received, i.e. our placeholder before naming), so the first fix also "adopted" "Rider" from normal logins.
+  Now placeholders are never adopted (parity test: a login echoing "Rider" keeps the real name). Own names in
+  leaderboard entries come from Player+0x10 (`resolveFriendNames`, `PopupStateLeaderboardImprovement::
+  setOldLeaderboardData`) or `/v1/profiles` replies; the saved leaderboard cache (Library/Caches/lbstorage.bin,
+  zlib after a 16-byte header) held JBuff afterwards. Suspect: the overall ranking (global_stats) fetched before
+  naming stays in memory with "Rider"; `POST playerstats/v1/stats/global_stats` (the overall score after each
+  race) is still unhandled, so it is never refreshed. To confirm with a screenshot.

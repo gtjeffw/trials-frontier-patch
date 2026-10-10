@@ -142,10 +142,11 @@ def known_riders(raw):
 
 
 def requested_name(headers):
-    """The new name in the mobile login library's "change account name" request (ubimobile changeAccountName, sent
-    when the player picks a name in the tutorial or the options): POST /v2/profiles/sessions with
-    "Authorization: UbiMobile_v1 t=<base64 of account:secret:base64(name)>" (a plain login has two fields).
-    None for any other request."""
+    """The name in a mobile-login-library request: "Authorization: UbiMobile_v1 t=<base64 of
+    account:secret:base64(name)>". The "change account name" request (ubimobile changeAccountName, sent after every
+    login once the player has picked a name in the tutorial or the options) carries the new name; a normal login
+    carries the name the library last got from us, which before the player has a name is our placeholder. So
+    placeholders ("Rider") are never returned, and real names are adopted."""
     m = re.fullmatch(r"UbiMobile_v1 t=([A-Za-z0-9+/=]+)", (headers.get("Authorization") or "").strip())
     if not m:
         return None
@@ -154,7 +155,7 @@ def requested_name(headers):
         name = base64.b64decode(parts[2]).decode("utf-8") if len(parts) == 3 else None
     except (ValueError, UnicodeDecodeError):
         return None
-    return name if name and len(name) <= 32 and name.isprintable() else None
+    return name if name and len(name) <= 32 and name.isprintable() and not placeholder(name) else None
 
 
 def save_name(raw):
