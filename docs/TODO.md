@@ -44,27 +44,19 @@ player's best), the player's own ghost if no one else. Robots are the "Live Oppo
 
 ## Community ghost bundles (self-published, consolidated)
 
-Idea: players publish *their own* runs as static ghost bundles on their own GitHub Pages; a consolidator merges
-them so the local server (and a robot-challenge module) can offer many riders. No central host; each publisher
-owns their data.
+Players publish *their own* runs as GitHub repositories; no central host, each publisher owns their data.
+Done 2026-10-10: `scripts/ghost_bundle.py` (export / check / publish / import / search) and the format in
+`docs/BUNDLES.md`: GitHub topic `trials-frontier-bundle` for discovery, rider by game hash + sha256 of the profile
+id (never the id), optional SSH signature tied to the publisher's GitHub keys, strict validation, import merges
+with downloaded opponents by hash. Other riders' ghosts only with `--include-others`, by hash only.
 
 - **Contributing without a jailbreak:** unencrypted Finder/iTunes backup of an old device that still has the game →
-  `scripts/extract_app_domain.py` → `Documents/player.bin` (best times, profile id, name) + `ghost_<hash>_<lb>.bin`.
+  `scripts/extract_app_domain.py` → `Documents/player.bin` + `ghost_<hash>_<lb>.bin` → `ghost_bundle.py export`.
   Write a short guide.
-- **`scripts/export_ghost_bundle.py`** (save + ghost files → static folder): `manifest.json` {format version,
-  game version 7.9.0, `rider_key` = SHA-256 of the profile id (merges the same rider across devices without
-  publishing the account id; pseudonymous, not anonymous), display name chosen by the publisher, licence chosen by
-  the publisher (suggest CC0/CC-BY), entries [{leaderboard id, faults, time ms, bike, ghost file, sha256}]},
-  `ghosts/`, a small `index.html`. Own runs only by default; downloaded opponents (`robot_ghost-*`) only opt-in and
-  anonymized. Optionally create the repo and enable Pages with the publisher's own `gh` login.
-- **Discovery:** GitHub topic (e.g. `trials-frontier-ghosts`) and/or a plain registry file of bundle URLs.
-- **`scripts/consolidate_bundles.py`:** fetch manifests and ghosts, check sha256 and that each ghost's recorded drive
-  time equals the claimed time, merge by `rider_key` (best per leaderboard), flag outliers (e.g. far below the 2019
-  world records), write one combined bundle.
-- **Local server import** (Python + `inapp/`): load a combined bundle as riders (results, ghosts, names) — on GLOBAL,
-  raceable, and the ghost supply for the robot-challenge module.
-- Bundles carry ghosts and times only, never game assets. Ghost data cannot be fully verified (cheating); keep it
-  best-effort.
+- **`import --all`** (or a consolidate step): every bundle from `search`, merged; flag outliers (e.g. far below the
+  2019 world records). Ghost data cannot be fully verified (cheating); best-effort.
+- **Announcement / collecting service** (later): receives bundle URLs on publish, or simply crawls the topic.
+- Bundles carry ghosts and times only, never game assets.
 
 ## Native keyboard and game-controller input (backburner)
 

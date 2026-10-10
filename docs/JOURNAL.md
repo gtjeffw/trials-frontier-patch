@@ -698,3 +698,25 @@ later an in-app loopback server). Static analysis only.
   (only the game's application id and the standard UUID namespaces). MIT licence added.
 - 2026-10-10: second pass: the site name of the publicly posted copy (one journal line) replaced in every commit;
   the repository names no download sources.
+
+## 2026-10-10 — Ghost bundles: publish your own times and ghosts
+
+- `scripts/ghost_bundle.py` with `export`, `check`, `publish`, `import`, `search`; format in `docs/BUNDLES.md`.
+  A bundle = manifest + the game's own ghost files (+ avatar), published as a public GitHub repository with the
+  topic `trials-frontier-bundle` (the topic search is the index until a collecting service exists).
+- Identity without the profile id: the game's 32-bit hash (the name of downloaded-opponent files, so a rider's
+  bundle merges with the "Rider <hash>" opponents in everyone's saves) plus a salted sha256 for collisions.
+  Optional SSH signature over the manifest (which lists every file's sha256), checked against
+  `github.com/<publisher>.keys`, as the basis for any later claim of a rider's records (Ubisoft accounts cannot be
+  relied on: many were purged).
+- Export takes the best of the save and the local services store; each entry says `save` or `local-services`
+  (runs uploaded to the patched game's server are marked even when the save also has them). Test export of the
+  developer's profile: 222 best times, 113 ghosts (37 from patched play), 584 KB; no profile id in the output.
+- Publish: shows what is published and asks for "I agree" (own runs, licence CC0-1.0 or CC-BY-4.0, public and
+  lasting; with `--include-others` also responsibility for others' ghosts, which are included by hash only);
+  commits under the GitHub noreply address; creates or updates the repository and sets topics. Dry run checked.
+- Import refuses while the game runs, validates first (tested: symlinks, path traversal, tampered ghost, wrong
+  time, control characters, wrong types, newer format all refused), then merges: riders by hash (named
+  opponents are stored under their real id, matched via the hash), better times only, one ghost per rider and
+  leaderboard. Tested: new player importing a bundle, re-import (no change), own bundle into own game (nothing
+  added), a bundle with 384 opponents into a store that already has them (merged, no duplicates).

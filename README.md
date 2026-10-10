@@ -96,6 +96,18 @@ executable without FairPlay encryption. An unencrypted copy of your own executab
 Packs from the game's download folder (`Library/Caches/DLC` on the device) can be added with
 `scripts/install_playcover.py --dlc-from <folder>`; most of what they contained also ships in the app.
 
+## Sharing your ghosts
+
+`scripts/ghost_bundle.py` turns your best times and ghosts into a *bundle* and publishes it as a public GitHub
+repository (`gh` login; you confirm that the runs are yours; commits use your GitHub noreply address). Others race
+your ghosts with `ghost_bundle.py import <repository>`; `ghost_bundle.py search` lists published bundles (topic
+`trials-frontier-bundle`). Bundles never contain your save, your profile id or game files. Format: `docs/BUNDLES.md`.
+
+```
+python3 -I scripts/ghost_bundle.py export <game Documents> <bundle dir> [--app <TrialsFrontier.app>] [--avatar <png>]
+python3 -I scripts/ghost_bundle.py publish <bundle dir> [--sign-key ~/.ssh/<key on GitHub>]
+```
+
 ## Other tools
 
 | path | what |
@@ -107,7 +119,7 @@ Packs from the game's download folder (`Library/Caches/DLC` on the device) can b
 | `scripts/extract_app_domain.py` | an app's files from an unencrypted iOS backup |
 | `frida/`, `ghidra/scripts/`, `tools/ghidra-headless.sh` | runtime tracing and headless Ghidra helpers used during development |
 | `docs/JOURNAL.md` | everything that was done, in order, and why |
-| `docs/FORMATS.md`, `docs/TODO.md` | file formats; open items |
+| `docs/FORMATS.md`, `docs/BUNDLES.md`, `docs/TODO.md` | file formats; the ghost-bundle format; open items |
 
 ## Environment
 
