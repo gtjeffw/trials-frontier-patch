@@ -9,15 +9,19 @@ a patched app that:
 
 - runs on an Apple-silicon Mac in [PlayCover](https://playcover.io) with keyboard controls, or sideloaded on an
   iPhone/iPad with a free Apple ID;
+- recovers your old save, provided it is still on your iPhone/iPad (or in a backup of it). Unfortunately you will
+  likely find ghosts for only some of your best times: the save keeps every time, but the game kept ghosts only
+  as separate local files, and not for every run;
+- keeps the game's data safe on iPhone/iPad: content packs the game would only load from its cache folder ship inside
+  the app, so iOS can't clean them up, and with the `file-sharing` option the save and ghosts show up in Finder and
+  the Files app for easy copying and editing;
 - works fully offline, with ads, tracking and every connection to Ubisoft/RedLynx switched off;
-- serves its own leaderboards, ghosts and login from inside the app on `127.0.0.1` — race your own ghosts, upload new
-  best runs, see the opponents the game downloaded over the years;
+- replaces Ubisoft's shut-down servers with an internal server, so leaderboards and ghost races work again;
 - races other riders: your downloaded opponents, other players' published ghost bundles, and optionally the 2019
   world records; new players get a working game too;
 - optionally: buy coins with gems, open every level that can no longer be unlocked, and more (see *Options*).
 
-It also decodes your save, best times and ghosts, and lets you share your own runs with other players as a ghost
-bundle.
+You can also share your own runs with other players as a ghost bundle.
 
 **This repository contains no game files.** You need your own copy of the game, including an unencrypted copy of
 its executable (see *Getting the game files*). A raw save holds account ids and other players' names, so a ghost
