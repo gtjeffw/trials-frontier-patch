@@ -801,3 +801,12 @@ later an in-app loopback server). Static analysis only.
   `/v1/profiles` replies (`OnlineUbiservices::setLeaderBoardInfo`; empty names trigger `resolveLeaderBoardNames`).
   The first race (track 1033, 08:44:04) came before the name existed; the re-login the user asked about is already
   built into the game.
+- Correction: "Rider" stayed on the post-race screen for the whole session, not just the first race. Cause: after
+  every login of a player with a chosen (silent-login) name, `updateTicketQuery` calls `setName` →
+  `ubimobile_changeAccountName`: POST /v2/profiles/sessions, body `{}`, `Authorization: UbiMobile_v1 t=` base64 of
+  `account:secret:base64(new name)` (a plain login has two fields); the library keeps the reply's
+  `nameOnPlatform` as the account's name. Right after naming, the save on disk did not have the name yet, so the
+  server answered "Rider" and the library kept it. Both servers now read the new name from that request, answer
+  with it and keep it in the store (`player_name`, which takes priority over the save). Parity test: rename
+  adopted and kept, plain logins change nothing: PASS. The existing Trials Fresh profile repairs itself at its next
+  login (the game repeats the request every login).

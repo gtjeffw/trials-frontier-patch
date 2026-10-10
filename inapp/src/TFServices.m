@@ -65,6 +65,24 @@ static NSString *sha256Hex(NSString *s) {
     return out;
 }
 
+/// The new name in the mobile login library's "change account name" request (ubimobile changeAccountName, sent when
+/// the player picks a name in the tutorial or the options): "Authorization: UbiMobile_v1 t=<base64 of
+/// account:secret:base64(name)>" (a plain login has two fields). nil for any other request.
+static NSString *requestedName(TFRequest *q) {
+    NSString *auth = [q.headers[@"authorization"] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
+    if (![auth hasPrefix:@"UbiMobile_v1 t="]) return nil;
+    NSData *outer = [[NSData alloc] initWithBase64EncodedString:[auth substringFromIndex:15] options:0];
+    NSString *text = outer ? [[NSString alloc] initWithData:outer encoding:NSUTF8StringEncoding] : nil;
+    NSArray *parts = [text componentsSeparatedByString:@":"];
+    if (parts.count != 3) return nil;
+    NSData *inner = [[NSData alloc] initWithBase64EncodedString:parts[2] options:0];
+    NSString *name = inner ? [[NSString alloc] initWithData:inner encoding:NSUTF8StringEncoding] : nil;
+    if (!name.length || name.length > 32) return nil;
+    for (NSUInteger i = 0; i < name.length; i++)
+        if ([NSCharacterSet.controlCharacterSet characterIsMember:[name characterAtIndex:i]]) return nil;
+    return name;
+}
+
 static BOOL isUUID(NSString *s) {
     return [s rangeOfString:@"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" options:NSRegularExpressionSearch].location != NSNotFound;
 }
@@ -99,6 +117,12 @@ static BOOL isUUID(NSString *s) {
         _name = _fixedName;
         return;
     }
+    // the last name the game asked for (change-name request); the save only catches up later
+    [_lock lock];
+    NSString *chosen = [_store[@"player_name"] isKindOfClass:NSString.class] ? _store[@"player_name"] : nil;
+    if (chosen.length) _name = [chosen copy];
+    [_lock unlock];
+    if (chosen.length) return;
     NSDate *d = [NSFileManager.defaultManager attributesOfItemAtPath:[self documents:@"player.bin"] error:nil].fileModificationDate;
     [_lock lock];
     if (d && ![d isEqual:_saveDate]) {
@@ -732,6 +756,15 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     }];
     [r route:nil path:@"/v[12]/profiles/sessions" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         if (![q.method isEqualToString:@"POST"] && ![q.method isEqualToString:@"PUT"]) return nil;
+        TFServices *s = w;
+        NSString *requested = requestedName(q);
+        if (requested && !s->_fixedName) {
+            [s.lock lock];
+            s.store[@"player_name"] = requested;
+            [s saveStore];
+            [s.lock unlock];
+            [s note:[NSString stringWithFormat:@"   name changed to %@", requested]];
+        }
         NSDictionary *sess = [w session];
         [w note:[NSString stringWithFormat:@"   login as %@", sess[@"nameOnPlatform"]]];
         return [TFResponse json:sess];

@@ -34,8 +34,8 @@ LEGACY = {"results": {"track1": {"0f0e0d0c-0000-5000-8000-000000000001": {
 TIME_KEYS = {"serverTime", "expiration"}
 
 
-def call(port, method, path, body=None):
-    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=body, method=method)
+def call(port, method, path, body=None, headers=None):
+    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=body, method=method, headers=headers or {})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return r.status, dict(r.headers), r.read()
@@ -276,6 +276,18 @@ def main():
         time_na = call(7983, "GET", "/profile/?epoch=1")[1].get("Server-Time")
         print(f"{'ok  ' if time_py and time_na else 'DIFF'} Server-Time header: {time_py} / {time_na}")
         failures += not (time_py and time_na)
+        # the game's change-name request (tutorial / options): the name inside the login token is adopted
+        b64 = lambda t: __import__("base64").b64encode(t.encode()).decode()
+        rename = {"Authorization": "UbiMobile_v1 t=" + b64("acct-1:secret:" + b64("Parity Name"))}
+        plain = {"Authorization": "UbiMobile_v1 t=" + b64("acct-1:secret")}
+        names = []
+        for port in (7982, 7983):
+            names.append([json.loads(call(port, "POST", "/v2/profiles/sessions", b"{}", h)[2])["nameOnPlatform"]
+                          for h in (plain, rename, plain, None)])
+        before = names[0][0]
+        ok = names[0] == names[1] and names[0][1:] == ["Parity Name"] * 3 and before != "Parity Name"
+        print(f"{'ok  ' if ok else 'DIFF'} change-name request adopted and kept: {names[0]} / {names[1]}")
+        failures += not ok
         # identities: same 32-bit hash = still different riders; the player's hash alone does not make a rider "me"
         ids = {}
         for port in (7982, 7983):

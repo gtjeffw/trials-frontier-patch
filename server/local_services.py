@@ -29,6 +29,7 @@ into store.json: riders merge by the game's hash of their profile id, a layer re
 stored one, layer ghosts keep their own content ids (from 1000000000) and files, and the player's own rider in
 the layer is skipped (only its avatar is used). They appear on GLOBAL; FRIENDS asks only for the player's own id.
 """
+import base64
 import hashlib
 import json
 import os
@@ -140,6 +141,22 @@ def known_riders(raw):
     return out
 
 
+def requested_name(headers):
+    """The new name in the mobile login library's "change account name" request (ubimobile changeAccountName, sent
+    when the player picks a name in the tutorial or the options): POST /v2/profiles/sessions with
+    "Authorization: UbiMobile_v1 t=<base64 of account:secret:base64(name)>" (a plain login has two fields).
+    None for any other request."""
+    m = re.fullmatch(r"UbiMobile_v1 t=([A-Za-z0-9+/=]+)", (headers.get("Authorization") or "").strip())
+    if not m:
+        return None
+    try:
+        parts = base64.b64decode(m.group(1)).decode("utf-8").split(":")
+        name = base64.b64decode(parts[2]).decode("utf-8") if len(parts) == 3 else None
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return name if name and len(name) <= 32 and name.isprintable() else None
+
+
 def save_name(raw):
     """The player's name: the platform (Ubisoft) name at raw offset 20 (Player+0x10), else the nickname typed in
     the tutorial (MenuzMissionTaskEnterName), a 24-byte field 148 bytes before the end of the save (version 114)."""
@@ -171,10 +188,13 @@ class Services:
         self.log = open(log_path, "a", buffering=1) if log_path else None
 
     def refresh_name(self):
-        """The player's name: --name, else the save's (re-read when player.bin changes: a new player picks one in the
-        tutorial), else "Rider"."""
+        """The player's name: --name, else the last name the game asked for (change-name request; the save only
+        catches up later), else the save's (re-read when player.bin changes), else "Rider"."""
         if self.fixed_name:
             self.name = self.fixed_name
+            return
+        if getattr(self, "store", None) and self.store.get("player_name"):
+            self.name = self.store["player_name"]
             return
         try:
             mtime = os.stat(self.documents("player.bin")).st_mtime_ns
@@ -765,6 +785,12 @@ class Services:
         if method == "GET" and p == "/profile/":
             return 200, {"Server-Time": "%.3f" % time.time()}, {}
         if p in ("/v2/profiles/sessions", "/v1/profiles/sessions") and method in ("POST", "PUT"):
+            new = requested_name(headers)
+            if new and not self.fixed_name:
+                with self.lock:
+                    self.store["player_name"] = new
+                    self.save_store()
+                self.note(f"   name changed to {new}")
             sess = self.session()
             self.note(f"   login as {sess['nameOnPlatform']}")
             return 200, {}, sess
