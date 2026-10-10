@@ -64,4 +64,4 @@ u32 "LOCF", u8 version, u32; then entries: u32 key hash, u16 length, UTF-8 text 
 
 Mission header line `id,…,NAME_KEY,…`, followed by typed lines (`t` task, `u` unlock, `r` reward,
 `o` override, `c` JSON config). Override type 13 (`o,13,…`) carries event parameters keyed by hashes.
-7.9.0 only contains 2019-and-later events.
+Events of 2015-2019 are all there; line meanings and how events start: [EVENTS.md](EVENTS.md).

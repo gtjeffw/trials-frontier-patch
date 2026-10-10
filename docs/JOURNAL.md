@@ -1031,3 +1031,21 @@ later an in-app loopback server). Static analysis only.
   507–511 (five missions: intro, event, smash, ghost, third task; the online weekly legs dropped), one event at a
   time, and completion would block it again the next year. Lesson: detaching Frida from the game crashed it
   (14:12); stay attached until the game quits.
+
+## 2026-10-10 — Halloween Heat runs; events set aside (docs/EVENTS.md)
+
+- The Pumpkin Queen prototype's map crash: its event panel type (1, a 2015 leaderboard panel) is no longer built by
+  7.9.0's `initSpecialEventContainer` (only 5, 6, 8), so the map dereferenced a null prize list. Switched to Halloween
+  Heat (2019, type 5).
+- Why nothing rolled before: the randomized-track roll runs only for active missions, and the event mission never
+  became active. 448 needs item 22/1 ≥ 10 (0 in the developer's save). With that condition dropped (in memory),
+  448 and 447 started and the tracks rolled at once (server time valid offline); the hidden collectible was visible
+  only on the rolled track and was picked up; Count Dracuul's mission (457) appeared and was accepted.
+- The holly on the event button: `/MENUZ/ICON/SPECIAL_EVENT_MAP_BUTTON.PNG` is one fixed texture whose art each
+  event update replaced; 7.9.0 is the Christmas 2019 build. Found by hashing every string in the binary and data.
+  Patch `event-tab-icon` (cave + two hooks) lets the event's type-13 override name the texture (`EventTabIcon`), else
+  the holly; the Halloween icon is generated from the player's own pack (`event_tab_icon` op, new
+  `read_texture`/`add_texture` for 24-byte-entry texture packs). Worked on the home screen and the map.
+- Decision: events are not enabled in the first release. Pieces kept as a reference (`docs/seasonal-events.example.json`,
+  read by no build); generic ops `replace_mission_line` and `override_custom_param` added. The main spec's content
+  patches give identical output with the new datapack.py.

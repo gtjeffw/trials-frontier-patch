@@ -6,7 +6,12 @@ u32 stored_size, u8 compression (1 = zlib, 0 = raw), 3 bytes (de c0 de), then th
 
 replace_file() appends the new file at the end and repoints only its own entry, so every other byte of the pack is
 unchanged (deterministic for a given input).
+
+Texture packs (TrialsTexturesDL*.dat) have entry_size 24: {u32 unpacked_size, u32 offset, u32 width << 16 | height,
+u32 format, u32 name_hash, u32 0x20}, same file layout; the 128x128 menu icons are plain RGBA8888 (straight alpha).
+add_texture() appends one entry and its file; offsets are relative to the data area, so nothing else moves.
 """
+import math
 import re
 import struct
 import zlib
@@ -51,6 +56,120 @@ def replace_file(pack, name_hash, body):
             struct.pack_into("<2I", out, pos, len(body), new_off)
             return bytes(out)
     raise KeyError("%08x not in pack" % name_hash)
+
+
+def _texture_index(pack):
+    magic, count, esize = struct.unpack_from("<3I", pack, 0)
+    if esize != 24:
+        raise ValueError("not a texture pack (entry size %d)" % esize)
+    return 12 + count * 24, [(12 + i * 24,) + struct.unpack_from("<6I", pack, 12 + i * 24) for i in range(count)]
+
+
+def read_texture(pack, name_hash):
+    """(width, height, format, pixels) of a texture in a texture pack."""
+    base, entries = _texture_index(pack)
+    for _, size, off, dims, fmt, h, _ in entries:
+        if h == name_hash:
+            stored, comp = struct.unpack_from("<IB", pack, base + off)
+            body = pack[base + off + 8:base + off + 8 + stored]
+            return dims >> 16, dims & 0xFFFF, fmt, zlib.decompress(body) if comp == 1 else body
+    raise KeyError("texture %08x not in pack" % name_hash)
+
+
+def add_texture(pack, name_hash, width, height, fmt, pixels):
+    """Append a texture (zlib-compressed, entry and file header copied from the pack's first entry's layout)."""
+    base, entries = _texture_index(pack)
+    if any(e[5] == name_hash for e in entries):
+        raise ValueError("texture %08x already in pack" % name_hash)
+    tag = pack[base + entries[0][2] + 5:base + entries[0][2] + 8]
+    stored = zlib.compress(pixels, 9)
+    entry = struct.pack("<6I", len(pixels), len(pack) - base, width << 16 | height, fmt, name_hash, entries[0][6])
+    out = bytearray(pack[:base]) + entry + pack[base:] + struct.pack("<IB", len(stored), 1) + tag + stored
+    struct.pack_into("<I", out, 4, len(entries) + 1)
+    return bytes(out)
+
+
+def event_tab_icon(disc, art, size, scale):
+    """A round event-tab icon: `disc` (an existing tab icon, RGBA size x size) with its coloured artwork removed —
+    pixels with saturation, grown by 2 px, repainted with the median uncoloured pixel at the same distance from the
+    centre, so its own rim, gloss and shadow stay — and `art` (RGBA size x size) scaled by `scale` on top."""
+    px = lambda b, x, y: tuple(b[(y * size + x) * 4:(y * size + x) * 4 + 4])
+    c = (size - 1) / 2
+    mask = {(x, y) for y in range(size) for x in range(size)
+            if px(disc, x, y)[3] and max(px(disc, x, y)[:3]) - min(px(disc, x, y)[:3]) > 30}
+    for _ in range(2):
+        mask |= {(x + dx, y + dy) for x, y in mask for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    rings = {}
+    for y in range(size):
+        for x in range(size):
+            if (x, y) not in mask:
+                rings.setdefault(round(math.hypot(x - c, y - c)), []).append(px(disc, x, y))
+    med = {r: sorted(v, key=lambda p: (sum(p[:3]), p))[len(v) // 2] for r, v in rings.items()}
+    ring = lambda r: med[min(med, key=lambda k: (abs(k - r), k))]
+    img = [list(ring(round(math.hypot(x - c, y - c))) if (x, y) in mask else px(disc, x, y))
+           for y in range(size) for x in range(size)]
+
+    def sample(fx, fy):   # bilinear, premultiplied alpha
+        x0, y0 = math.floor(fx), math.floor(fy)
+        ax, ay = fx - x0, fy - y0
+        acc = [0.0] * 4
+        for dx, dy, w in ((0, 0, (1 - ax) * (1 - ay)), (1, 0, ax * (1 - ay)), (0, 1, (1 - ax) * ay), (1, 1, ax * ay)):
+            if 0 <= x0 + dx < size and 0 <= y0 + dy < size:
+                r, g, b, a = px(art, x0 + dx, y0 + dy)
+                a /= 255
+                acc = [acc[0] + r * a * w, acc[1] + g * a * w, acc[2] + b * a * w, acc[3] + a * w]
+        return acc
+    for y in range(size):
+        for x in range(size):
+            r, g, b, a = sample((x - c) / scale + c, (y - c) / scale + c + 2)
+            if a <= 0:
+                continue
+            p = img[y * size + x]
+            da = p[3] / 255
+            oa = a + da * (1 - a)
+            p[:3] = [round((s + q * da * (1 - a)) / oa) for s, q in zip((r, g, b), p[:3])]
+            p[3] = round(oa * 255)
+    return bytes(min(255, max(0, v)) for p in img for v in p)
+
+
+def override_custom_param(text, mission, override_type, key, value):
+    """Mission file: add `key=value` to the quoted custom data of the mission's (single) override of the given
+    type, e.g. `o,13,...,"2629429319='447'",0` -> `o,13,...,"2629429319='447',<key>=<value>",0`."""
+    out, current, done = [], None, 0
+    for line in text.split("\n"):
+        m = re.match(r"^(\d+),", line)
+        if m and not line.startswith(("u,", "o,", "t,", "r,", "a,", "b,", "c,", "m,", "z,")):
+            current = int(m.group(1))
+        if current == mission and line.startswith("o,%d," % override_type):
+            q = re.match(r'^(o,(?:[^,"]*,){8}")([^"]*)(".*)$', line, re.S)
+            if not q:
+                raise ValueError("mission %d: unexpected override line %r" % (mission, line[:60]))
+            if re.search(r"(^|,)%d=" % key, q.group(2)):
+                raise ValueError("mission %d: key %d already set" % (mission, key))
+            line = q.group(1) + (q.group(2) + "," if q.group(2) else "") + "%d=%d" % (key, value) + q.group(3)
+            done += 1
+        out.append(line)
+    if done != 1:
+        raise ValueError("mission %d has %d overrides of type %d" % (mission, done, override_type))
+    return "\n".join(out)
+
+
+def replace_mission_line(text, mission, old, new):
+    """Mission file: replace one line of a mission's block (exact match without the line end, exactly once), e.g.
+    an unlock condition `u,3,10,22,1` -> `u,3,0,22,1`."""
+    out, current, done = [], None, 0
+    for line in text.split("\n"):
+        m = re.match(r"^(\d+),", line)
+        if m and not line.startswith(("u,", "o,", "t,", "r,", "a,", "b,", "c,", "m,", "z,")):
+            current = int(m.group(1))
+        body = line.rstrip("\r")
+        if current == mission and body == old:
+            line = new + line[len(body):]
+            done += 1
+        out.append(line)
+    if done != 1:
+        raise ValueError("mission %d: %r found %d times" % (mission, old, done))
+    return "\n".join(out)
 
 
 def store_item_price(text, item_id, price_hard):
@@ -138,6 +257,17 @@ def shift_mission_dates(text, missions, delta):
 
 def apply_content_patch(pack, patch):
     """Apply one spec "content_patches" entry to the pack bytes; returns the new pack bytes."""
+    if patch.get("textures"):
+        for edit in patch["edits"]:
+            if edit["op"] == "event_tab_icon":
+                w, h, fmt, disc = read_texture(pack, int(edit["disc"], 16))
+                aw, ah, _, art = read_texture(pack, int(edit["art"], 16))
+                if (w, h) != (aw, ah) or len(disc) != w * h * 4 or len(art) != w * h * 4 or w != h:
+                    raise ValueError("event_tab_icon needs two square RGBA textures of the same size")
+                pack = add_texture(pack, game_hash(edit["name"]), w, h, fmt, event_tab_icon(disc, art, w, edit["scale"]))
+            else:
+                raise ValueError("unknown texture edit %r" % edit["op"])
+        return pack
     h = int(patch["file_hash"], 16) if patch.get("file_hash") else game_hash(patch["file"])
     if patch.get("binary"):
         data = read_file(pack, h)
@@ -158,6 +288,13 @@ def apply_content_patch(pack, patch):
             text = shift_mission_dates(text, set(edit["missions"]), int(edit["to"]) - int(edit["from"]))
         elif edit["op"] == "level_bike_tier":
             text = level_bike_tier(text, edit["level_id"], edit["old"], edit["new"])
+        elif edit["op"] == "replace_mission_line":
+            text = replace_mission_line(text, edit["mission"], edit["old"], edit["new"])
+        elif edit["op"] == "override_custom_param":
+            # value_texture: a texture name, stored as its signed hash (the game parses the value as an int)
+            v = edit["value"] if "value" in edit else game_hash(edit["value_texture"])
+            text = override_custom_param(text, edit["mission"], edit["override"], game_hash(edit["key"]),
+                                         v - (1 << 32) if v >= 1 << 31 else v)
         else:
             raise ValueError("unknown content edit %r" % edit["op"])
     return replace_file(pack, h, text.encode("utf-8"))

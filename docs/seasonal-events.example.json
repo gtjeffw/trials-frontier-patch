@@ -1,0 +1,143 @@
+{
+ "comment": "NOT USED BY ANY BUILD. Reference for reviving seasonal events (docs/EVENTS.md): the pieces of the Halloween Heat (2019) prototype that ran on 2026-10-10. To try it, copy the optional group, the patches and the content patches into a copy of patches/trials-frontier-7.9.0.json and build with --with event-tab-icon,halloween-heat (apply_patches.py / build.py, build_ipa.py --spec). Untested as one piece: the prototype dropped the item-22 condition in memory, not with the data edit below.",
+ "optional_groups": {
+  "event-tab-icon": "Per-event special event button icon: the running event's mission data names the texture; default the shipped holly.",
+  "halloween-heat": "Halloween Heat 2019 (Treasure Hunt + Count Dracuul) moved by seven years to 2026-10-19..11-12, with a Halloween button icon."
+ },
+ "patches": [
+  {
+   "id": "event-tab-icon-cave",
+   "group": "event-tab-icon",
+   "vmaddr": "0x100006900",
+   "original": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "replacement": "fd7bbea9fd03009101008052c00000b40080009121e780524148ad7244f00194e103002a61000035c1bf90526164ba72e11300b9082a0194e11340b9fd7bc2a8492a01141f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d51f2003d5fd7bbea9fd03009160aa04f9e00b00f9d5b00794600000b4a1018052d9990794d8ffff971f0400716b000054e80b40f900810079e00b40f9fd7bc2a8c0035fd6",
+   "original_asm": [
+    "(zero padding)"
+   ],
+   "replacement_asm": [
+    "helper(x0 = type-13 override or 0) -> w0 = texture id:",
+    "stp x29, x30, [sp, #-0x20]!",
+    "mov x29, sp",
+    "mov w1, #0x0",
+    "cbz x0, 0x100006924",
+    "add x0, x0, #0x20",
+    "mov w1, #0x739",
+    "movk w1, #0x6a42, lsl #16",
+    "bl 0x100082a2c",
+    "mov w1, w0",
+    "cbnz w1, 0x100006930",
+    "mov w1, #0x85fe",
+    "movk w1, #0xd323, lsl #16",
+    "str w1, [sp, #0x10]",
+    "bl 0x100051154",
+    "ldr w1, [sp, #0x10]",
+    "ldp x29, x30, [sp], #0x20",
+    "b 0x100051264",
+    "(nop x15)",
+    "home screen, at 0x100006980:",
+    "stp x29, x30, [sp, #-0x20]!",
+    "mov x29, sp",
+    "str x0, [x19, #0x950]",
+    "str x0, [sp, #0x10]",
+    "bl 0x1001f2ce4",
+    "cbz x0, 0x1000069a0",
+    "mov w1, #0xd",
+    "bl 0x1001ed100",
+    "bl 0x100006900",
+    "cmp w0, #0x1",
+    "b.lt 0x1000069b4",
+    "ldr x8, [sp, #0x10]",
+    "strh w0, [x8, #0x40]",
+    "ldr x0, [sp, #0x10]",
+    "ldp x29, x30, [sp], #0x20",
+    "ret"
+   ],
+   "function": "code cave for the special event button icon",
+   "reason": "The special event button icon is one texture, /MENUZ/ICON/SPECIAL_EVENT_MAP_BUTTON.PNG (hash 0xd32385fe), whose art Ubisoft replaced for each event; the last build (Christmas 2019) ships the holly, so every event shows it. Let the running event choose: the int custom value getHashCode(\"EventTabIcon\") (0x6a420739) of the event mission's type-13 override names another texture (its name hash); none -> the holly as before. Both places that show the button use it: the World Map tab (initSpecialEventContainer, hard-coded hash) and the home screen button 11 (layout 4b761f6c, checkSpecialEventPopup)."
+  },
+  {
+   "id": "event-tab-icon-map-hook",
+   "group": "event-tab-icon",
+   "vmaddr": "0x100251c7c",
+   "original": "c1bf90526164ba7278fdf797",
+   "replacement": "e00313aa20d3f6971f2003d5",
+   "original_asm": [
+    "mov w1, #0x85fe",
+    "movk w1, #0xd323, lsl #16",
+    "bl 0x100051264"
+   ],
+   "replacement_asm": [
+    "mov x0, x19",
+    "bl 0x100006900",
+    "nop"
+   ],
+   "function": "tr::MenuzStateMap::initSpecialEventContainer()",
+   "reason": "The special event button icon is one texture, /MENUZ/ICON/SPECIAL_EVENT_MAP_BUTTON.PNG (hash 0xd32385fe), whose art Ubisoft replaced for each event; the last build (Christmas 2019) ships the holly, so every event shows it. Let the running event choose: the int custom value getHashCode(\"EventTabIcon\") (0x6a420739) of the event mission's type-13 override names another texture (its name hash); none -> the holly as before. Both places that show the button use it: the World Map tab (initSpecialEventContainer, hard-coded hash) and the home screen button 11 (layout 4b761f6c, checkSpecialEventPopup)."
+  },
+  {
+   "id": "event-tab-icon-home-hook",
+   "group": "event-tab-icon",
+   "vmaddr": "0x100091364",
+   "original": "60aa04f9",
+   "replacement": "87d5fd97",
+   "original_asm": [
+    "str x0, [x19, #0x950]"
+   ],
+   "replacement_asm": [
+    "bl 0x100006980"
+   ],
+   "function": "tr::MenuzStateMain::checkSpecialEventPopup()",
+   "reason": "The special event button icon is one texture, /MENUZ/ICON/SPECIAL_EVENT_MAP_BUTTON.PNG (hash 0xd32385fe), whose art Ubisoft replaced for each event; the last build (Christmas 2019) ships the holly, so every event shows it. Let the running event choose: the int custom value getHashCode(\"EventTabIcon\") (0x6a420739) of the event mission's type-13 override names another texture (its name hash); none -> the holly as before. Both places that show the button use it: the World Map tab (initSpecialEventContainer, hard-coded hash) and the home screen button 11 (layout 4b761f6c, checkSpecialEventPopup)."
+  }
+ ],
+ "content_patches": [
+  {
+   "id": "halloween-heat-dates",
+   "group": "halloween-heat",
+   "pack": "data/TrialsMobile/content.dat",
+   "file_hash": "c4125fdb",
+   "edits": [
+    {
+     "op": "shift_mission_dates",
+     "missions": [
+      447,
+      448,
+      457
+     ],
+     "from": 1571475600,
+     "to": 1792400400
+    },
+    {
+     "op": "replace_mission_line",
+     "mission": 448,
+     "old": "u,3,10,22,1",
+     "new": "u,3,0,22,1"
+    },
+    {
+     "op": "override_custom_param",
+     "mission": 448,
+     "override": 13,
+     "key": "EventTabIcon",
+     "value_texture": "/MENUZ/SPECIAL_EVENT/TAB_HALLOWEEN.PNG"
+    }
+   ],
+   "reason": "Seven years (2557 days: 2020 and 2024 are leap years) keep the weekdays and the time of day. 448 also needs item 22/1 >= 10 (unknown counter; 0 for the developer's veteran save, so the event never starts): drop that condition."
+  },
+  {
+   "id": "halloween-heat-icon",
+   "group": "halloween-heat",
+   "pack": "data/TrialsMobile/TrialsTexturesDL_special_event.dat",
+   "textures": true,
+   "edits": [
+    {
+     "op": "event_tab_icon",
+     "name": "/MENUZ/SPECIAL_EVENT/TAB_HALLOWEEN.PNG",
+     "disc": "d32385fe",
+     "art": "ceedfafa",
+     "scale": 0.86
+    }
+   ],
+   "reason": "Made from the player's own pack at build time: the holly button (/MENUZ/ICON/SPECIAL_EVENT_MAP_BUTTON.PNG, d32385fe) with the holly removed and the pack's jack-o'-lantern with bats (ceedfafa) on top."
+  }
+ ]
+}
