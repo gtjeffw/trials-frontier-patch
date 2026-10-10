@@ -911,3 +911,8 @@ later an in-app loopback server). Static analysis only.
   Removed: SSH key discovery/creation, the .sig file, `check --verify`, `--sign-key`, the local git repository in
   the bundle folder. Dry run of the developer's bundle: 502 files in 2 commits; parity test PASS; verify rejects a
   repository with someone else's commits.
+- Conflicting claims to one rider: the first published wins, by GitHub's repository creation time (recorded at
+  sync as `published`), no longer the self-reported manifest date; the winning account's other bundles of that
+  rider are merged; other accounts' claims are ignored and listed. Tested with three local bundles (faked status:
+  alice newer, bob older, bob's second repo with a better time): bob's two merged, alice ignored. Decided with the
+  user: the community cache keeps no .git (bundles are trusted at sync; a future server can keep full clones).

@@ -201,8 +201,9 @@ def sync_bundle(s, dest):
         if not publisher:
             raise gb.BundleError("the manifest names no publisher")
         signed_by = gb.verify_repo(s["repo"], publisher, commit)
+    published = gb.github_get(f"repos/{s['repo']}").get("created_at") if s.get("repo") else None
     return {"commit": commit, "fetched": now(), "signed_by": signed_by, "rider": m["rider"]["name"],
-            "game_hash": m["rider"]["game_hash"], "created": m["created"]}
+            "game_hash": m["rider"]["game_hash"], "created": m["created"], "published": published}
 
 
 def sync_wr(s, dest):
@@ -317,8 +318,11 @@ def cmd_build(out=None):
             if s["type"] == "bundle":
                 m = gb.check(folder)  # the cache is checked again: it is only a folder on disk
                 h = m["rider"]["game_hash"]
+                # who claims a rider: verified publishers first, then the earliest published (GitHub's own creation
+                # time of the repository, which the publisher cannot set; local folders only by their manifest date)
                 claims.setdefault(m["rider"]["profile_sha256"], []).append(
-                    ((not st.get("signed_by"), m["created"], s["id"]), s["id"], m, folder))
+                    ((not st.get("signed_by"), st.get("published") or "9999", m["created"], s["id"]), s["id"], m,
+                     folder, st.get("signed_by")))
                 for o in m.get("others", []):
                     for g in o["ghosts"]:
                         mentions.setdefault(o["game_hash"], []).append((s["id"], g, folder, o.get("name")))
@@ -348,19 +352,26 @@ def cmd_build(out=None):
     claimed_by_hash = {}
     for sha in sorted(claims):
         cl = sorted(claims[sha], key=lambda c: c[0])
-        _, sid, m, folder = cl[0]  # verified first, then the earliest bundle
-        if len(cl) > 1:
-            conflicts.append({"profile_sha256": sha, "used": sid, "also_claimed_by": [c[1] for c in cl[1:]]})
+        _, sid, m, folder, owner = cl[0]   # verified first, then the first published
+        # the winner's own other bundles of the same rider are merged (best per leaderboard); other accounts' claims
+        # are ignored and listed as conflicts
+        mine = [c for c in cl if c is cl[0] or (owner and c[4] == owner)]
+        rejected = [c[1] for c in cl if c not in mine]
+        if rejected:
+            conflicts.append({"profile_sha256": sha, "used": [c[1] for c in mine], "also_claimed_by": rejected,
+                              "rule": "first published (GitHub's repository creation time) wins"})
         h = m["rider"]["game_hash"]
         rid = claimed_id(sha)
         claimed_by_hash.setdefault(h, []).append(rid)
         riders[rid] = {"name": m["rider"]["name"], "game_hash": h, "profile_sha256": sha, "source": sid}
         if "avatar" in m["rider"]:
             riders[rid]["avatar"] = os.path.join(folder, m["rider"]["avatar"]["file"])
-        for e in m["results"]:
-            put_result(rid, e["leaderboard"], result_entry(e["faults"], e["time_ms"], e.get("bike") or 0, "community " + sid))
-        for g in m["ghosts"]:
-            offer(rid, g, folder, sid)
+        for _, csid, cm, cfolder, _ in mine:
+            for e in cm["results"]:
+                put_result(rid, e["leaderboard"], result_entry(e["faults"], e["time_ms"], e.get("bike") or 0,
+                                                               "community " + csid))
+            for g in cm["ghosts"]:
+                offer(rid, g, cfolder, csid)
     for h, ids in sorted(claimed_by_hash.items()):
         if len(ids) > 1:
             conflicts.append({"game_hash": h, "riders": sorted(ids), "note": "32-bit hash shared by different riders; "

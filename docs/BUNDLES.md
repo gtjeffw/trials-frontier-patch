@@ -126,8 +126,13 @@ ghosts/<content id>.bin, avatars/<rider id>.png
 Rider ids: a bundle's own rider `uuid5(URL, "trials-frontier-rider:" + profile_sha256)`, riders known only by hash
 the server's own id for them (`uuid5(URL, "trials-frontier-robot:" + hash)`), world-record riders
 `uuid5(URL, "trialstrackmap-rider:" + name)`; content ids start at 1000000000. When one profile is claimed by
-several bundles, the signed and then the earliest one wins; that and hashes shared by different claimed riders are
-listed in `conflicts`. Names from `others` only fill in riders nobody claimed.
+several bundles: verified publishers first, then the **first published** wins, by GitHub's own creation time of the
+repository (recorded at sync; the publisher cannot set it, unlike the manifest's `created`). Further bundles of
+the same rider by the winning account are merged (best per leaderboard); claims by other accounts are ignored and
+listed in `conflicts`, as are hashes shared by different claimed riders. Copying someone's published bundle under
+another account therefore never wins; a rider who never publishes could be claimed first by someone who knows
+their profile id (old saves hold some opponents' ids), which only evidence such as the player's own save, checked
+by a future server, could settle. Names from `others` only fill in riders nobody claimed.
 
 `install` copies the layer to `Documents/LocalServices/community` (game closed); `build.py --community` builds one
 into the app (used when the data has none: iPhone/iPad). Both servers overlay it when the store loads: riders merge
