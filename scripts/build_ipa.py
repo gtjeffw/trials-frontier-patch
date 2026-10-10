@@ -64,7 +64,10 @@ if spec_path:
 
     for pp in spec.get("plist_patches", []):
         if wanted(pp["group"]):
-            plist_edits.setdefault(pp["file"], {}).update(pp["set"])
+            edits = plist_edits.setdefault(pp["file"], {})
+            edits.update(pp.get("set", {}))
+            for key in pp.get("remove", []):
+                edits[key] = None  # None = remove the key
     for cp in spec.get("content_patches", []):
         if wanted(cp["group"]):
             content_patches.setdefault(cp["pack"], []).append(cp)
@@ -130,7 +133,11 @@ with zipfile.ZipFile(out, "w") as z:
             add(z, arc, open(exe_path, "rb").read(), True)
         elif rel in plist_edits:
             pl = plistlib.load(open(os.path.join(app_dir, rel), "rb"))
-            pl.update(plist_edits[rel])
+            for key, value in plist_edits[rel].items():
+                if value is None:
+                    pl.pop(key, None)
+                else:
+                    pl[key] = value
             add(z, arc, plistlib.dumps(pl, fmt=plistlib.FMT_BINARY, sort_keys=True), False)
             print(f"patched {rel}: {plist_edits[rel]}")
         elif rel in extra_files:

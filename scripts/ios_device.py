@@ -9,12 +9,15 @@ Usage:
 
 <device> is a name, UDID or identifier from `devices`. <Documents dir> defaults to the PlayCover copy
 (~/Library/Containers/com.ubisoft.redlynx.trialsfrontier/Data/Documents). push-data copies player.bin, ghost_*.bin,
-robot_*.robot and LocalServices/ (the server store); close the game on the device first, or it will save over them.
+robot_*.robot and LocalServices/ (the server store) in one transfer and REPLACES the app's Documents; close the game
+on the device first, or it will save over them.
 Works for development-signed installs (scripts/sign_ios.py).
 """
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 PLAYCOVER_DOCS = os.path.expanduser("~/Library/Containers/com.ubisoft.redlynx.trialsfrontier/Data/Documents")
 
@@ -50,18 +53,22 @@ def main():
     elif cmd == "push-data":
         device, bundle = sys.argv[2:4]
         docs = sys.argv[4] if len(sys.argv) > 4 else PLAYCOVER_DOCS
-        files = []
-        for root, _, names in os.walk(docs):
-            for n in sorted(names):
-                rel = os.path.relpath(os.path.join(root, n), docs)
-                if wanted(rel) and not rel.endswith("server.log"):
-                    files.append(rel)
-        print(f"copying {len(files)} files from {docs} to {bundle} on {device}")
-        for i, rel in enumerate(files, 1):
+        stage = tempfile.mkdtemp(prefix="tf-push-")
+        try:
+            count = 0
+            for root, _, names in os.walk(docs):
+                for n in sorted(names):
+                    rel = os.path.relpath(os.path.join(root, n), docs)
+                    if wanted(rel) and not rel.endswith("server.log"):
+                        os.makedirs(os.path.dirname(os.path.join(stage, rel)), exist_ok=True)
+                        shutil.copy2(os.path.join(docs, rel), os.path.join(stage, rel))
+                        count += 1
+            print(f"copying {count} files from {docs} to {bundle} on {device} (replaces the app's Documents)")
             devicectl("device", "copy", "to", "--device", device, "--domain-type", "appDataContainer",
-                      "--domain-identifier", bundle, "--source", os.path.join(docs, rel), "--destination", "Documents/" + rel)
-            if i % 50 == 0 or i == len(files):
-                print(f"  {i}/{len(files)}")
+                      "--domain-identifier", bundle, "--source", stage, "--destination", "Documents",
+                      "--remove-existing-content", "true")
+        finally:
+            shutil.rmtree(stage, ignore_errors=True)
     elif cmd == "pull-data":
         device, bundle, dest = sys.argv[2:5]
         os.makedirs(dest, exist_ok=True)

@@ -1840,6 +1840,15 @@
         "LSSupportsOpeningDocumentsInPlace": true
       },
       "reason": "iOS has no other way for a player to copy the game's data off the device (deleting the app deletes it)."
+    },
+    {
+      "id": "no-device-thinning-list",
+      "group": "compat",
+      "file": "Info.plist",
+      "remove": [
+        "UISupportedDevices"
+      ],
+      "reason": "App Store thinning writes the model list of the device family it was downloaded for into UISupportedDevices (an iPad copy lists only iPads), and iOS refuses to install the app on anything else (MIInstallerErrorDomain 86, DeviceNotSupportedByThinning). The unthinned app has no such key and declares UIDeviceFamily [1, 2] (iPhone and iPad)."
     }
   ],
   "pack_tables": {

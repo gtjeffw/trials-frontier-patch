@@ -636,3 +636,10 @@ later an in-app loopback server). Static analysis only.
   app, verifies, writes the .app and a signed .ipa. The original bundle has no extensions/frameworks of its own.
 - `scripts/ios_device.py`: devicectl wrapper — devices, install, push-data (player.bin, ghost_*, robot_*,
   LocalServices/ from the PlayCover copy into the app's Documents), pull-data (backup), list.
+- First iPhone install refused: the iPad copy's Info.plist carries App Store thinning's `UISupportedDevices`
+  (iPad models only) → MIInstallerErrorDomain 86 DeviceNotSupportedByThinning. The unthinned app has no such key
+  (UIDeviceFamily [1, 2]); compat plist patch `no-device-thinning-list` removes it (build_ipa.py plist patches can
+  now `remove` keys). Signed with the player's free personal team (profile valid 7 days) and installed on an
+  iPhone 15 Pro (iOS 26) next to the original app.
+- `ios_device.py push-data` stages the files and copies them in one devicectl transfer (folder copies work;
+  1747 files in seconds), replacing the app's Documents.
