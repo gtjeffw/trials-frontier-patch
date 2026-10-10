@@ -271,7 +271,7 @@ def export_others(docs, out, own_hash, raw=None, track_names_=None, store=None):
     return [riders[h] for h in sorted(riders)]
 
 
-def write_text(out, m):
+def write_text(out, m, repo=None):
     r, lic = m["rider"], LICENSES[m["license"]]
     others = m.get("others")
     lines = [
@@ -285,7 +285,7 @@ def write_text(out, m):
         lines += ["", f"Published by [github.com/{m['publisher']['github']}](https://github.com/{m['publisher']['github']}), "
                   f"who states that **{r['name']}** is their own rider and these are their own runs. Every commit here "
                   "was made through GitHub by that account and signed by GitHub (shown as Verified); check it with "
-                  "`python3 -I scripts/ghost_bundle.py verify <owner>/<repository>`."]
+                  f"`python3 -I scripts/ghost_bundle.py verify {repo or '<owner>/<repository>'}`."]
     lines += [
         "",
         f"- {len(m['results'])} best times, {len(m['ghosts'])} ghosts (`ghosts/<leaderboard>.bin`, the game's own "
@@ -299,10 +299,13 @@ def write_text(out, m):
         "",
         "## Use",
         "",
-        "Race these ghosts in a patched game built with trials-frontier-patch (local services):",
+        "Race these ghosts in a game patched with trials-frontier-patch (local services): in the patch repository's "
+        "folder, with the game closed, add this bundle to your sources and update (later updates of the bundle "
+        "arrive the same way):",
         "",
         "```",
-        "python3 -I scripts/ghost_bundle.py import <this repository's URL>",
+        f"python3 -I scripts/community.py add {repo or '<owner>/<repository>'}",
+        "python3 -I scripts/community.py update",
         "```",
         "",
         "Everything is described in `trials-frontier-bundle.json`; the format is documented in the patch repository "
@@ -313,7 +316,7 @@ def write_text(out, m):
         "",
         "## Licence",
         "",
-        f"The publisher releases this data under {lic[0]} ({m['license']}, {lic[1]}). Trials Frontier itself belongs "
+        f"The publisher releases this data under [{lic[0]}]({lic[1]}) (`{m['license']}`). Trials Frontier itself belongs "
         "to Ubisoft/RedLynx; no game files are included.",
         "",
     ]
@@ -526,7 +529,7 @@ def publish(bundle):
     shutil.copytree(bundle, target, ignore=shutil.ignore_patterns(".git", EXPORT_OPTIONS, "*.sig"),
                     dirs_exist_ok=not dry)
     json.dump(m, open(os.path.join(target, MANIFEST), "w"), indent=1, ensure_ascii=False)
-    write_text(target, m)
+    write_text(target, m, full)
     check(target)
     files = {}
     for root, _, names in os.walk(target):
