@@ -88,7 +88,9 @@ config file.
 
 ## Other open items
 
-- Touch scaling per axis (float) so any window size / full screen works without the 1366×1024 PlayCover setting.
+- ~~Touch scaling for any window size / full screen~~ — works since `screen-size-from-native-bounds`: render size =
+  configured window × scaler, touches in window points, so any custom resolution with an integer scaler (2) is fine,
+  including full screen. Only a fractional scaler (e.g. 1.5) would still need per-axis float touch scaling.
 - Name the 30 June-2017 event ghosts (needs 5.2.0-era event data; not archived as far as we know).
 - Check the old iPhone X for a surviving Library/Caches/DLC (would restore lost event art via `--dlc-from`).
 - ~~Offline leaderboards / own-ghost racing~~ — done via the opt-in `local-services` group + `server/local_services.py`.

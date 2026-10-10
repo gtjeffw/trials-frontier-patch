@@ -650,3 +650,11 @@ later an in-app loopback server). Static analysis only.
   for other iOS < 17 devices the `file-sharing` option lets players drag the files in with Finder.
 - Verified on both devices: "Trials Offline" starts with the copied profile, Flower Hills renders (bundled
   packs), leaderboards and ghost racing work through the embedded server (iPhone log: login, store load, replay).
+
+## 2026-10-09 — Full screen in PlayCover
+
+- PlayTools reports the screen as the configured window size × `customScaler` (nativeBounds) regardless of the real
+  window; with `screen-size-from-native-bounds` the engine renders at that size and touches arrive in window
+  points, so touchScale = 2 for any custom resolution. Tested: custom 1920×1080 (external display's size), full
+  screen via the green button — touch, layout, keyboard joystick, races (donkey bike), leaderboards all fine.
+  The 1366×1024 requirement is gone; per-axis float touch scaling would only matter for fractional scalers.

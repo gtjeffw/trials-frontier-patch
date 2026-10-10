@@ -24,7 +24,8 @@ python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <de
 
 `build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
 packs the game only loads from its download folder placed inside the app) and hands it to PlayCover. Close the game first. Then in
-PlayCover set a custom resolution of **1366×1024** for the app and enable **Keymapping**.
+PlayCover set **Resolution: Custom** to your screen's size in points with scaling 2 (e.g. 1512×982 on a 14" MacBook
+Pro, 1920×1080 on a 1080p monitor) and enable **Keymapping**; full screen (green button) then fills the display.
 
 The patched app keeps your progress across rebuilds: PlayCover only replaces the app, not its data. To quit the game
 completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.
