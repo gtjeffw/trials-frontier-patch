@@ -120,7 +120,7 @@ iPad):
 **Check your local laws and regulations first.** In many countries, circumventing copy protection is restricted
 even for software you own (for example the US DMCA, section 1201, or the EU's Copyright Directive), with
 exceptions that differ from country to country. Whether and how you obtain an unencrypted copy is your own
-decision and responsibility. Do not share decrypted files with others.
+decision and responsibility.
 
 `build.py --decrypted <executable>` checks what you give it before patching anything: the right build (Mach-O
 UUID), not encrypted, the formerly encrypted code identical to the reference, and every patch site holding exactly
