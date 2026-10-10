@@ -689,3 +689,10 @@ later an in-app loopback server). Static analysis only.
 - `install_playcover.py --bundle-id` (and `build.py --bundle-id` passes it on): a second copy with its own data in
   PlayCover. Built "Trials Fresh" (`local.trialsfrontier.fresh`, embedded server, no options, no imported riders)
   to play the story from the start as a new player would. Only one copy at a time (both serve on port 7979).
+
+## 2026-10-09 — History cleaned, licence
+
+- `git filter-repo --replace-text`: the developer's profile name and two other players' names and id prefixes,
+  which appeared in two earlier journal commits, are replaced in every commit (58 kept); author/committer moved to
+  a GitHub noreply address. Searched all history afterwards: no names, profile ids, device ids or local paths left
+  (only the game's application id and the standard UUID namespaces). MIT licence added.

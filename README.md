@@ -123,3 +123,8 @@ Tested with PlayCover on macOS and sideloaded on an iPhone 15 Pro (iOS 26) and a
 results, downloaded opponents and optional world records; racing and uploading ghosts; avatars; coins for gems;
 hidden, orphan and developer levels reachable. Open items (a robot-challenge module, top five on
 FRIENDS, native keyboard/controller input) are in `docs/TODO.md`.
+
+## Licence
+
+MIT (see `LICENSE`) for this repository's own code and documentation. Trials Frontier and its files belong to
+Ubisoft/RedLynx and are not part of this repository or covered by this licence.

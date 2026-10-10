@@ -77,10 +77,9 @@ config file.
 
 ## Before publishing
 
-- Earlier commits of `docs/JOURNAL.md` name the developer's own profile and two other players (scrubbed from the
-  current files): rewrite history or publish from a fresh repository. Re-run a search for personal identifiers
-  (profile ids, player names, device ids, local paths) over all tracked files.
-- Choose a licence.
+- ~~History and licence~~ — done 2026-10-09: names and ids scrubbed from every commit (git filter-repo), commits
+  under a GitHub noreply address, MIT licence. Before pushing, search again for personal identifiers (profile ids,
+  player names, device ids, local paths) over all tracked files and history.
 
 ## Other open items
 
