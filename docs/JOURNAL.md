@@ -851,3 +851,12 @@ later an in-app loopback server). Static analysis only.
 - `ghidra/scripts/DecompileAll.java`: the whole program decompiled once into the private workspace
   (`ghidra/decompiled/<namespace>/<address>_<name>.c` with callers, `index.tsv`), so code questions are a grep
   instead of a headless run each.
+- Cause found (full decompile): `mz::UPlayClientIPhone::update` restarts the Playground (Uplay) authentication flow
+  whenever the network state changes; `EventHandler::onAuthenticate` takes the Playground SDK's cached
+  SessionInfo (ticket, profile id, nameOnPlatform; made at app start, i.e. before a new player has a name),
+  stores it in NSUserDefaults and calls `OnlineAuthenticationUPlay::onAuthenticationComplete` →
+  `finishLoginSequence`, which copies that nameOnPlatform into Player+0x10 without the chosen-name override of
+  `parseTicketData`. No server request is involved (none was logged between the JBuzz and the Rider race), so the
+  server cannot fix it. Patch `local-services-uplay-login-keeps-name` (0x1002e04a0: the memcpy into Player+0x10 and
+  its terminator → nop); the mobile login keeps setting the name. Recorded local-services build hashes updated;
+  the default build is unchanged (5f372089…).
