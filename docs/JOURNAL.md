@@ -869,3 +869,9 @@ later an in-app loopback server). Static analysis only.
   placeholder. Patch `local-services-results-cache-follows-name`: hash Player+0x10 instead (0x100347e94
   `add x0, x8, #0x110` → `#0x10`). The earlier Uplay patch stays (that login path would copy a stale name if it
   completes); whether it actually ran is not known, since the patch prevents the write the probe would have shown.
+- Fifth run (after the results-cache patch): confirmed fixed. Named at 10:27:06; five courses after that
+  (Pike Alley, Cave Entrance, track 100, track 1036 …) showed the chosen name on both the track panel and the Hall
+  of Fame, whose score grew with every race. Summary of the new-player name chain: server adopts the name from the
+  change-name request and never re-adopts the placeholder; the Uplay login cannot overwrite the name; the results
+  popup drops its cached boards when the name changes. Only the tutorial's first scored course is submitted
+  before the name exists (that is how the game works).
