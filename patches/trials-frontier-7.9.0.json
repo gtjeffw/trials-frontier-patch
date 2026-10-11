@@ -8,12 +8,13 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "5f372089ac8ad791434d93209fd039624b29e160524bd60d25718fa46f71466b",
+    "patched_executable": "b4e3aa176a0d3515f87a9a52813283c0bf40d7716daaecaf3ec5ce6a3330941f",
     "patched_executable_with": {
-      "local-services": "b25b1469ac70631ae433d25e3af2f965c25431b841e1ea84fd93d82898bcb9d8",
-      "local-services,open-all-levels": "a8b7154cde90e8852120b6e93d3a07c24275b06b922da81252099d2999cf46de",
-      "local-services,open-all-levels,orphan-levels": "b7e868cb25cf29ffc96be7de16953acba96607965563fc999c8934ef69aebf5b",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "fd355fc1652d7d960f5622f90c9bad05f2cbad88e9b9a1db26b7b3124fdad640"
+      "local-services": "360b66ccd095c89f53d3a732ce093b602cf4d01aec317120a89240e930cbd5c3",
+      "local-services,open-all-levels": "08d3f693ffdae1e298a76da712424e7a2707dfea378f1b3fb0ef57364d063c30",
+      "local-services,open-all-levels,orphan-levels": "bcca6637e2881beb22b57ff20fb9fe2cbed6a4b205d7699b43d4bed130750d7a",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "4723b7675109ac22691776fbfd600763e4b8fcc4329b28dff3999aaa45d6d7c0",
+      "embedded-server,local-services": "82fe11eaf38e5ecc7abd559f552db38b925baa05fba88b658393b95dc9aa3953"
     }
   },
   "encryption": {
@@ -678,6 +679,21 @@
       ],
       "function": "tr::DailyQuestManager::isOnline",
       "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here."
+    },
+    {
+      "id": "gameplay-online-MenuzStateDogHouse-pointerPressed-1",
+      "group": "offline",
+      "vmaddr": "0x100015358",
+      "original": "9d550d94",
+      "replacement": "20008052",
+      "original_asm": [
+        "bl mz::NetworkChecker::getNetworkType"
+      ],
+      "replacement_asm": [
+        "mov w0, #0x1"
+      ],
+      "function": "tr::MenuzStateDogHouse::pointerPressed",
+      "reason": "Gameplay feature that the game only enables when online (offline-mode reports no network). Treat this call site as online; no communication happens here. The doghouse (daily quest) checks the network on every tap on its buttons from 0x65 up (Accept, day buttons) and otherwise shows \"No Connection\" and ignores the tap; the daily quest logic itself (DailyQuestManager::isOnline) was already treated as online."
     },
     {
       "id": "gameplay-online-MenuzStateSlotMachine-buySpeedup-1",

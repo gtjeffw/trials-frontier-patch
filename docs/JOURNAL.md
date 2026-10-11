@@ -1115,3 +1115,15 @@ later an in-app loopback server). Static analysis only.
 - Countdown beeps checked on the way (a "missing 2" reported once): `checkCountdownSound` requests all three beeps
   (240-tick countdown, a beep each time the numeral changes) and each got a mixer channel; nothing in the game or the
   patches drops one.
+
+## 2026-10-11 — Doghouse "Accept": No Connection
+
+- New player, Trials Fresh: the doghouse (daily quest, mission 446) offered "Day 1 - Rewards" but Accept showed "No
+  Connection! Could not connect to game server". No request reached the local server: `MenuzStateDogHouse::
+  pointerPressed` checks `NetworkChecker::getNetworkType` on every tap on buttons 0x65+ and pushes the No Connection
+  popup when it reports no network, which the offline group does by design. Of 115 call sites, 68 were treated as
+  online; this one was missed (the daily quest logic, `DailyQuestManager::isOnline`, and the daily login reward were
+  covered). New offline patch `gameplay-online-MenuzStateDogHouse-pointerPressed-1` (`mov w0, #1`). The tap then needs a
+  login (authenticated with the local services, or a silent-login user), as the original did online.
+- Recorded build hashes updated (default b4e3aa17…; `embedded-server,local-services`, build.py's default, now recorded).
+  Not yet confirmed in the game: the next day's doghouse offer.
