@@ -1072,3 +1072,13 @@ later an in-app loopback server). Static analysis only.
   leaderboard 1049850 = 1274 | 0x100000 and shows in the track's crazy-bike category; the regular board (plain track
   id) and the Hall of Fame were untouched. The game also posts `playerstats/v1/stats/global_stats_crazy` (an overall
   crazy-bike score), which the local services do not handle yet (404, harmless).
+
+## 2026-10-10 — Hall of Fame for the Donkey and crazy-bike categories
+
+- `tr::LeaderboardManager::getLeaderboardName`: the overall board is `global_stats` for class 0, `global_stats_donkey`
+  for 0x10000 and `global_stats_crazy` for 0x100000 (track boards: `track<id>`; event boards `event_stats<n>`). After a
+  Donkey or crazy-bike run the game posts that category's overall score there; the local services answered 404.
+- Both servers (server/local_services.py, inapp/ TFServices) now keep all three as Hall of Fame boards: one entry per
+  player, replaced by each newer score, ranked highest first; the log says `hall of fame (crazy): …`. Parity test
+  extended (crazy and donkey posts, repeats, rankings, an unknown `global_stats_other` still 404): PASS, stores equal.
+  Checked separately that the three boards stay apart.

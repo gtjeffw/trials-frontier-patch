@@ -102,7 +102,7 @@ With `local-services` the game logs in silently, fetches its configuration and t
   downloaded (`robot_ghost-*.robot`, `robot_image-*.robot`).
 - Results are kept best-only (fewer faults, then less time); the game uploads a ghost only for a new best, and the
   server keeps one ghost per player and leaderboard. The Hall of Fame (overall score the game sends after every
-  race) is one entry per player, replaced by each newer score.
+  race) is one entry per player, replaced by each newer score; Donkey and crazy-bike runs have their own Hall of Fame.
 - Riders without a picture (new players, world-record holders, most downloaded opponents) get a generated
   pixel-art helmet in their own colours (shape, colours and pattern from their id; `server/avatars.py`).
 - Requests with no local equivalent (gifts, PvP, weekly challenges, store targeting) are answered "nothing here".

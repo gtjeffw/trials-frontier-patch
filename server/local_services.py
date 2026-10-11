@@ -24,7 +24,8 @@ original service, a submitted result (resultservice/v1/enhancestats/...) is "upd
 one (fewer faults, then less time); the game uploads a ghost only after such a reply, and the store keeps one ghost
 per player and leaderboard, refusing a slower one. The Hall of Fame (POST playerstats/v1/stats/global_stats after
 every race, the overall score the game computes from its best times; shown as global_score x 100000) is one entry
-per player in the "global_stats" board, replaced by each newer score and ranked highest first.
+per player in the "global_stats" board, replaced by each newer score and ranked highest first; the Donkey and crazy-bike
+categories have their own (global_stats_donkey, global_stats_crazy; tr::LeaderboardManager::getLeaderboardName).
 
 Other riders: opponent ghosts the game downloaded (Documents/robot_ghost-*.robot, avatars robot_image-*.robot) are
 imported once. More come from a community layer (scripts/community.py: ghost bundles, the 2019 world records):
@@ -79,6 +80,8 @@ def game_hash(s):
 
 COMMUNITY_FORMAT, COMMUNITY_VERSION, COMMUNITY_BASE = "trials-frontier-community", 1, 1_000_000_000
 GLOBAL_BOARD = "global_stats"  # the Hall of Fame (overall score), not a track
+# One Hall of Fame per score category: regular, Donkey (leaderboard class 0x10000), crazy bikes (0x100000)
+GLOBAL_BOARDS = (GLOBAL_BOARD, GLOBAL_BOARD + "_donkey", GLOBAL_BOARD + "_crazy")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
@@ -492,7 +495,7 @@ class Services:
         return {}
 
     def leaderboard(self, name, query):
-        if name == GLOBAL_BOARD:  # Hall of Fame: highest overall score first
+        if name in GLOBAL_BOARDS:  # Hall of Fame: highest overall score first
             order = lambda kv: (-float(kv[1].get("global_score", 0)), kv[0])
         else:
             order = lambda kv: ((kv[1]["data"] & 0xFF), kv[1]["drivetime"], kv[0])
@@ -529,10 +532,11 @@ class Services:
                   + ("NEW BEST" if improved else f"not better than {old['data'] & 0xFF}F {old['drivetime']} ms"))
         return improved
 
-    def submit_global(self, update):
+    def submit_global(self, update, name=GLOBAL_BOARD):
         """Hall of Fame: the overall score the game computes from all its best times and sends after every race
         (POST playerstats/v1/stats/global_stats; shown as global_score x 100000). One entry per player in the
-        "global_stats" board, replaced by each newer value: an aggregate, not a copy of the track results."""
+        "global_stats" board, replaced by each newer value: an aggregate, not a copy of the track results. Donkey
+        and crazy-bike runs send their own category's score to global_stats_donkey / global_stats_crazy."""
         st = update.get("stats", update)
         try:
             score = float(st.get("global_score"))
@@ -540,13 +544,14 @@ class Services:
             return False
         new = {"global_score": score, **{k: st.get(k, 0) for k in ("data", "drivetime", "upgrades", "submittime")}}
         with self.lock:
-            board = self.store["results"].setdefault(GLOBAL_BOARD, {})
+            board = self.store["results"].setdefault(name, {})
             old = board.get(self.profile_id)
             changed = old is None or old.get("global_score") != score
             if changed:
                 board[self.profile_id] = new
                 self.save_store()
-        self.note(f"   hall of fame: {int(score * 100000):,}" + ("" if changed else " (unchanged)"))
+        label = "" if name == GLOBAL_BOARD else f" ({name[len(GLOBAL_BOARD) + 1:]})"
+        self.note(f"   hall of fame{label}: {int(score * 100000):,}" + ("" if changed else " (unchanged)"))
         return changed
 
     def parse_updates(self, body):
@@ -762,8 +767,9 @@ class Services:
         m = re.fullmatch(r"/public/playerstats/v1/stats/([^/]+)", p)
         if method == "GET" and m:
             return 200, {}, {"statboard": m.group(1), "results": self.leaderboard(m.group(1), query)["results"]}
-        if method == "POST" and p == "/public/playerstats/v1/stats/" + GLOBAL_BOARD:
-            changed = any([self.submit_global(up) for up in self.parse_updates(body)])
+        m = re.fullmatch(r"/public/playerstats/v1/stats/([^/]+)", p)
+        if method == "POST" and m and m.group(1) in GLOBAL_BOARDS:
+            changed = any([self.submit_global(up, m.group(1)) for up in self.parse_updates(body)])
             return 200, {}, {"result": {"updated": 1 if changed else 0}}
         m = re.fullmatch(r"/public/resultservice/v1/enhancestats/([^/]+)", p)
         if method == "POST" and m and m.group(1) == "batch_update":

@@ -7,6 +7,10 @@ static NSString *const kSandbox = @"triag_ip_lnch61_a_ws";
 static NSString *const kCommunityFormat = @"trials-frontier-community";
 static const NSInteger kCommunityBase = 1000000000;  // content ids of community ghosts
 static NSString *const kGlobalBoard = @"global_stats";  // the Hall of Fame (overall score), not a track
+// One Hall of Fame per score category: regular, Donkey (leaderboard class 0x10000), crazy bikes (0x100000)
+static BOOL isHallOfFame(NSString *name) {
+    return [@[kGlobalBoard, @"global_stats_donkey", @"global_stats_crazy"] containsObject:name];
+}
 
 static NSInteger I(id v) { return [v respondsToSelector:@selector(longLongValue)] ? (NSInteger)[v longLongValue] : 0; }
 
@@ -455,7 +459,7 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     [_lock lock];
     NSDictionary *board = [[self board:name] copy];
     [_lock unlock];
-    BOOL hallOfFame = [name isEqualToString:kGlobalBoard];  // highest overall score first
+    BOOL hallOfFame = isHallOfFame(name);  // highest overall score first
     NSArray *pids = [board.allKeys sortedArrayUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
         if (hallOfFame) {
             double ga = [board[a][@"global_score"] doubleValue], gb = [board[b][@"global_score"] doubleValue];
@@ -518,15 +522,16 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
 
 /// Hall of Fame: the overall score the game computes from all its best times and sends after every race (POST
 /// playerstats/v1/stats/global_stats; shown as global_score x 100000). One entry per player in the "global_stats"
-/// board, replaced by each newer value: an aggregate, not a copy of the track results.
-- (BOOL)submitGlobal:(NSDictionary *)update {
+/// board, replaced by each newer value: an aggregate, not a copy of the track results. Donkey and crazy-bike runs
+/// send their own category's score to global_stats_donkey / global_stats_crazy.
+- (BOOL)submitGlobal:(NSDictionary *)update board:(NSString *)name {
     NSDictionary *st = [update[@"stats"] isKindOfClass:NSDictionary.class] ? update[@"stats"] : update;
     if (![st[@"global_score"] isKindOfClass:NSNumber.class]) return NO;
     double score = [st[@"global_score"] doubleValue];
     NSMutableDictionary *new = [@{@"global_score": @(score)} mutableCopy];
     for (NSString *k in @[@"data", @"drivetime", @"upgrades", @"submittime"]) new[k] = st[k] ?: @0;
     [_lock lock];
-    NSMutableDictionary *board = _store[@"results"][kGlobalBoard] ?: (_store[@"results"][kGlobalBoard] = [NSMutableDictionary dictionary]);
+    NSMutableDictionary *board = _store[@"results"][name] ?: (_store[@"results"][name] = [NSMutableDictionary dictionary]);
     NSDictionary *old = board[_profileId];
     BOOL changed = !old || [old[@"global_score"] doubleValue] != score;
     if (changed) {
@@ -539,7 +544,9 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     f.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
     f.usesGroupingSeparator = YES;
     f.groupingSize = 3;
-    [self note:[NSString stringWithFormat:@"   hall of fame: %@%@", [f stringFromNumber:@((long long)(score * 100000))],
+    NSString *label = [name isEqualToString:kGlobalBoard] ? @""
+                      : [NSString stringWithFormat:@" (%@)", [name substringFromIndex:kGlobalBoard.length + 1]];
+    [self note:[NSString stringWithFormat:@"   hall of fame%@: %@%@", label, [f stringFromNumber:@((long long)(score * 100000))],
                 changed ? @"" : @" (unchanged)"]];
     return changed;
 }
@@ -722,10 +729,10 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
     [r route:@"GET" path:@"/public/playerstats/v1/stats/([^/]+)" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         return [TFResponse json:@{@"statboard": c[0], @"results": [w leaderboard:c[0] request:q][@"results"]}];
     }];
-    [r route:@"POST" path:@"/public/playerstats/v1/stats/global_stats" handler:^TFResponse *(TFRequest *q, NSArray *c) {
+    [r route:@"POST" path:@"/public/playerstats/v1/stats/(global_stats(?:_donkey|_crazy)?)" handler:^TFResponse *(TFRequest *q, NSArray *c) {
         BOOL changed = NO;
         for (NSDictionary *up in [w parseUpdates:q.body])
-            if ([up isKindOfClass:NSDictionary.class]) changed |= [w submitGlobal:up];
+            if ([up isKindOfClass:NSDictionary.class]) changed |= [w submitGlobal:up board:c[0]];
         return [TFResponse json:@{@"result": @{@"updated": changed ? @1 : @0}}];
     }];
     [r route:@"POST" path:@"/public/resultservice/v1/enhancestats/batch_update" handler:^TFResponse *(TFRequest *q, NSArray *c) {
