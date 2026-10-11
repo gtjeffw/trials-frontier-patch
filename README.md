@@ -74,7 +74,7 @@ the silent switch.
 | `--with coins-for-gems` | coin packs (App Store only) become gem-priced shop items, priced like the gem pack of the same tier |
 | `--with unlock-bikes` | unlocks the regular tier 1–3 bikes (Armadillo … Phantom, Bandito); upgrade them in the game |
 | `--with unlock-legendary-bikes` | unlocks the legendary bikes: KTM 500 EXC, KTM 450 RALLY, BMW F800 GS, HD, HD EV |
-| `--with unlock-special-bikes` | unlocks the special bikes: Stallion (horse), BMW, Moonrover (jetpack), Donkey |
+| `--with unlock-special-bikes` | unlocks the special bikes: Stallion (horse), BMW, Moonrover (jetpack; choose it for a level on the map, its garage card stays empty), Donkey; they have their own leaderboards |
 | `--with open-all-levels` | the game's own developer switch reveals every level on the map (event, X-Games, Bunker tracks …) |
 | `--with orphan-levels` | gives the six levels without a map position a place in the main map's fogged east (PvP tracks keep "any bike") |
 | `--with dev-levels` | names and places six unfinished developer test levels that ship with the game |

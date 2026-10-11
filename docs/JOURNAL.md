@@ -1064,5 +1064,8 @@ later an in-app loopback server). Static analysis only.
   ids 13/14/16/17/18 as a mask), else runs the replaced instruction, so any combination works. Default build unchanged.
 - Tested on a copy of the developer's save with regular + special: Bandito (6/20 parts), BMW (16/50), Stallion (1/50)
   appeared in the garage, the save then had 1000 parts and level 0 upgrades for them and for Moonrover; BMW F800 GS
-  (4/50), HD and HD EV stayed locked; owned bikes kept 10/10/10/10. Moonrover never shows in the garage (no
-  `BikeType`; `MenuzStateGarage::setupAvailableBikes` skips bikes with type -1).
+  (4/50), HD and HD EV stayed locked; owned bikes kept 10/10/10/10.
+- Moonrover (upgrade data name PASILA; the jetpack rover of the July 2019 moon event, missions 463/464, whose own
+  tracks 503/504 are not in 7.9.0) works with `unlock-special-bikes`: selectable for levels on the map and rideable
+  (`CrazyFunc` jetpackthrust). Its garage card is empty (no garage art, no upgrade parts). Results go to the special
+  leaderboard 5 (crazy bikes, with Stallion and BMW) per the bike data; not yet seen in a submitted result.
