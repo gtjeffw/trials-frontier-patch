@@ -79,7 +79,9 @@ config file.
 - **Seasonal events — set aside 2026-10-10, not in the release.** Events can come back: Halloween Heat (2019) ran
   in a test copy (event start, rolled tracks, hidden item, Count Dracuul, per-event button icon). Everything known,
   the open problems (item 22/1 condition, veterans' completed missions, yearly repeats, untested rewards, 2015-era
-  panels that 7.9.0 no longer builds) and a reference spec fragment: [EVENTS.md](EVENTS.md).
+  panels that 7.9.0 no longer builds) and a reference spec fragment: [EVENTS.md](EVENTS.md). Also there: the moon
+  event "Giant Leaps!" (2019) and the holiday decorations: the art ships, the event downloads (re-themed or
+  decorated track versions, event configs) are gone. Left for whoever wants to take it on.
 - ~~**Hall of Fame (overall ranking)**~~ — done 2026-10-10 (see the journal). Was: handle `POST playerstats/v1/stats/global_stats` (after every race:
   {data, drivetime, global_score, upgrades, submittime}) and serve `ranking/global_stats` from it; the displayed
   value (e.g. 1,058,226 for global_score 14.68) needs its conversion decoded. Would give every player a working Hall

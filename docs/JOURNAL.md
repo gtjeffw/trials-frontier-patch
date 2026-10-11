@@ -1082,3 +1082,12 @@ later an in-app loopback server). Static analysis only.
   player, replaced by each newer score, ranked highest first; the log says `hall of fame (crazy): …`. Parity test
   extended (crazy and donkey posts, repeats, rankings, an unknown `global_stats_other` still 404): PASS, stores equal.
   Checked separately that the three boards stay apart.
+
+## 2026-10-11 — Moon event and holiday decorations researched; left as documentation
+
+- The moon event is "Giant Leaps!" (2019-07-18..08-12, game 7.2.x): Professor Looney, the Moon Rover, Helium-3 ore,
+  three desert tracks every 6 hours. Videos show ordinary desert tracks in the moon environment; 464's 503/504 are
+  tutorial ids, not levels. A level's environment is read only from its own file, so the event most likely shipped
+  moon versions of desert level files in its download (gone with Ubisoft's S3 buckets; no public copy found).
+- All holiday decoration objects (Halloween, Christmas, Easter eggs, event pickups) ship in 7.9.0's object sets.
+- Decision: holiday events stay out of the project; everything is recorded in docs/EVENTS.md for whoever takes it on.
