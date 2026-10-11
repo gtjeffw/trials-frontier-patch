@@ -1067,5 +1067,8 @@ later an in-app loopback server). Static analysis only.
   (4/50), HD and HD EV stayed locked; owned bikes kept 10/10/10/10.
 - Moonrover (upgrade data name PASILA; the jetpack rover of the July 2019 moon event, missions 463/464, whose own
   tracks 503/504 are not in 7.9.0) works with `unlock-special-bikes`: selectable for levels on the map and rideable
-  (`CrazyFunc` jetpackthrust). Its garage card is empty (no garage art, no upgrade parts). Results go to the special
-  leaderboard 5 (crazy bikes, with Stallion and BMW) per the bike data; not yet seen in a submitted result.
+  (`CrazyFunc` jetpackthrust). Its garage card is empty (no garage art, no upgrade parts). Results go to the
+  crazy-bike boards (special leaderboard 5, with Stallion and BMW), confirmed: a Dark Sands run was submitted as
+  leaderboard 1049850 = 1274 | 0x100000 and shows in the track's crazy-bike category; the regular board (plain track
+  id) and the Hall of Fame were untouched. The game also posts `playerstats/v1/stats/global_stats_crazy` (an overall
+  crazy-bike score), which the local services do not handle yet (404, harmless).
