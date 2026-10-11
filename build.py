@@ -21,8 +21,9 @@ Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.
                                  (local-services + embedded-server);
             external = local-services only; run server/local_services.py (or tfserver) yourself, e.g. for development;
             none     = no local services (everything online stays off).
---with:     optional extras: coins-for-gems, open-all-levels, orphan-levels, dev-levels, file-sharing (see README).
---community: build a community layer into the app (other riders' bundles, optional 2019 world records; see
+--with:     optional extras: coins-for-gems, unlock-bikes, unlock-legendary-bikes, unlock-special-bikes,
+            open-all-levels, orphan-levels, dev-levels, file-sharing (see README).
+--community: build a community layer into the app (other riders' bundles, the 2019 world records; see
             scripts/community.py): the given layer folder, or the one `community.py update` made. Used when the
             game's data has no installed layer (`community.py install`, the way to update it later).
 --bundle-id / --display-name: a second copy next to the original app, with its own data: on iPhone/iPad (then sign

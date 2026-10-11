@@ -1091,3 +1091,12 @@ later an in-app loopback server). Static analysis only.
   moon versions of desert level files in its download (gone with Ubisoft's S3 buckets; no public copy found).
 - All holiday decoration objects (Halloween, Christmas, Easter eggs, event pickups) ship in 7.9.0's object sets.
 - Decision: holiday events stay out of the project; everything is recorded in docs/EVENTS.md for whoever takes it on.
+
+## 2026-10-11 — Other riders by default; release run
+
+- The 2019 world records are now on by default (community/sources.json), next to the developer's published bundle
+  (113 own ghosts and 383 downloaded opponents' ghosts). The README's quick start builds them into the app
+  (`community.py sync`, `build`, then `build.py --community`).
+- Checked from an empty community folder: sync fetched the GitHub bundle (signed by GitHub for its publisher) and the
+  pinned world records; layer: 2 sources, 502 riders, 2765 results, 498 ghosts. Trials Fresh wiped (moved to the
+  Trash) and rebuilt with defaults only plus that layer, for a long new-player run before the public release.

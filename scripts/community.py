@@ -5,7 +5,7 @@ Usage:
   python3 -I community.py list
   python3 -I community.py add <owner/repo | https://github.com/owner/repo | local bundle folder> [--unsigned-ok]
   python3 -I community.py remove <id>
-  python3 -I community.py enable|disable <id>          e.g. enable world-records-2019
+  python3 -I community.py enable|disable <id>          e.g. disable world-records-2019
   python3 -I community.py discover [--add]             published bundles (GitHub topic) not in your list yet
   python3 -I community.py sync                         fetch or update every enabled source into the cache
   python3 -I community.py build                        consolidate the cache into the community layer
@@ -14,7 +14,7 @@ Usage:
   python3 -I community.py status
 
 Sources: the defaults in community/sources.json of this repository (the patch author's bundle; the 2019 world
-records, disabled until you enable them), plus your own list, which can add sources and override the defaults
+records, on unless you disable them), plus your own list, which can add sources and override the defaults
 by id. A bundle from GitHub must be its publisher's: every commit made through GitHub by the account its manifest
 names (signed by GitHub; ghost_bundle.py publish does that). Local folders, and sources added with --unsigned-ok,
 are not checked that way.

@@ -128,7 +128,7 @@ incompatible gets a new `format_version`.
 ## Community layer (what the game reads)
 
 `scripts/community.py` keeps a list of sources (defaults in `community/sources.json`: the patch author's bundle,
-and the 2019 world records from dutscher/trialstrackmap, pinned commit and sha256, disabled until enabled; plus
+and the 2019 world records from dutscher/trialstrackmap, pinned commit and sha256, on by default; plus
 your own additions), fetches them into a cache (`sync`: only a newer copy that passes every check replaces the
 cached one; failures keep the last good copy), and `build`s a layer from scratch, so revisions and removals in a
 source show up:

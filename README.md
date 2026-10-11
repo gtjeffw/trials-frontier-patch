@@ -17,7 +17,7 @@ a patched app that:
   the Files app for easy copying and editing;
 - works fully offline, with ads, tracking and every connection to Ubisoft/RedLynx switched off;
 - replaces Ubisoft's shut-down servers with an internal server, so leaderboards and ghost races work again;
-- races other riders: your downloaded opponents, other players' published ghost bundles, and optionally the 2019
+- races other riders: your downloaded opponents, other players' published ghost bundles, and the 2019
   world records; new players get a working game too;
 - optionally: buy coins with gems, unlock every bike, open every level that can no longer be unlocked, and more
   (see *Options*).
@@ -37,10 +37,14 @@ theirs. If you hold rights in the game and have concerns about this project, ple
 ## Quick start (PlayCover on an Apple-silicon Mac)
 
 ```
-python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <unencrypted TrialsFrontier> --install --keymap
+python3 -I scripts/community.py sync
+python3 -I scripts/community.py build
+python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <unencrypted TrialsFrontier> --community --install --keymap
 ```
 
-`build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
+The first two lines fetch and check the other riders (see *Other riders*: published ghost bundles and the 2019 world
+records) so that `--community` builds them into the app; leave them and `--community` out for a game with only your
+own riders. `build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
 packs the game only loads from its download folder placed inside the app) and hands it to PlayCover. Close the game first. Then in
 PlayCover set **Resolution: Custom** to your screen's size in points with scaling 2 (e.g. 1512×982 on a 14" MacBook
 Pro, 1920×1080 on a 1080p monitor) and enable **Keymapping**; full screen (green button) then fills the display.
@@ -154,7 +158,7 @@ python3 -I scripts/ghost_bundle.py update <bundle dir> [--documents <iPhone/iPad
 
 ## Other riders
 
-`scripts/community.py` brings other riders' bundles (and, optionally, the 2019 world records from
+`scripts/community.py` brings other riders' bundles (and the 2019 world records from
 [dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap), MIT) into your game: a list of sources,
 fetched and checked into a local cache, merged into a *community layer* the local server reads. Your own results
 are never changed by it, and running `update` again picks up new and revised bundles.
@@ -165,7 +169,7 @@ honour every source's licence: `community.py build` prints them and writes `NOTI
 (`docs/BUNDLES.md`, *Licences*).
 
 ```
-python3 -I scripts/community.py enable world-records-2019      # optional
+python3 -I scripts/community.py disable world-records-2019     # if you don't want them (on by default)
 python3 -I scripts/community.py add <owner>/<repo>             # any published bundle; `discover` lists them
 python3 -I scripts/community.py update                         # fetch, check, build, install (game closed)
 ```
@@ -195,7 +199,7 @@ python3 -I scripts/community.py update                         # fetch, check, b
 
 Tested with PlayCover on macOS and sideloaded on an iPhone 15 Pro (iOS 26) and an iPad Air 2 (iOS 15): the whole game
 plays offline with keyboard controls, for a restored profile and for a brand-new player (tutorial, naming, story);
-leaderboards and the Hall of Fame with your own results, downloaded opponents, published bundles and optional world
+leaderboards and the Hall of Fame with your own results, downloaded opponents, published bundles and the world
 records; racing and uploading ghosts; A.N.B.A.'s live opponents; avatars (generated helmets for riders without one);
 coins for gems; hidden, orphan and developer levels. Publishing a bundle and fetching it from GitHub work end to
 end. Open items (PvP duels, top five on FRIENDS, event tracks, native keyboard/controller input, a guide for players

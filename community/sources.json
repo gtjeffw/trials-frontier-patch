@@ -22,8 +22,8 @@
    },
    "attribution": "Copyright (c) 2015 willy woitas, trialstrackmap.sb-f.de (MIT)",
    "license": "MIT",
-   "enabled": false,
-   "note": "world records of December 2019 from the community track map (times only, no ghosts); optional"
+   "enabled": true,
+   "note": "world records of December 2019 from the community track map (times only, no ghosts); disable with community.py disable world-records-2019"
   }
  ]
 }
