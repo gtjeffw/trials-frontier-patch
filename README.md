@@ -46,8 +46,12 @@ The first two lines fetch and check the other riders (see *Other riders*: publis
 records) so that `--community` builds them into the app; leave them and `--community` out for a game with only your
 own riders. `build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
 packs the game only loads from its download folder placed inside the app) and hands it to PlayCover. Close the game first. Then in
-PlayCover set **Resolution: Custom** to your screen's size in points with scaling 2 (e.g. 1512×982 on a 14" MacBook
-Pro, 1920×1080 on a 1080p monitor) and enable **Keymapping**; full screen (green button) then fills the display.
+PlayCover set **Resolution: Custom** to your screen's size in points, with scaling 2 on a Retina screen (e.g.
+1512×982 on a 14" MacBook Pro) and 1 on a regular external monitor (e.g. 1920×1080 on a 1080p monitor; scaling 2
+there renders at 4K for nothing), and enable **Keymapping**; full screen (green button) then fills the display.
+With two displays, play on the **main** display (System Settings → Displays → "Use as main display"): the game
+paces its frames by the main display, and on another one with a different refresh rate (e.g. a 60 Hz monitor next
+to a 120 Hz MacBook screen) motion judders although the game keeps a steady 60 fps.
 
 The patched app keeps your progress across rebuilds: PlayCover only replaces the app, not its data. To quit the game
 completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.

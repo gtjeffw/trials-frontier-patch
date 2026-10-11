@@ -1100,3 +1100,18 @@ later an in-app loopback server). Static analysis only.
 - Checked from an empty community folder: sync fetched the GitHub bundle (signed by GitHub for its publisher) and the
   pinned world records; layer: 2 sources, 502 riders, 2765 results, 498 ghosts. Trials Fresh wiped (moved to the
   Trash) and rebuilt with defaults only plus that layer, for a long new-player run before the public release.
+
+## 2026-10-11 — Frame-rate survey: judder came from a second display
+
+- A read-only probe timed every `-[AppTemplateViewController drawFrame]` during races (race state 0) and counted
+  texture uploads (`TEXTURE_HW::uploadToHW`), evictions (`TextureManager::deallocate`) and sound sample loads
+  (`SfxSampleManager::loadSample`) per frame. 18 race segments, ~7000 frames on PlayCover: 16.67 ms per frame with 4
+  exceptions (one missed refresh each, 0.1–0.4 ms of work, no loads); no evictions or sample loads during any race.
+  The game advances one fixed step per displayed frame (a late frame is slow motion, not a skip), but it is not late.
+- The visible judder was presentation: the window was on a 60 Hz external monitor while the main display is the
+  MacBook's 120 Hz ProMotion panel, whose clock paces the app. Moving the game to the main display removed it.
+  README: play on the main display; PlayCover scaling 1 on non-Retina monitors. A "preload before the race" patch
+  (textures and samples) was considered and is not needed.
+- Countdown beeps checked on the way (a "missing 2" reported once): `checkCountdownSound` requests all three beeps
+  (240-tick countdown, a beep each time the numeral changes) and each got a mixer channel; nothing in the game or the
+  patches drops one.
