@@ -39,13 +39,18 @@ theirs. If you hold rights in the game and have concerns about this project, ple
 ```
 python3 -I scripts/community.py sync
 python3 -I scripts/community.py build
-python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <unencrypted TrialsFrontier> --community --install --keymap
+python3 -I build.py --app <TrialsFrontier.app> --work <work dir> --decrypted <unencrypted TrialsFrontier> \
+    --with coins-for-gems --community --install --keymap
 ```
 
 The first two lines fetch and check the other riders (see *Other riders*: published ghost bundles and the 2019 world
 records) so that `--community` builds them into the app; leave them and `--community` out for a game with only your
-own riders. `build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
-packs the game only loads from its download folder placed inside the app) and hands it to PlayCover. Close the game first. Then in
+own riders. `--with coins-for-gems` makes the coin packs gem-priced shop items (without it they are App Store
+purchases that only show a login message); see *Options* for more.
+
+`build.py` patches the executable, builds the in-app server (needs Xcode), packages a reproducible `.ipa` (with the
+packs the game only loads from its download folder placed inside the app) and hands it to PlayCover. Close the game
+first. Then in
 PlayCover set **Resolution: Custom** to your screen's size in points, with scaling 2 on a Retina screen (e.g.
 1512×982 on a 14" MacBook Pro) and 1 on a regular external monitor (e.g. 1920×1080 on a 1080p monitor; scaling 2
 there renders at 4K for nothing), and enable **Keymapping**; full screen (green button) then fills the display.
@@ -60,7 +65,7 @@ completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.
 
 ```
 python3 -I build.py --app <TrialsFrontier.app> --work <work> --decrypted <executable> \
-    --with file-sharing --bundle-id com.<you>.trialsfrontier --display-name "Trials Offline"
+    --with file-sharing,coins-for-gems --bundle-id com.<you>.trialsfrontier --display-name "Trials Offline"
 python3 -I scripts/sign_ios.py <work>/TrialsFrontier-7.9.0-patched.ipa <work>/signed
 python3 -I scripts/ios_device.py install <device> <work>/signed/TrialsFrontier.app      # iOS 17+
 ideviceinstaller -u <udid> install <work>/signed/TrialsFrontier-7.9.0-patched-signed.ipa # older iOS
