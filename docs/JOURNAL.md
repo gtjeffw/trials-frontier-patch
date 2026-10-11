@@ -1126,4 +1126,5 @@ later an in-app loopback server). Static analysis only.
   covered). New offline patch `gameplay-online-MenuzStateDogHouse-pointerPressed-1` (`mov w0, #1`). The tap then needs a
   login (authenticated with the local services, or a silent-login user), as the original did online.
 - Recorded build hashes updated (default b4e3aa17…; `embedded-server,local-services`, build.py's default, now recorded).
-  Not yet confirmed in the game: the next day's doghouse offer.
+  Confirmed in the game: with mission 445 (the boy's "Raise the Woof", which opens the doghouse and unlocks the
+  daily quest 446) reset in memory and played again, Accept started the daily quest; the puppy's tasks work.
