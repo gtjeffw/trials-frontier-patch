@@ -228,8 +228,9 @@ App Store and video ads, sharing. They talked to services that no longer exist, 
 Testing has deliberately avoided them, so what they do in the patched game is unknown: at best nothing, possibly an
 error message or a stuck screen. Skip them while playing; the rest of the game does not need them.
 
-**PvP duels are not available.** From player level 10 the War Room (PvP duels) opens in town; starting a duel shows
-"No Internet Connection" and goes no further. Duels were played against real opponents' ghosts through Ubisoft's
+**PvP duels are not available.** From player level 10 a character in the saloon leads you to the War Room (PvP
+duels), which then shows a loading spinner forever; tap **Home** to leave, and she stays greyed out afterwards. Duels
+were played against real opponents' ghosts through Ubisoft's
 servers, which a local game cannot reproduce faithfully. Nothing in the story needs PvP: the only mission that does is
 a randomly generated "win PvP races" job, which you can skip.
 

@@ -1135,6 +1135,8 @@ later an in-app loopback server). Static analysis only.
   race, matches, close, season, chips, tickets, rewards, leaderboards) and `resultservice/v1/pvp_replaydata`. Serving it
   would need matchmaking against other players' ghosts plus seasons and ranks; without a corpus of real asynchronous
   matches it would not play like the original. Decision: not supported for now.
-- Behaviour as is: `MenuzStateWarRoom::componentReleased` checks `getNetworkType` (left offline on purpose) and shows
-  "No Internet Connection" for a duel; nothing hangs. Story: only mission 364 (`RANDOM_PVP_NAME`, a generated job: collect
+- Behaviour as is, checked in play on a new player at level 10: the saloon character leads to the War Room, which
+  requests `GET pvp_matches/v1/matches` (the local services answer 404) and shows a loading spinner indefinitely; Home
+  leaves it, the character stays greyed out, the town and story continue. (Its duel buttons would check
+  `getNetworkType`, left offline on purpose, and show "No Internet Connection".) Story: only mission 364 (`RANDOM_PVP_NAME`, a generated job: collect
   5 of item 28/2, which PvP results award) needs PvP, and no mission depends on it. README says so.
