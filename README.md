@@ -61,6 +61,14 @@ to a 120 Hz MacBook screen) motion judders although the game keeps a steady 60 f
 The patched app keeps your progress across rebuilds: PlayCover only replaces the app, not its data. To quit the game
 completely (Cmd+Q in PlayCover only hides it): `pkill -x TrialsFrontier`.
 
+**Mid-game saves: a small, unmeasured risk.** Patching or rebuilding in the middle of a game, or importing an old save,
+has worked in testing, but there is no evidence either way on whether it can upset the story's mission flow (e.g. a
+half-finished mission that behaves differently afterwards). Once, after a rebuild, a mission against Butch's minion
+(quit midway before the rebuild) no longer brought the minion back and finished as a plain race; the game kept
+progressing, and the rebuild had changed only the coin shop, so the game itself may be the cause. If your save
+matters, back up the game's data first (on a Mac: `~/Library/Containers/<bundle id>/Data/Documents`), and prefer
+rebuilding between missions rather than in the middle of one, especially before you have finished the story.
+
 ## iPhone / iPad (sideloading with a free Apple ID)
 
 ```
