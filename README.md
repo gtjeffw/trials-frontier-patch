@@ -19,7 +19,8 @@ a patched app that:
 - replaces Ubisoft's shut-down servers with an internal server, so leaderboards and ghost races work again;
 - races other riders: your downloaded opponents, other players' published ghost bundles, and optionally the 2019
   world records; new players get a working game too;
-- optionally: buy coins with gems, open every level that can no longer be unlocked, and more (see *Options*).
+- optionally: buy coins with gems, unlock every bike, open every level that can no longer be unlocked, and more
+  (see *Options*).
 
 You can also share your own runs with other players as a ghost bundle.
 
@@ -71,6 +72,9 @@ the silent switch.
 | `--server external` | same game, but you run the server: `server/local_services.py` (Python) or `tfserver` — for development |
 | `--server none` | no local services; every online feature stays off |
 | `--with coins-for-gems` | coin packs (App Store only) become gem-priced shop items, priced like the gem pack of the same tier |
+| `--with unlock-bikes` | unlocks the regular tier 1–3 bikes (Armadillo … Phantom, Bandito); upgrade them in the game |
+| `--with unlock-legendary-bikes` | unlocks the legendary bikes: KTM 500 EXC, KTM 450 RALLY, BMW F800 GS, HD, HD EV |
+| `--with unlock-special-bikes` | unlocks the special bikes: Stallion (horse), BMW, Moonrover (jetpack), Donkey |
 | `--with open-all-levels` | the game's own developer switch reveals every level on the map (event, X-Games, Bunker tracks …) |
 | `--with orphan-levels` | gives the six levels without a map position a place in the main map's fogged east (PvP tracks keep "any bike") |
 | `--with dev-levels` | names and places six unfinished developer test levels that ship with the game |

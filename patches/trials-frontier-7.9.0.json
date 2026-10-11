@@ -1834,6 +1834,122 @@
       ],
       "function": "mt::file::File::getAbsolutePath(mt::String&, mt::String const&, mt::file::File::FileSubtype)",
       "reason": "Second half of dlc-folder-in-bundle: packs found in the download folder are opened by DataPack::open -> openSaveFile(name, FileSubtype 8) -> mt::file::File::getAbsolutePath, whose case 8 builds NSCachesDirectory + \"/\" + \"DLC/\" + name itself (case 4, plain Caches, shares the code). Without this the game lists the bundled packs but cannot open them (\"Cannot open TrialsTexturesDL_chipshop_extra.dat\", then a crash). The cave returns [[NSBundle mainBundle] resourcePath] when the subtype (w21) is 8 and the original NSSearchPathForDirectoriesInDomains(NSCachesDirectory, ...)[0] otherwise."
+    },
+    {
+      "id": "unlock-bikes-cave",
+      "group": "unlock-bikes",
+      "vmaddr": "0x100006800",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "0aed40395f090071e80000540a008c52ea00a0724a25d31a6a00003700008052b3dd071429c946f99cdd0714",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "ldrb w10, [x8, #0x3b]",
+        "cmp w10, #0x2",
+        "b.hi 0x100006824",
+        "mov w10, #0x6000",
+        "movk w10, #0x7, lsl #16",
+        "lsr w10, w10, w19",
+        "tbnz w10, #0x0, 0x100006824",
+        "mov w0, #0x0",
+        "b 0x1001fdeec",
+        "ldr x9, [x9, #0xd90]",
+        "b 0x1001fde98"
+      ],
+      "function": "code cave for tr::BikeUpgrade::getBikeStatus(unsigned int)",
+      "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works. This one: tier 0-2 and not legendary. Cave in the Mach-O header padding."
+    },
+    {
+      "id": "unlock-bikes-hook",
+      "group": "unlock-bikes",
+      "vmaddr": "0x1001fde94",
+      "original": "29c946f9",
+      "replacement": "5b22f817",
+      "original_asm": [
+        "ldr x9, [x9, #0xd90]"
+      ],
+      "replacement_asm": [
+        "b 0x100006800"
+      ],
+      "function": "tr::BikeUpgrade::getBikeStatus(unsigned int)",
+      "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works."
+    },
+    {
+      "id": "unlock-special-bikes-cave",
+      "group": "unlock-special-bikes",
+      "vmaddr": "0x100006840",
+      "original": "00000000000000000000000000000000000000000000000000000000",
+      "replacement": "0aed40395ffd03716100005400008052a7dd07146a22011191dd0714",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "ldrb w10, [x8, #0x3b]",
+        "cmp w10, #0xff",
+        "b.ne 0x100006854",
+        "mov w0, #0x0",
+        "b 0x1001fdeec",
+        "add w10, w19, #0x48",
+        "b 0x1001fde9c"
+      ],
+      "function": "code cave for tr::BikeUpgrade::getBikeStatus(unsigned int)",
+      "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works. This one: tier 0xff. Cave in the Mach-O header padding."
+    },
+    {
+      "id": "unlock-special-bikes-hook",
+      "group": "unlock-special-bikes",
+      "vmaddr": "0x1001fde98",
+      "original": "6a220111",
+      "replacement": "6a22f817",
+      "original_asm": [
+        "add w10, w19, #0x48"
+      ],
+      "replacement_asm": [
+        "b 0x100006840"
+      ],
+      "function": "tr::BikeUpgrade::getBikeStatus(unsigned int)",
+      "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works."
+    },
+    {
+      "id": "unlock-legendary-bikes-cave",
+      "group": "unlock-legendary-bikes",
+      "vmaddr": "0x100006880",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "0b008c52eb00a0726b25d31acb0000360bed40397f090071680000540000805293dd07144b3d00127edd0714",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "mov w11, #0x6000",
+        "movk w11, #0x7, lsl #16",
+        "lsr w11, w11, w19",
+        "tbz w11, #0x0, 0x1000068a4",
+        "ldrb w11, [x8, #0x3b]",
+        "cmp w11, #0x2",
+        "b.hi 0x1000068a4",
+        "mov w0, #0x0",
+        "b 0x1001fdeec",
+        "and w11, w10, #0xffff",
+        "b 0x1001fdea0"
+      ],
+      "function": "code cave for tr::BikeUpgrade::getBikeStatus(unsigned int)",
+      "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works. This one: the legendary ids (tier 0-2); w10 is live and kept. Cave in the Mach-O header padding."
+    },
+    {
+      "id": "unlock-legendary-bikes-hook",
+      "group": "unlock-legendary-bikes",
+      "vmaddr": "0x1001fde9c",
+      "original": "4b3d0012",
+      "replacement": "7922f817",
+      "original_asm": [
+        "and w11, w10, #0xffff"
+      ],
+      "replacement_asm": [
+        "b 0x100006880"
+      ],
+      "function": "tr::BikeUpgrade::getBikeStatus(unsigned int)",
+      "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works."
     }
   ],
   "plist_patches": [
@@ -1890,6 +2006,9 @@
   "optional_groups": {
     "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group.",
     "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped.",
+    "unlock-bikes": "Opt-in (build with --with unlock-bikes). The regular bikes of tiers 1-3 (the game's tiers 0-2: Armadillo, Tango, Bronco, Jackal, Mantis, Marauder, Riptide, Berserker, Phantom, Bandito) count as unlocked, whatever blueprint parts the save has. The game's own garage check (UpgradeManager::checkForUnlockedBikes) records them in the save the first time the garage opens, with upgrades at level 0; upgrade them in the game. The three unlock groups are independent and can be combined.",
+    "unlock-legendary-bikes": "Opt-in (build with --with unlock-legendary-bikes). The legendary bikes, ordinary tier bikes the garage labels legendary (sponsor/event bikes whose blueprint parts came from events): KTM 500 EXC, KTM 450 RALLY, BMW F800 GS, HD and HD EV. Recorded in the save like unlock-bikes.",
+    "unlock-special-bikes": "Opt-in (build with --with unlock-special-bikes). The special bikes (tier 255 in the bike data, with their own leaderboards): Stallion (horse), BMW, Moonrover (jetpack) and Donkey. Recorded in the save like unlock-bikes.",
     "open-all-levels": "Opt-in (build with --with open-all-levels). Every named level inside the map circle is shown on the map, using the game's own developer function Map::cheatOpenAllLevels: event, season, X-Games and Bunker tracks that can no longer be unlocked. Levels with event rules may behave oddly.",
     "orphan-levels": "Opt-in (build with --with orphan-levels). Gives the six levels parked off the map at (-10000,-10000) a place in the main map's fogged area east of the eastern sea route (x 1230, artwork but no levels): Sine City, Hill Climb, Bunnyhop (hidden Bunker tracks), Rigged Roadway, Roadway (Agent event), Collapsed Orchard (Rodeo). They show up once opened, or with open-all-levels.",
     "dev-levels": "Opt-in (build with --with dev-levels; best with open-all-levels). Six unnamed developer/test levels that ship with the game (their level files are in the LevelPack1/2 packs) get a display name '<name> (dev)' and a spot in the fogged area east of the eastern sea route, below the orphan levels.",

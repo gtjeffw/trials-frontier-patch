@@ -1049,3 +1049,20 @@ later an in-app loopback server). Static analysis only.
 - Decision: events are not enabled in the first release. Pieces kept as a reference (`docs/seasonal-events.example.json`,
   read by no build); generic ops `replace_mission_line` and `override_custom_param` added. The main spec's content
   patches give identical output with the new datapack.py.
+
+## 2026-10-10 — Bike unlock options
+
+- Bikes in the save: item (0x48 + bike) sub 4 counts blueprint parts; `tr::BikeUpgrade::getBikeStatus` returns 0
+  (ready) once it reaches the bike's "BP" (upgrade data, 4–50), -1 while collecting, -2 without parts; subs 0–3 are the
+  four upgrade levels (0–10; `isBikeFullyUpgraded` checks 10). The garage's `UpgradeManager::checkForUnlockedBikes`
+  writes 1000 parts and level 0 upgrades for every bike that reports ready. Bike data (content 0f2fe1ce): 19 bikes,
+  tiers 0–2, special tier 255 (Stallion, BMW agent bike, Moonrover, Donkey; own leaderboards); "legendary" bikes are
+  ordinary tier bikes with a legendary garage text (KTM 500 EXC, KTM 450 RALLY, BMW F800 GS, HD, HD EV); ids 20/21
+  exist only in the upgrade data (tier 0xfe).
+- Three independent opt-in groups, `unlock-bikes` (regular), `unlock-legendary-bikes`, `unlock-special-bikes`: each
+  hooks one of three consecutive instructions of `getBikeStatus` and returns 0 for its own bikes (tier, or the legendary
+  ids 13/14/16/17/18 as a mask), else runs the replaced instruction, so any combination works. Default build unchanged.
+- Tested on a copy of the developer's save with regular + special: Bandito (6/20 parts), BMW (16/50), Stallion (1/50)
+  appeared in the garage, the save then had 1000 parts and level 0 upgrades for them and for Moonrover; BMW F800 GS
+  (4/50), HD and HD EV stayed locked; owned bikes kept 10/10/10/10. Moonrover never shows in the garage (no
+  `BikeType`; `MenuzStateGarage::setupAvailableBikes` skips bikes with type -1).
