@@ -1128,3 +1128,13 @@ later an in-app loopback server). Static analysis only.
 - Recorded build hashes updated (default b4e3aa17…; `embedded-server,local-services`, build.py's default, now recorded).
   Confirmed in the game: with mission 445 (the boy's "Raise the Woof", which opens the doghouse and unlocks the
   daily quest 446) reset in memory and played again, Accept started the daily quest; the puppy's tasks work.
+
+## 2026-10-11 — PvP left out, failing cleanly
+
+- The War Room (PvP duels, player level 10) is complete in the client: 15 `pvp_matches/v1/*` calls (init, ranked match,
+  race, matches, close, season, chips, tickets, rewards, leaderboards) and `resultservice/v1/pvp_replaydata`. Serving it
+  would need matchmaking against other players' ghosts plus seasons and ranks; without a corpus of real asynchronous
+  matches it would not play like the original. Decision: not supported for now.
+- Behaviour as is: `MenuzStateWarRoom::componentReleased` checks `getNetworkType` (left offline on purpose) and shows
+  "No Internet Connection" for a duel; nothing hangs. Story: only mission 364 (`RANDOM_PVP_NAME`, a generated job: collect
+  5 of item 28/2, which PvP results award) needs PvP, and no mission depends on it. README says so.
