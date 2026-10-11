@@ -214,6 +214,12 @@ coins for gems; hidden, orphan and developer levels. Publishing a bundle and fet
 end. Open items (PvP duels, top five on FRIENDS, event tracks, native keyboard/controller input, a guide for players
 without a jailbreak) are in `docs/TODO.md`.
 
+**Old online features: best skipped.** The game still shows its old online buttons and prompts: joining or logging
+in to Ubisoft (Uplay), connecting Facebook and liking the page, adding and inviting friends, gifts, PvP matches, the
+App Store and video ads, sharing. They talked to services that no longer exist, so they are not expected to work.
+Testing has deliberately avoided them, so what they do in the patched game is unknown: at best nothing, possibly an
+error message or a stuck screen. Skip them while playing; the rest of the game does not need them.
+
 ## Licence
 
 MIT (see `LICENSE`) for this repository's own code, documentation and artwork (the generated helmet avatars).
