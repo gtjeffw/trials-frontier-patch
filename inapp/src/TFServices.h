@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 // Store helpers for modules.
 - (NSInteger)newId;
 - (NSString *)ghostPath:(id)contentId;
-- (void)addRider:(NSString *)riderId name:(NSString *)name source:(NSString *)source;
+- (void)addRider:(NSString *)riderId name:(NSString *)name source:(NSString *)source hash:(nullable NSString *)h;
 - (BOOL)addResult:(NSString *)board rider:(NSString *)riderId faults:(NSInteger)faults ms:(NSInteger)ms
              bike:(NSInteger)bike source:(NSString *)source;
 /// (content id, ghost entry) pairs of a profile on a leaderboard (exact id first, then same base track), fastest first.

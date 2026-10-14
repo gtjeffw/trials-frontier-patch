@@ -1197,3 +1197,18 @@ later an in-app loopback server). Static analysis only.
   with "you'll need to find another source". Tested with a complete copy, two packs removed, and a core pack removed.
 - `scripts/import_save.py <Documents>`: checks the save, moves the PlayCover copy's Documents aside, copies the save,
   ghosts and opponents (not LocalServices, so the server's next start imports everything). Tested in a scratch home.
+
+## 2026-10-14 — Repeatable imports; rider names that stick
+
+- Both servers now merge on every start, best-only and without duplicates (the downloaded opponents used to be
+  imported once): the save's own results and ghosts, its `robot_ghost-*` opponents, and every Documents copy in
+  `<store>/imports/<label>/` (`scripts/import_save.py --add`, which keeps the current save; a repeated label moves
+  the older copy to `imports-replaced/`). An import with the player's profile counts as the player; another profile
+  becomes a rider with its save's name. Ghost import keeps the faster ghost per (rider, leaderboard).
+- Rider ids by hash: an opponent known only by its 32-bit hash keeps its made-up id (uuid5 of the hash) even when
+  its real id turns up later, so no duplicate rider appears. Names: a register `names` (hash -> first real name)
+  fed by every save's known riders, imported saves' own names and the community layer (uniquely hashed riders);
+  placeholder names ("Rider <HASH>", hash also kept as `hash` on new riders) are upgraded from it at start.
+- `scripts/decode_save.py` gained `encode()` (the verified writer: SaveFile::fletcher32 keyed 0xec51ed/0x24d7,
+  zlib 9, XOR stream), byte-identical on real saves. The parity test adds an imports phase (the player's own copy
+  and a foreign rider made with `encode`): stores equal, rider named, name remembered, a second start changes nothing.

@@ -116,6 +116,16 @@ python3 -I scripts/import_save.py <the Documents folder from Step 1>
 It checks the save, moves the game's current data aside (nothing is deleted) and copies in your save, ghosts and
 opponents. On its next start the game is yours again, and the leaderboards show your best times and ghosts.
 
+**More later:** add another device's save, or a friend's, at any time; your own save stays as it is:
+
+```
+python3 -I scripts/import_save.py --add <another Documents folder>
+```
+
+Every start of the game merges the added saves, keeping the best of everything: your own runs from another device
+count as yours, someone else's appear as a rider with their name, and the opponents they downloaded join yours.
+Riders known only by number get their names as soon as any save or bundle names them.
+
 ## Good to know while playing
 
 - **Old online features: best skipped.** The game still shows its old online buttons and prompts: joining or logging
@@ -232,8 +242,12 @@ With `local-services` the game logs in silently, fetches its configuration and t
 
 - Store: `Documents/LocalServices/` in the game's data (`store.json`, `ghosts/`, `avatars/`, `server.log`): never
   purged, included in device backups.
-- Every start imports the save's best times and the player's own ghosts it does not have yet; the first start also
-  imports the opponent ghosts and avatars the game had downloaded (`robot_ghost-*.robot`, `robot_image-*.robot`).
+- Every start merges, best-only and without duplicates: the save's best times and the player's own ghosts, the
+  opponent ghosts and avatars the game downloaded (`robot_ghost-*.robot`, `robot_image-*.robot`), and every save
+  in `LocalServices/imports/<label>/` (`import_save.py --add`; the same profile counts as the player, another as a
+  named rider).
+- Names: opponents are known by a 32-bit hash of their profile id ("Rider 0D454E3E"). A register (`names` in the
+  store) keeps the first real name any save, import or community bundle gives a hash, so it stays known.
 - Results are kept best-only (fewer faults, then less time); the game uploads a ghost only for a new best, and the
   server keeps one ghost per player and leaderboard. The Hall of Fame (overall score sent after every race) keeps
   one entry per player; Donkey and crazy-bike runs have their own.

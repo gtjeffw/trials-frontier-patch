@@ -1,6 +1,7 @@
 """Bring your old save (and ghosts) into the patched game in PlayCover.
 
 Usage: python3 -I import_save.py <Documents folder from your device or backup> [--bundle-id <id>] [--yes]
+       python3 -I import_save.py --add <Documents folder> [--label <name>] [--bundle-id <id>] [--yes]
 
 <Documents folder>: the game's Documents as copied off your iPhone/iPad (scripts/extract_app_domain.py writes it
 from an unencrypted backup): player.bin, ghost_*.bin, robot_*.robot, ...
@@ -12,6 +13,13 @@ Start the patched game once and quit it first (PlayCover creates its data folder
   3. moves the copy's current Documents aside to <container>/Data/Documents-before-import-<time> (nothing is deleted);
   4. copies the files from your Documents folder (not its LocalServices: the local server's store starts fresh, so
      its next start imports your best times, your ghosts and the opponents the game had downloaded).
+
+--add keeps the game's current save and adds another one to it, any time: a Documents folder from another device
+of yours, or a friend's. It goes into the local server's imports (Documents/LocalServices/imports/<label>/), which
+every start of the game merges, keeping the best of everything: the same profile's best times and ghosts count as
+yours, another profile's as a named rider; its downloaded opponents are added, and every rider name it knows is
+remembered (riders known only by number get their names). Run it again with a newer copy under the same label to
+update it.
 """
 import os
 import shutil
@@ -35,6 +43,7 @@ def opt(name, flag=False):
 def main():
     bundle_id = opt("--bundle-id") or "com.ubisoft.redlynx.trialsfrontier"
     yes = opt("--yes", True)
+    add, label = opt("--add", True), opt("--label")
     if len(sys.argv) != 2:
         sys.exit(__doc__)
     src = os.path.abspath(os.path.expanduser(sys.argv[1]))
@@ -58,6 +67,23 @@ def main():
     robots = [f for f in files if f.startswith("robot_")]
     print(f"save: rider {name}, {len(read_scores(raw))} best times; {len(ghosts)} ghost files, {len(robots)} opponent files"
           f"; {len(files)} files in all")
+    if add:
+        pid = raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace")
+        label = label or "".join(c if c.isalnum() or c in "-_" else "_" for c in name) + "-" + pid[:8]
+        dst = os.path.join(docs, "LocalServices", "imports", label)
+        print(f"add to: {dst} (the game's current save stays; the next start merges this one)")
+        if not yes and input("add? [y/N] ").strip().lower() != "y":
+            sys.exit("nothing changed")
+        if os.path.isdir(dst):  # kept outside imports/, so the server no longer merges it
+            old = os.path.join(docs, "LocalServices", "imports-replaced", label + "-" + time.strftime("%Y%m%d-%H%M%S"))
+            os.makedirs(os.path.dirname(old), exist_ok=True)
+            shutil.move(dst, old)
+            print(f"an earlier import with this label was moved to {old}")
+        os.makedirs(dst)
+        for f in files:
+            shutil.copy2(os.path.join(src, f), os.path.join(dst, f))
+        print(f"added {len(files)} files; start the game to merge them")
+        return
     print(f"into: {docs} (its current contents are moved aside first)")
     if not yes and input("import? [y/N] ").strip().lower() != "y":
         sys.exit("nothing changed")

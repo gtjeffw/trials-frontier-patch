@@ -188,6 +188,53 @@ def new_player(tfserver, documents):
     return failures
 
 
+FOREIGN_PID, FOREIGN_NAME = "0f0e0d0c-2222-5000-8000-0000000000ab", "Import Rider"
+
+
+def imports_phase(tfserver, work, docs, layer):
+    """Saves dropped into <store>/imports/: the player's own (same profile: merges, nothing new) and another rider's
+    (made from the player's save with another profile id and name, plus a ghost). Both servers must give the same store,
+    name the rider, remember the name, and change nothing on a second start."""
+    sys.path.insert(0, SCRIPTS)
+    from decode_save import decode, encode
+    from datapack import game_hash
+    raw = bytearray(decode(open(os.path.join(docs, "player.bin"), "rb").read())[1])
+    raw[276:276 + 36] = FOREIGN_PID.encode()
+    raw[20:20 + 32] = FOREIGN_NAME.encode().ljust(32, b"\0")
+    own = [f for f in sorted(os.listdir(docs)) if re.fullmatch(r"ghost_[0-9a-f]{8}_\d+\.bin", f)]
+    for d in ("store-py", "store-native"):
+        same, other = os.path.join(work, d, "imports", "same"), os.path.join(work, d, "imports", "other")
+        os.makedirs(same)
+        os.makedirs(other)
+        shutil.copy(os.path.join(docs, "player.bin"), same)
+        for f in own[:3]:
+            shutil.copy(os.path.join(docs, f), same)
+        open(os.path.join(other, "player.bin"), "wb").write(encode(bytes(raw)))
+        if own:
+            lb = own[0].rsplit("_", 1)[1]
+            shutil.copy(os.path.join(docs, own[0]), os.path.join(other, "ghost_%08x_%s" % (game_hash(FOREIGN_PID), lb)))
+    failures, stores = 0, []
+    for round_ in (1, 2):
+        procs = start(tfserver, work, docs, layer)
+        try:
+            names = [json.loads(call(port, "GET", f"/v1/profiles/{FOREIGN_PID}")[2]).get("nameOnPlatform") for port in (7982, 7983)]
+        finally:
+            stop(procs)
+        sp = json.load(open(os.path.join(work, "store-py", "store.json")))
+        sn = json.load(open(os.path.join(work, "store-native", "store.json")))
+        stores.append(sp)
+        h = "%08X" % game_hash(FOREIGN_PID)
+        ok = (sp == sn and names == [FOREIGN_NAME] * 2 and sp.get("names", {}).get(h) == FOREIGN_NAME
+              and any(FOREIGN_PID in b for b in sp["results"].values())
+              and any(g["profile"] == FOREIGN_PID for g in sp["ghosts"].values()))
+        print(f"{'ok  ' if ok else 'DIFF'} imports, start {round_}: stores equal, other rider named {names}, "
+              f"name remembered, results and ghost imported")
+        failures += not ok
+    ok = stores[0] == stores[1]
+    print(f"{'ok  ' if ok else 'DIFF'} imports are merged once: a second start changes nothing")
+    return failures + (not ok)
+
+
 def main():
     tfserver, documents = sys.argv[1:3]
     work = tempfile.mkdtemp(prefix="tf-parity-")
@@ -386,6 +433,9 @@ def main():
             for k in sorted(set(sp) | set(sn)):
                 if sp.get(k) != sn.get(k):
                     print("   differs:", k)
+        stop(procs)
+        procs = []
+        failures += imports_phase(tfserver, work, docs, layer)
     finally:
         stop(procs)
         shutil.rmtree(work, ignore_errors=True)

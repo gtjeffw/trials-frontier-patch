@@ -279,13 +279,13 @@ class Services:
         if not self.profile_id:  # a new player: no save yet; the game keeps the id the login returns
             self.profile_id = self.store.setdefault("new_player_profile", str(uuid.uuid4()))
         seeded = 0
-        for lb, (faults, ms, bike) in self.scores().items():
-            board = self.store["results"].setdefault("track%d" % lb, {})
-            if self.profile_id not in board:
-                board[self.profile_id] = {"drivetime": ms, "data": (faults & 0xFF) | ((bike & 0x3F) << 8), "upgrades": 0,
-                                          "submittime": 0, "score_value": 360000000 - ms - faults * 3600000,
-                                          "extradata": 0, "source": "save"}
-                seeded += 1
+        self.store.setdefault("riders", {})
+        self.store.setdefault("names", {})
+        raw = self.save_raw()
+        for pid, name in sorted(known_riders(raw).items()):
+            self.learn_name("%08X" % game_hash(pid), name)
+        for lb, (faults, ms, bike) in sorted(self.scores().items()):
+            seeded += self.add_result("track%d" % lb, self.profile_id, faults, ms, bike, "save")
         prefix = "ghost_%08x_" % game_hash(self.profile_id)
         held = {g["track_id"] for g in self.store["ghosts"].values() if g["profile"] == self.profile_id}
         scores = self.scores()
@@ -300,8 +300,9 @@ class Services:
                                                   "metadata": {"track_id": lb, "size": len(data), "drive_time":
                                                                ghost_drive_time(data) or scores.get(lb, (0, 0, 0))[1]}}
                 seeded += 1
-        self.store.setdefault("riders", {})
-        seeded += self.import_robots()
+        seeded += self.import_robots(self.documents(), raw)
+        seeded += self.import_folders()
+        self.apply_names()
         self.drop_legacy_world_records()
         self.load_community(community)
         self.save_store()
@@ -350,6 +351,8 @@ class Services:
         for crid in sorted(layer["riders"]):
             c = layer["riders"][crid]
             h = c.get("game_hash")
+            if h and hash_count.get(h) == 1:
+                self.learn_name(h, c.get("name"))  # remembered: stays known if the layer goes away
             avatar = os.path.join(folder, "avatars", crid + ".png")
             # the player: by the sha256 of the profile id; a rider known only by the 32-bit hash, by the hash
             if c.get("profile_sha256") == own_sha or (h and h == own and not c.get("profile_sha256")):
@@ -413,8 +416,93 @@ class Services:
         out["ghosts"] = {k: v for k, v in self.store["ghosts"].items() if k not in self.community_ghosts}
         return out
 
-    def add_rider(self, rider_id, name, source):
-        self.store["riders"].setdefault(rider_id, {"name": name, "source": source})
+    def add_rider(self, rider_id, name, source, h=None):
+        r = self.store["riders"].setdefault(rider_id, {"name": name, "source": source})
+        if h and "hash" not in r:
+            r["hash"] = h
+
+    # ---- names: a rider known by hash only becomes known by name once any source names it ----
+
+    def learn_name(self, h, name):
+        """Remember a real name for a rider hash (getHashCode of the profile id): the first real name wins."""
+        if h and name and not placeholder(name) and h not in self.store["names"]:
+            self.store["names"][h] = name
+
+    def rider_hash(self, rid):
+        r = self.store["riders"].get(rid, {})
+        m = re.fullmatch(r"(?i)rider ([0-9A-F]{8})", r.get("name") or "")
+        return r.get("hash") or (m.group(1).upper() if m else None) or ("%08X" % game_hash(rid) if r.get("source") != "robot" else None)
+
+    def apply_names(self):
+        for rid in sorted(self.store["riders"]):
+            r = self.store["riders"][rid]
+            h = self.rider_hash(rid)
+            if placeholder(r.get("name")) and h in self.store["names"]:
+                r["name"] = self.store["names"][h]
+
+    def rider_for_hash(self, h, pid=None):
+        """The store's id for a rider: the made-up id it already has (opponents known by hash), else the real one."""
+        made = str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h))
+        if made in self.store["riders"]:
+            return made
+        return pid or made
+
+    def import_ghost(self, rid, lb, data, source):
+        """Store a ghost for (rider, leaderboard) unless one at least as fast is held. 1 if added."""
+        ms = ghost_drive_time(data)
+        if not ms:
+            return 0
+        held = [(cid, g) for cid, g in self.store["ghosts"].items() if g["profile"] == rid and g["track_id"] == lb]
+        if any((g["metadata"].get("drive_time") or 1 << 31) <= ms for _, g in held):
+            return 0
+        for cid, _ in held:
+            del self.store["ghosts"][cid]
+        cid = self.new_id()
+        open(self.ghost_path(cid), "wb").write(data)
+        self.store["ghosts"][str(cid)] = {"profile": rid, "track_id": lb, "source": source,
+                                          "metadata": {"track_id": lb, "drive_time": ms, "size": len(data)}}
+        return 1
+
+    def import_folders(self):
+        """Other saves dropped into <store>/imports/<name>/ (scripts/import_save.py --add): a Documents folder from
+        another device or player. Each start merges them, best-only: the save's best times and own ghosts (the
+        player's own if it is the same profile, else another named rider), its downloaded opponents, and the names
+        it knows."""
+        root = os.path.join(self.data_dir, "imports")
+        count = 0
+        for name in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+            folder = os.path.join(root, name)
+            path = os.path.join(folder, "player.bin")
+            if not os.path.isdir(folder) or not os.path.isfile(path):
+                continue
+            try:
+                raw = decode(open(path, "rb").read())[1]
+            except Exception:  # noqa: BLE001 - an unreadable import is skipped, never fatal
+                self.note(f"   import {name}: player.bin unreadable; skipped")
+                continue
+            pid = raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace")
+            who = save_name(raw)
+            for kpid, kname in sorted(known_riders(raw).items()):
+                self.learn_name("%08X" % game_hash(kpid), kname)
+            if not UUID.fullmatch(pid):
+                continue
+            h = "%08X" % game_hash(pid)
+            self.learn_name(h, who)
+            if pid == self.profile_id:
+                rid = pid
+            else:
+                rid = self.rider_for_hash(h, pid)
+                self.add_rider(rid, who if not placeholder(who) else "Rider " + h, "import", h)
+            for lb, (faults, ms, bike) in sorted(read_scores(raw).items()):
+                count += self.add_result("track%d" % lb, rid, faults, ms, bike, "import")
+            prefix = "ghost_%08x_" % game_hash(pid)
+            for f in sorted(os.listdir(folder)):
+                m = re.fullmatch(re.escape(prefix) + r"(\d+)\.bin", f)
+                if m:
+                    count += self.import_ghost(rid, int(m.group(1)), open(os.path.join(folder, f), "rb").read(),
+                                               "import:" + f)
+            count += self.import_robots(folder, raw)
+        return count
 
     def add_result(self, board_name, rider_id, faults, ms, bike, source):
         """Add another rider's result unless one is stored; keep the better one if both platforms have it."""
@@ -426,38 +514,35 @@ class Services:
             return 1
         return 0
 
-    def import_robots(self):
-        """Opponent ghosts the game downloaded ("beat this rider"): Documents/robot_ghost-<HASH>-<LBHEX>.robot,
-        avatars in robot_image-<HASH>.robot. HASH = getHashCode(profile id), so riders stay anonymous unless the save
-        names them (known_riders); everyone else becomes "Rider <HASH>" under a stable made-up id."""
-        if self.store.get("robots_imported"):
-            return 0
-        raw = self.save_raw()
+    def import_robots(self, folder, raw):
+        """Opponent ghosts a game downloaded ("beat this rider"): <folder>/robot_ghost-<HASH>-<LBHEX>.robot, avatars in
+        robot_image-<HASH>.robot. HASH = getHashCode(profile id): a rider the save names (known_riders) gets its real
+        id, everyone else a stable made-up id and "Rider <HASH>" until a name for the hash is learnt. Runs every
+        start (also for imports): new or faster ghosts are added, the rest skipped."""
         named = {"%08X" % game_hash(pid): (pid, name) for pid, name in known_riders(raw).items()}
         count = 0
         os.makedirs(os.path.join(self.data_dir, "avatars"), exist_ok=True)
-        for f in sorted(os.listdir(self.documents())):
+        for f in sorted(os.listdir(folder)):
             m = re.fullmatch(r"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\.robot", f)
             if not m:
                 continue
             h, lb = m.group(1).zfill(8), int(m.group(2), 16)
-            data = open(self.documents(f), "rb").read()
+            data = open(os.path.join(folder, f), "rb").read()
             ms = ghost_drive_time(data)
             if not ms:
                 continue
-            rid, name = named.get(h, (str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h)), "Rider " + h))
-            self.add_rider(rid, name, "robot")
+            pid, name = named.get(h, (None, None))
+            rid = self.rider_for_hash(h, pid)
+            self.add_rider(rid, name or "Rider " + h, "robot", h)
             bike = struct.unpack_from("<I", zlib.decompress(data[16:]), 0)[0]
             count += self.add_result("track%d" % lb, rid, 0, ms, bike, "robot")
-            cid = self.new_id()
-            open(self.ghost_path(cid), "wb").write(data)
-            self.store["ghosts"][str(cid)] = {"profile": rid, "track_id": lb, "source": f,
-                                              "metadata": {"track_id": lb, "drive_time": ms, "size": len(data)}}
-            img = self.documents("robot_image-%s.robot" % m.group(1))
-            png = robot_avatar_png(open(img, "rb").read()) if os.path.exists(img) else None
-            if png:
-                open(os.path.join(self.data_dir, "avatars", rid + ".png"), "wb").write(png)
-        self.store["robots_imported"] = True
+            count += self.import_ghost(rid, lb, data, f)
+            avatar = os.path.join(self.data_dir, "avatars", rid + ".png")
+            img = os.path.join(folder, "robot_image-%s.robot" % m.group(1))
+            if not os.path.exists(avatar) and os.path.exists(img):
+                png = robot_avatar_png(open(img, "rb").read())
+                if png:
+                    open(avatar, "wb").write(png)
         return count
 
     def new_id(self):
