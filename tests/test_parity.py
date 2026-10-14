@@ -194,10 +194,13 @@ FOREIGN_PID, FOREIGN_NAME = "0f0e0d0c-2222-5000-8000-0000000000ab", "Import Ride
 def imports_phase(tfserver, work, docs, layer):
     """Saves dropped into <store>/imports/: the player's own (same profile: merges, nothing new) and another rider's
     (made from the player's save with another profile id and name, plus a ghost). Both servers must give the same store,
-    name the rider, remember the name, and change nothing on a second start."""
+    name the rider, remember the name, and change nothing on a second start, even after the game saved every opponent
+    the servers can serve (robot_ghost-<hash of the id it was given>: made-up ids, layer riders, the player's own)."""
     sys.path.insert(0, SCRIPTS)
     from decode_save import decode, encode
     from datapack import game_hash
+    import uuid
+    robot_id = lambda h: str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h))  # noqa: E731
     raw = bytearray(decode(open(os.path.join(docs, "player.bin"), "rb").read())[1])
     raw[276:276 + 36] = FOREIGN_PID.encode()
     raw[20:20 + 32] = FOREIGN_NAME.encode().ljust(32, b"\0")
@@ -230,8 +233,27 @@ def imports_phase(tfserver, work, docs, layer):
         print(f"{'ok  ' if ok else 'DIFF'} imports, start {round_}: stores equal, other rider named {names}, "
               f"name remembered, results and ghost imported")
         failures += not ok
+        if round_ == 1:  # what the game saves after racing them all
+            lj = json.load(open(os.path.join(layer, "community.json")))
+            served = [(g, os.path.join(work, "store-py", "ghosts", c + ".bin")) for c, g in sp["ghosts"].items()]
+            served += [(g, os.path.join(layer, "ghosts", c + ".bin")) for c, g in lj["ghosts"].items()]
+            for g, path in served:
+                shutil.copy(path, os.path.join(docs, "robot_ghost-%08X-%X.robot" % (game_hash(g["profile"]), g["track_id"])))
+            real = {"%08X" % game_hash(r): r for r in sp["riders"] if r[14] == "4"}
+            for c, g in lj["ghosts"].items():  # a layer rider linked to a stored real id is served under that id
+                h = lj["riders"].get(g["profile"], {}).get("game_hash")
+                if h in real and robot_id(h) not in sp["riders"]:
+                    served.append((g, None))
+                    shutil.copy(os.path.join(layer, "ghosts", c + ".bin"),
+                                os.path.join(docs, "robot_ghost-%s-%X.robot" % (h, g["track_id"])))
     ok = stores[0] == stores[1]
-    print(f"{'ok  ' if ok else 'DIFF'} imports are merged once: a second start changes nothing")
+    print(f"{'ok  ' if ok else 'DIFF'} imports are merged once and served opponents ({len(served)}) do not come back: "
+          f"a second start changes nothing")
+    for k in sorted(set(stores[0]) | set(stores[1])) if not ok else ():
+        a, b = stores[0].get(k), stores[1].get(k)
+        if a != b:
+            extra = sorted(set(b) - set(a))[:5] if isinstance(a, dict) and isinstance(b, dict) else ""
+            print("   differs:", k, extra, [(i, b[i]) for i in extra[:2]] if extra else "")
     return failures + (not ok)
 
 

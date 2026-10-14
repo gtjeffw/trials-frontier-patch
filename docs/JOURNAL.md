@@ -1215,3 +1215,25 @@ later an in-app loopback server). Static analysis only.
 - README recommendation (developer's choice): the story without the grind: unlimited fuel and gems (every build),
   `coins-for-gems`, the community layer (developer's bundle and 2019 world records); bikes, upgrades and levels earned
   by riding. Bike unlocks and `open-all-levels` are listed as the "everything unlocked" variant.
+
+## 2026-10-14 — Served opponents must not come back as riders
+
+- Found while checking the bundle scenarios: with opponents imported at every start (previous entry), the game's own
+  copies of the opponents the local server serves came back. The game saves every robot opponent as
+  `robot_ghost-<getHashCode of the player id it was given>-<lb>.robot`; for a made-up id (a rider known only by hash,
+  a bundle rider, a world-record rider) that hash is nobody's real one, so each start added "Rider <HASH>" copies of
+  served ghosts (layer ghosts included, which then also counted as exportable "downloaded opponents"), one generation
+  per start. The save keeps such riders too: its known-riders list held "Rider C003BB03" under a made-up id. A dry run
+  of the previous commit on copies of the installed data: +4 riders (main), +8 (Halloween), each growing per start.
+  The installed copies never ran it.
+- Fix (both servers): made-up ids are version-5 UUIDs (real ids, Ubisoft's and a new player's, are version 4). Robot
+  files whose hash is the player's own or a made-up id's (store riders, layer riders, kept in `served_hashes` so
+  riders that leave the layer stay recognised; plus the made-up ids derivable from the folder's own hashes and its
+  save's known riders, for imports from another patched copy) are skipped; names are never learnt from made-up ids.
+  A layer rider linked to a stored rider with a real id is served under that id: its ghosts are recognised by
+  (hash, leaderboard, time). And a hash-only file of a rider stored under a real id (a named opponent, no longer in the
+  save's known riders) now goes to that rider instead of a new "Rider <HASH>".
+- Dry run of the fix on the same copies: no new riders or ghosts, and none on a second start. Parity test: between
+  the two import starts it writes every opponent the servers can serve (1341 files) the way the game names them;
+  the second start must change nothing: PASS (the unfixed servers fail it).
+

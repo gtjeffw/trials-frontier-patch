@@ -119,8 +119,9 @@ incompatible gets a new `format_version`.
 - **Nothing is re-shared by accident.** Export takes the rider's own times and ghosts only from the save and the
   player's own entries in the local store; the community layer is never written into that store. `others` holds
   only opponent files the *original online game* downloaded: once the local server runs, the game also saves the
-  robot opponents it serves (which may come from other people's bundles), so with a store only the files it
-  imported at its first start are exported.
+  robot opponents it serves (which may come from other people's bundles), so with a store only the files the
+  store imported are exported, and the store never imports a served opponent (see the local server's notes:
+  made-up ids are recognised by their hash, layer ghosts by hash, track and time).
 - **Bounded growth.** Every bundle has at most one ghost per rider and leaderboard, and consolidation keeps one
   (the fastest) per rider and leaderboard over all sources, so many bundles carrying the same opponent cost
   download size only, never duplicates in the game.

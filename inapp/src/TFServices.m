@@ -54,6 +54,9 @@ static id jsonObject(NSData *d) {
     NSMutableSet<NSString *> *_communityGhosts;
     NSMutableDictionary<NSString *, NSString *> *_communityAvatars;
     NSString *_communityDir;
+    NSMutableSet<NSString *> *_served;  // see -servedHashes:
+    NSMutableSet<NSString *> *_layerGhosts;
+    NSMutableDictionary *_byRealHash;   // hash -> the stored rider whose real profile id has it (NSNull: several)
 }
 
 /// The names the server makes up for riders it knows only by hash.
@@ -106,6 +109,21 @@ static NSString *requestedName(TFRequest *q) {
 
 static BOOL isUUID(NSString *s) {
     return [s rangeOfString:@"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" options:NSRegularExpressionSearch].location != NSNotFound;
+}
+
+/// Ids the server makes up (riders known only by hash, bundle riders, world-record riders) are version-5 UUIDs; real
+/// profile ids (Ubisoft's, a new player's) are version 4.
+static BOOL madeUp(NSString *pid) {
+    return pid.length == 36 && isUUID(pid) && [pid characterAtIndex:14] == '5';
+}
+
+/// The made-up id of a rider known only by the hash of its profile id.
+static NSString *robotId(NSString *h) {
+    return TFUUID5(TFNamespaceURL, [@"trials-frontier-robot:" stringByAppendingString:h]);
+}
+
+static NSString *hashOf(NSString *pid) {
+    return [NSString stringWithFormat:@"%08X", TFGameHash(pid)];
 }
 
 - (instancetype)initWithDocuments:(NSString *)documentsDir dataDir:(NSString *)dataDir port:(uint16_t)port
@@ -190,10 +208,13 @@ static BOOL isUUID(NSString *s) {
     NSInteger seeded = 0;
     if (!_store[@"riders"]) _store[@"riders"] = [NSMutableDictionary dictionary];
     if (!_store[@"names"]) _store[@"names"] = [NSMutableDictionary dictionary];
+    _byRealHash = [NSMutableDictionary dictionary];
+    for (NSString *rid in [[_store[@"riders"] allKeys] sortedArrayUsingSelector:@selector(compare:)]) [self indexRider:rid];
     NSData *raw = [self saveRaw] ?: [NSData data];
     NSDictionary *known = TFKnownRiders(raw);
     for (NSString *pid in [known.allKeys sortedArrayUsingSelector:@selector(compare:)])
-        [self learnName:[NSString stringWithFormat:@"%08X", TFGameHash(pid)] name:known[pid]];
+        if (!madeUp(pid))  // the game also remembers opponents it was served under made-up ids
+            [self learnName:hashOf(pid) name:known[pid]];
     NSDictionary *scores = [self scores];
     for (NSNumber *lb in [scores.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
         NSArray *sc = scores[lb];
@@ -220,8 +241,10 @@ static BOOL isUUID(NSString *s) {
                                                      @"metadata": [@{@"track_id": @(lb), @"size": @(data.length), @"drive_time": @(ms)} mutableCopy]} mutableCopy];
         seeded++;
     }
+    _served = [self servedHashes:communityDir];
     seeded += [self importRobots:_documentsDir raw:raw];
     seeded += [self importFolders];
+    _served = [self servedHashes:communityDir];  // with the riders imported now
     [self applyNames];
     [self dropLegacyWorldRecords];
     [self loadCommunity:communityDir ?: [_dataDir stringByAppendingPathComponent:@"community"]];
@@ -232,6 +255,38 @@ static BOOL isUUID(NSString *s) {
                 _dataDir, (long)results, (unsigned long)[_store[@"ghosts"] count], (unsigned long)[_store[@"riders"] count],
                 (long)seeded, (unsigned long)_communityGhosts.count]];
     [_lock unlock];
+}
+
+/// Hashes of ids this server hands the game for riders that are not that rider's real profile id: the player's own and
+/// made-up ones (store and community layer). The game saves every opponent it is served as robot_ghost-<hash of the id
+/// it was given>; such files must not come back as new riders (importRobots:). Kept in the store, so riders that leave
+/// the layer stay recognised. Also sets _layerGhosts: "hash/leaderboard/time" of the ghosts of layer riders linked to a
+/// stored rider with a real id, which are served under that id.
+- (NSMutableSet<NSString *> *)servedHashes:(NSString *)communityDir {
+    NSMutableSet *ids = [NSMutableSet setWithArray:[_store[@"riders"] allKeys]];
+    _layerGhosts = [NSMutableSet set];
+    NSString *folder = communityDir ?: [_dataDir stringByAppendingPathComponent:@"community"];
+    NSDictionary *layer = jsonObject([NSData dataWithContentsOfFile:[folder stringByAppendingPathComponent:@"community.json"]]);
+    if ([layer isKindOfClass:NSDictionary.class] && [layer[@"riders"] isKindOfClass:NSDictionary.class]) {
+        NSDictionary *riders = layer[@"riders"];
+        [ids addObjectsFromArray:riders.allKeys];
+        NSDictionary *ghosts = [layer[@"ghosts"] isKindOfClass:NSDictionary.class] ? layer[@"ghosts"] : @{};
+        for (NSDictionary *g in ghosts.allValues) {
+            if (![g isKindOfClass:NSDictionary.class] || ![g[@"profile"] isKindOfClass:NSString.class]) continue;
+            NSDictionary *r = riders[g[@"profile"]];
+            NSString *h = [r isKindOfClass:NSDictionary.class] && [r[@"game_hash"] isKindOfClass:NSString.class] ? r[@"game_hash"] : nil;
+            if (h.length && [_byRealHash[h] isKindOfClass:NSString.class] && !_store[@"riders"][robotId(h)] &&
+                [g[@"metadata"] isKindOfClass:NSDictionary.class])
+                [_layerGhosts addObject:[NSString stringWithFormat:@"%@/%ld/%ld", h, (long)I(g[@"track_id"]), (long)I(g[@"metadata"][@"drive_time"])]];
+        }
+    }
+    NSMutableSet *hashes = [NSMutableSet set];
+    if ([_store[@"served_hashes"] isKindOfClass:NSArray.class]) [hashes addObjectsFromArray:_store[@"served_hashes"]];
+    for (NSString *i in ids)
+        if ([i isKindOfClass:NSString.class] && madeUp(i)) [hashes addObject:hashOf(i)];
+    [hashes addObject:hashOf(_profileId)];
+    _store[@"served_hashes"] = [[hashes.allObjects sortedArrayUsingSelector:@selector(compare:)] mutableCopy];
+    return hashes;
 }
 
 /// World records used to be imported into the store; they now come from the community layer.
@@ -389,7 +444,10 @@ static BOOL isUUID(NSString *s) {
 
 - (void)addRider:(NSString *)riderId name:(NSString *)name source:(NSString *)source hash:(NSString *)h {
     NSMutableDictionary *r = _store[@"riders"][riderId];
-    if (!r) r = _store[@"riders"][riderId] = [@{@"name": name, @"source": source} mutableCopy];
+    if (!r) {
+        [self indexRider:riderId];
+        r = _store[@"riders"][riderId] = [@{@"name": name, @"source": source} mutableCopy];
+    }
     if (h.length && !r[@"hash"]) r[@"hash"] = h;
 }
 
@@ -416,11 +474,20 @@ static BOOL isUUID(NSString *s) {
     }
 }
 
-/// The store's id for a rider: the made-up id it already has (opponents known by hash), else the real one.
+- (void)indexRider:(NSString *)rid {
+    if (!isUUID(rid) || madeUp(rid)) return;
+    NSString *h = hashOf(rid);
+    _byRealHash[h] = _byRealHash[h] ? (id)NSNull.null : rid;
+}
+
+/// The store's id for a rider: the made-up id it already has (opponents known by hash), else the real one (given, or
+/// the only stored rider whose real id has the hash), else a new made-up one.
 - (NSString *)riderForHash:(NSString *)h profile:(NSString *)pid {
-    NSString *made = TFUUID5(TFNamespaceURL, [@"trials-frontier-robot:" stringByAppendingString:h]);
+    NSString *made = robotId(h);
     if (_store[@"riders"][made]) return made;
-    return pid ?: made;
+    if (pid) return pid;
+    id real = _byRealHash[h];
+    return [real isKindOfClass:NSString.class] ? real : made;
 }
 
 /// Store a ghost for (rider, leaderboard) unless one at least as fast is held. 1 if added.
@@ -464,7 +531,7 @@ static BOOL isUUID(NSString *s) {
         TFReadProfile(raw, &who, &pid);
         NSDictionary *known = TFKnownRiders(raw);
         for (NSString *k in [known.allKeys sortedArrayUsingSelector:@selector(compare:)])
-            [self learnName:[NSString stringWithFormat:@"%08X", TFGameHash(k)] name:known[k]];
+            if (!madeUp(k)) [self learnName:hashOf(k) name:known[k]];
         if (!isUUID(pid ?: @"")) continue;
         NSString *h = [NSString stringWithFormat:@"%08X", TFGameHash(pid)];
         [self learnName:h name:who];
@@ -510,24 +577,37 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
 /// Opponent ghosts a game downloaded ("beat this rider"): <folder>/robot_ghost-<HASH>-<LBHEX>.robot, avatars in
 /// robot_image-<HASH>.robot. HASH = getHashCode(profile id): a rider the save names (known riders) gets its real id,
 /// everyone else a stable made-up id and "Rider <HASH>" until a name for the hash is learnt. Runs every start (also
-/// for imports): new or faster ghosts are added, the rest skipped.
+/// for imports): new or faster ghosts are added, the rest skipped. Opponents a local server served (this one or the copy
+/// an import comes from) are skipped: their files carry the hash of a made-up id.
 - (NSInteger)importRobots:(NSString *)folder raw:(NSData *)raw {
     NSMutableDictionary *named = [NSMutableDictionary dictionary];
     NSDictionary *known = TFKnownRiders(raw ?: [NSData data]);
-    for (NSString *pid in known) named[[NSString stringWithFormat:@"%08X", TFGameHash(pid)]] = @[pid, known[pid]];
-    NSInteger count = 0;
+    NSMutableSet *served = [_served mutableCopy] ?: [NSMutableSet set];
+    for (NSString *pid in known) {
+        if (madeUp(pid)) [served addObject:hashOf(pid)];
+        else named[hashOf(pid)] = @[pid, known[pid]];
+    }
     NSFileManager *fm = NSFileManager.defaultManager;
-    NSString *avatars = [_dataDir stringByAppendingPathComponent:@"avatars"];
-    [fm createDirectoryAtPath:avatars withIntermediateDirectories:YES attributes:nil error:nil];
+    NSMutableArray *files = [NSMutableArray array];
     for (NSString *f in [[fm contentsOfDirectoryAtPath:folder error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
         NSArray *m = match(@"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\\.robot", f);
         if (!m) continue;
         NSString *h = [[@"00000000" substringToIndex:MAX(0, 8 - (NSInteger)[m[0] length])] stringByAppendingString:m[0]];
+        [files addObject:@[f, m, h]];
+        [served addObject:hashOf(robotId(h))];
+    }
+    NSInteger count = 0;
+    NSString *avatars = [_dataDir stringByAppendingPathComponent:@"avatars"];
+    [fm createDirectoryAtPath:avatars withIntermediateDirectories:YES attributes:nil error:nil];
+    for (NSArray *e in files) {
+        NSString *f = e[0], *h = e[2];
+        NSArray *m = e[1];
+        if ([served containsObject:h]) continue;
         unsigned lb = 0;
         [[NSScanner scannerWithString:m[1]] scanHexInt:&lb];
         NSData *data = [NSData dataWithContentsOfFile:[folder stringByAppendingPathComponent:f]];
         NSInteger ms = I(TFGhostDriveTime(data));
-        if (!ms) continue;
+        if (!ms || [_layerGhosts containsObject:[NSString stringWithFormat:@"%@/%u/%ld", h, lb, (long)ms]]) continue;
         NSArray *k = named[h];
         NSString *rid = [self riderForHash:h profile:k ? k[0] : nil];
         [self addRider:rid name:k ? k[1] : [@"Rider " stringByAppendingString:h] source:@"robot" hash:h];

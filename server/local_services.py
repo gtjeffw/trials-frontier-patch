@@ -28,7 +28,10 @@ per player in the "global_stats" board, replaced by each newer score and ranked 
 categories have their own (global_stats_donkey, global_stats_crazy; tr::LeaderboardManager::getLeaderboardName).
 
 Other riders: opponent ghosts the game downloaded (Documents/robot_ghost-*.robot, avatars robot_image-*.robot) are
-imported once. More come from a community layer (scripts/community.py: ghost bundles, the 2019 world records):
+merged at every start, best-only. The game also saves the opponents this server serves, named by the hash of the id
+it was given: those of made-up ids (version-5 UUIDs) and the player's own are recognised by that hash
+(store "served_hashes"), and layer ghosts served under a stored rider's real id by hash, track and time, so they never
+come back as riders or ghosts of their own. More come from a community layer (scripts/community.py: ghost bundles, the 2019 world records):
 <data>/community (installed by community.py) or --community. It is overlaid when the store loads and never written
 into store.json: riders merge by the game's hash of their profile id, a layer result shows only where it beats the
 stored one, layer ghosts keep their own content ids (from 1000000000) and files, and the player's own rider in
@@ -83,6 +86,17 @@ GLOBAL_BOARD = "global_stats"  # the Hall of Fame (overall score), not a track
 # One Hall of Fame per score category: regular, Donkey (leaderboard class 0x10000), crazy bikes (0x100000)
 GLOBAL_BOARDS = (GLOBAL_BOARD, GLOBAL_BOARD + "_donkey", GLOBAL_BOARD + "_crazy")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def made_up(pid):
+    """Ids the server makes up (riders known only by hash, bundle riders, world-record riders) are version-5 UUIDs;
+    real profile ids (Ubisoft's, a new player's) are version 4."""
+    return bool(pid) and UUID.fullmatch(pid) is not None and pid[14] == "5"
+
+
+def robot_id(h):
+    """The made-up id of a rider known only by the hash of its profile id."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h))
 
 
 def placeholder(name):
@@ -281,9 +295,13 @@ class Services:
         seeded = 0
         self.store.setdefault("riders", {})
         self.store.setdefault("names", {})
+        self.by_real_hash = {}
+        for rid in sorted(self.store["riders"]):
+            self.index_rider(rid)
         raw = self.save_raw()
         for pid, name in sorted(known_riders(raw).items()):
-            self.learn_name("%08X" % game_hash(pid), name)
+            if not made_up(pid):  # the game also remembers opponents it was served under made-up ids
+                self.learn_name("%08X" % game_hash(pid), name)
         for lb, (faults, ms, bike) in sorted(self.scores().items()):
             seeded += self.add_result("track%d" % lb, self.profile_id, faults, ms, bike, "save")
         prefix = "ghost_%08x_" % game_hash(self.profile_id)
@@ -300,8 +318,10 @@ class Services:
                                                   "metadata": {"track_id": lb, "size": len(data), "drive_time":
                                                                ghost_drive_time(data) or scores.get(lb, (0, 0, 0))[1]}}
                 seeded += 1
+        self.served = self.served_hashes(community)
         seeded += self.import_robots(self.documents(), raw)
         seeded += self.import_folders()
+        self.served = self.served_hashes(community)  # with the riders imported now
         self.apply_names()
         self.drop_legacy_world_records()
         self.load_community(community)
@@ -309,6 +329,29 @@ class Services:
         self.note(f"store {data_dir}: {sum(len(b) for b in self.store['results'].values())} results, "
                   f"{len(self.store['ghosts'])} ghosts, {len(self.store['riders'])} other riders "
                   f"({seeded} imported now, {len(self.community_ghosts)} ghosts from the community layer)")
+
+    def served_hashes(self, community):
+        """Hashes of ids this server hands the game for riders that are not that rider's real profile id: the player's
+        own and made-up ones (store and community layer). The game saves every opponent it is served as
+        robot_ghost-<hash of the id it was given>; such files must not come back as new riders (import_robots). Kept
+        in the store, so riders that leave the layer stay recognised. Also sets layer_ghosts: (hash, leaderboard,
+        time) of the ghosts of layer riders linked to a stored rider with a real id, which are served under that id."""
+        ids = set(self.store["riders"])
+        self.layer_ghosts = set()
+        try:
+            folder = community or os.path.join(self.data_dir, "community")
+            layer = json.load(open(os.path.join(folder, "community.json")))
+            ids |= set(layer["riders"])
+            for g in layer["ghosts"].values():
+                h = layer["riders"].get(g["profile"], {}).get("game_hash")
+                if h and self.by_real_hash.get(h) and robot_id(h) not in self.store["riders"]:
+                    self.layer_ghosts.add((h, g["track_id"], g["metadata"].get("drive_time")))
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            pass
+        hashes = set(self.store.get("served_hashes", [])) | {"%08X" % game_hash(i) for i in ids if made_up(i)}
+        hashes.add("%08X" % game_hash(self.profile_id))
+        self.store["served_hashes"] = sorted(hashes)
+        return hashes
 
     def drop_legacy_world_records(self):
         """World records used to be imported into the store; they now come from the community layer."""
@@ -417,6 +460,8 @@ class Services:
         return out
 
     def add_rider(self, rider_id, name, source, h=None):
+        if rider_id not in self.store["riders"]:
+            self.index_rider(rider_id)
         r = self.store["riders"].setdefault(rider_id, {"name": name, "source": source})
         if h and "hash" not in r:
             r["hash"] = h
@@ -440,12 +485,19 @@ class Services:
             if placeholder(r.get("name")) and h in self.store["names"]:
                 r["name"] = self.store["names"][h]
 
+    def index_rider(self, rid):
+        """by_real_hash: hash -> the stored rider whose real profile id has it (None when several have it)."""
+        if UUID.fullmatch(rid) and not made_up(rid):
+            h = "%08X" % game_hash(rid)
+            self.by_real_hash[h] = None if h in self.by_real_hash else rid
+
     def rider_for_hash(self, h, pid=None):
-        """The store's id for a rider: the made-up id it already has (opponents known by hash), else the real one."""
-        made = str(uuid.uuid5(uuid.NAMESPACE_URL, "trials-frontier-robot:" + h))
+        """The store's id for a rider: the made-up id it already has (opponents known by hash), else the real one
+        (given, or the only stored rider whose real id has the hash), else a new made-up one."""
+        made = robot_id(h)
         if made in self.store["riders"]:
             return made
-        return pid or made
+        return pid or self.by_real_hash.get(h) or made
 
     def import_ghost(self, rid, lb, data, source):
         """Store a ghost for (rider, leaderboard) unless one at least as fast is held. 1 if added."""
@@ -483,7 +535,8 @@ class Services:
             pid = raw[276:276 + 40].split(b"\0")[0].decode("ascii", "replace")
             who = save_name(raw)
             for kpid, kname in sorted(known_riders(raw).items()):
-                self.learn_name("%08X" % game_hash(kpid), kname)
+                if not made_up(kpid):
+                    self.learn_name("%08X" % game_hash(kpid), kname)
             if not UUID.fullmatch(pid):
                 continue
             h = "%08X" % game_hash(pid)
@@ -518,18 +571,23 @@ class Services:
         """Opponent ghosts a game downloaded ("beat this rider"): <folder>/robot_ghost-<HASH>-<LBHEX>.robot, avatars in
         robot_image-<HASH>.robot. HASH = getHashCode(profile id): a rider the save names (known_riders) gets its real
         id, everyone else a stable made-up id and "Rider <HASH>" until a name for the hash is learnt. Runs every
-        start (also for imports): new or faster ghosts are added, the rest skipped."""
-        named = {"%08X" % game_hash(pid): (pid, name) for pid, name in known_riders(raw).items()}
+        start (also for imports): new or faster ghosts are added, the rest skipped. Opponents a local server served
+        (this one or the copy an import comes from) are skipped: their files carry the hash of a made-up id."""
+        known = known_riders(raw)
+        named = {"%08X" % game_hash(pid): (pid, name) for pid, name in known.items() if not made_up(pid)}
+        files = [(f, m) for f in sorted(os.listdir(folder))
+                 for m in [re.fullmatch(r"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\.robot", f)] if m]
+        served = self.served | {"%08X" % game_hash(pid) for pid in known if made_up(pid)}
+        served |= {"%08X" % game_hash(robot_id(m.group(1).zfill(8))) for _, m in files}
         count = 0
         os.makedirs(os.path.join(self.data_dir, "avatars"), exist_ok=True)
-        for f in sorted(os.listdir(folder)):
-            m = re.fullmatch(r"robot_ghost-([0-9A-F]+)-([0-9A-F]+)\.robot", f)
-            if not m:
-                continue
+        for f, m in files:
             h, lb = m.group(1).zfill(8), int(m.group(2), 16)
+            if h in served:
+                continue
             data = open(os.path.join(folder, f), "rb").read()
             ms = ghost_drive_time(data)
-            if not ms:
+            if not ms or (h, lb, ms) in self.layer_ghosts:
                 continue
             pid, name = named.get(h, (None, None))
             rid = self.rider_for_hash(h, pid)
