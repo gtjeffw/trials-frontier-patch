@@ -1212,3 +1212,6 @@ later an in-app loopback server). Static analysis only.
 - `scripts/decode_save.py` gained `encode()` (the verified writer: SaveFile::fletcher32 keyed 0xec51ed/0x24d7,
   zlib 9, XOR stream), byte-identical on real saves. The parity test adds an imports phase (the player's own copy
   and a foreign rider made with `encode`): stores equal, rider named, name remembered, a second start changes nothing.
+- README recommendation (developer's choice): the story without the grind: unlimited fuel and gems (every build),
+  `coins-for-gems`, the community layer (developer's bundle and 2019 world records); bikes, upgrades and levels earned
+  by riding. Bike unlocks and `open-all-levels` are listed as the "everything unlocked" variant.

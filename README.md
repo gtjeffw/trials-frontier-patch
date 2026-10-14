@@ -14,7 +14,7 @@ a patched app that:
 - replaces Ubisoft's servers with one inside the app, so leaderboards, the Hall of Fame and ghost races work again;
 - lets you race other riders: the opponents your game downloaded, other players' shared ghosts, and the 2019 world
   records; new players get a working game too;
-- optionally makes the game easier: unlimited fuel and gems, coins for gems, every bike unlocked, hidden levels
+- takes the grind out: unlimited fuel and gems, coins for gems; optionally every bike unlocked and hidden levels
   revealed (see *Options*).
 
 You can also share your own runs with other players. This is an unofficial fan project; the repository contains no
@@ -83,15 +83,22 @@ In this repository's folder, with the game closed:
 python3 -I scripts/community.py sync
 python3 -I scripts/community.py build
 python3 -I build.py --app <TrialsFrontier.app> --work <work folder> --decrypted <unencrypted TrialsFrontier> \
-    --with coins-for-gems,unlock-bikes,unlock-legendary-bikes,unlock-special-bikes --community --install --keymap
+    --with coins-for-gems --community --install --keymap
 ```
 
-- The first two lines fetch the other riders: the patch author's ghosts (`gtjeffw/trials-frontier-ghosts-jayuph`,
-  including 383 opponents that game had downloaded) and the 2019 world records. `--community` builds them into the game.
-- `--with`: buy coins with gems (otherwise the coin packs are dead App Store purchases) and unlock every bike. Fuel
-  and gems are unlimited in every build. Leave out what you don't want; *Options* lists more.
+This is the recommended game: the whole story as designed, without the grind that once pushed players towards
+real-money purchases.
+
+- **Unlimited gems and fuel** (in every build), and `coins-for-gems` lets you buy coins with them (otherwise the coin
+  packs are dead App Store purchases). Bikes, upgrades and levels are still earned by riding.
+- **Leaderboards with riders from day one:** the first two lines fetch the patch author's best times and ghosts
+  (`gtjeffw/trials-frontier-ghosts-jayuph`, including 383 opponents that game had downloaded) and the 2019 world
+  records; `--community` builds them into the game.
 - `build.py` checks your files, patches the game, builds the in-app server, packages an `.ipa` and hands it to
   PlayCover. It keeps your work files in `<work folder>` (outside this repository).
+
+**Everything unlocked instead:** add `unlock-bikes,unlock-legendary-bikes,unlock-special-bikes` to `--with` for every
+bike right away, and `open-all-levels` to reveal every level (some event tracks behave oddly); see *Options*.
 
 Then, in PlayCover's settings for the game:
 
