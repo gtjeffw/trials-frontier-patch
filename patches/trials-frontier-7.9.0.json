@@ -2034,6 +2034,184 @@
     "TrialsContentOfferDL.dat"
   ],
   "dlc_content_alias_note": "TrialsContentExtraDL_Moon.dat (bundled, holds /gen/3d/env/moon/bg/dome.b3d needed by /resource/moon_00_bg.txt; BgRenderer treats a missing mesh as fatal) is not in the 12-name content table. The game opens TrialsContentOfferDL.dat from Library/Caches/DLC by fixed name and that pack (store offers) is lost, so it is used as an alias slot.",
+  "app_packs": {
+    "core": [
+      "data/TrialsMobile/content.dat",
+      "data/TrialsMobile/contentSFX.dat",
+      "data/TrialsMobile/textures.dat"
+    ],
+    "note": "Content packs of the reference 7.9.0 app (size, sha256), for build.py's check of the player's copy: a missing core pack stops the build, other missing or different packs are reported. The packs the game only ever downloaded (dlc_content_names) are not part of the app.",
+    "files": {
+      "TrialsContentExtraDL_Moon.dat": {
+        "size": 33368,
+        "sha256": "4ea485b98c2ce7c890636e190156dbf700f1ba2cccdd9da774cdcde92c45034f"
+      },
+      "TrialsTexturesDL_moon.dat": {
+        "size": 909148,
+        "sha256": "a750c97b5c57a5e087eda4936f1f14e52f6487b4d7cbddadbeaa581fd59303c8"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_Cave.dat": {
+        "size": 228020,
+        "sha256": "9f63e60027a5f020aada9409d63b52942f0d3fa5c65204260eaa9359b5caf61f"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_Gen3d.dat": {
+        "size": 6044844,
+        "sha256": "04cc4ccd069a8a4babf37c45cfe3002d354ec6ed821bf4e5c0456412eb66373f"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_GenSfxCore.dat": {
+        "size": 6793620,
+        "sha256": "89d938d10252644832ab414960d4f92857876230b5fc52a6112be18c6fac320d"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_GenSfxEvent.dat": {
+        "size": 5387388,
+        "sha256": "6107b10381fe18c2946ee958218401d41ba5cc4c882df3e43d3b762ad370a7e1"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_GenSfxRide.dat": {
+        "size": 6062696,
+        "sha256": "7891d628e6b9cdb787f90eb77790008aa372e78a51764905e1869eced94726f1"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_LevelCache.dat": {
+        "size": 8088196,
+        "sha256": "e8b5cda044e515dbbd950e3de1d6e121cf5f5463cdadd573434e74a0ff3621bd"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_LevelGhost.dat": {
+        "size": 877168,
+        "sha256": "31f147fa0f961fb903d3c8b54852be96641bcc3da99d892b46de8b8351352992"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_LevelPack1.dat": {
+        "size": 3551860,
+        "sha256": "85c6f6bf6fe1cf65a8cf8e88d43284136024cdbb6fb7c83d4512fdd2a017b659"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_LevelPack2.dat": {
+        "size": 3154244,
+        "sha256": "3fad47f24233a77ba0ff145bd2344cbd3e4b7f75ec774a0140ee1509c8fd2d82"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_Moon.dat": {
+        "size": 33368,
+        "sha256": "4ea485b98c2ce7c890636e190156dbf700f1ba2cccdd9da774cdcde92c45034f"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_SfxPack.dat": {
+        "size": 597820,
+        "sha256": "3028faa1a26f7ef1c76f39c36b01485df7c7720f540cd5b9cee0fa0b818e2dce"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_Snow.dat": {
+        "size": 713160,
+        "sha256": "45ca1da5cc1f88c70ce90ae86ddcfbfc794abbb9186fcd411f824cf4eba259dd"
+      },
+      "data/TrialsMobile/TrialsContentExtraDL_Swamp.dat": {
+        "size": 915604,
+        "sha256": "8765f0452f18f1f18999e795a878b3544fcef0f45737e47e6e52e37641893da2"
+      },
+      "data/TrialsMobile/TrialsTexturesDL.dat": {
+        "size": 16938220,
+        "sha256": "36cd21c178c3a1db15c7419f02c7d02d447aaa568c17c1d76e0b972ae6a0b65f"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_bikes0.dat": {
+        "size": 2650676,
+        "sha256": "ebc06b54699fa08816e45b7879b8f35947ed5dd79a7a23c465e854ecb3c98246"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_bikes1.dat": {
+        "size": 7590284,
+        "sha256": "e638ea2c0eee37c9620d765ba59827adf973cc09b4e3931e56fa748d09a1cf7e"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_bikes2.dat": {
+        "size": 25571044,
+        "sha256": "24f4b9fb6be58b84abfbec75ccbcfcf2114e033706cc47507ff764b2500ca48f"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_bikes3.dat": {
+        "size": 21582556,
+        "sha256": "64512c4d92442e687fa980df4b73b89ed174032f5dd770c50b144f702a1ae145"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_cave.dat": {
+        "size": 535212,
+        "sha256": "3b1f01a56369a526807d0fdab72e903ce94301b7a30455402a59881b38831244"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_chipshop_extra.dat": {
+        "size": 208676,
+        "sha256": "53f80b2a48d8c2d0dab5993d9596dcbb504c894af5440d6cdc16937602472086"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_crazybikes.dat": {
+        "size": 694212,
+        "sha256": "b8dfcb59af1dd996a0bbe488e68214f99a4368150c99ff4054d623d3602b5534"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_dailyquest.dat": {
+        "size": 1026532,
+        "sha256": "1b57063f48b5e8185e2e693cc60b219b4c14c8044493ffe6815e3ff22d63e369"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_extraoutfits.dat": {
+        "size": 5652820,
+        "sha256": "f321088efb1411fc4a1cd06e4ab0d470ad1d66e917add4aa45df463f077667c7"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_fusion.dat": {
+        "size": 861404,
+        "sha256": "339255f1cb4db11f2ea211c452936304e7c80bf8027fc504ce334ead8a37ab5a"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_homeshack0.dat": {
+        "size": 5012732,
+        "sha256": "0756ae189878509278ab5701d7ccdaac7d65017b049a27d494b5dc9631f7a2c4"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_homeshack1.dat": {
+        "size": 13923972,
+        "sha256": "0f6ebab2dc36a12264dbb210c9e5d9684d02ed77bcaa1324d8d65a1b0ad70a90"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_maptiles.dat": {
+        "size": 1847588,
+        "sha256": "72c6de12802874f3abc2a3dea5102bc2380c52cc09e0e4159b1defe8ef7551bd"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_maptiles1.dat": {
+        "size": 2438308,
+        "sha256": "4b20a7490f0140788c9dff300ab9db139a57f58d4d74d97b507e54a3ef3e9bec"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_moon.dat": {
+        "size": 909148,
+        "sha256": "a750c97b5c57a5e087eda4936f1f14e52f6487b4d7cbddadbeaa581fd59303c8"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_offericons.dat": {
+        "size": 2133660,
+        "sha256": "ff4bdbadb8b0d42859b607318d51fbc243e2acb61b326a6f3f038b506e051f6c"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_slotmachine0.dat": {
+        "size": 206156,
+        "sha256": "31312dbd97c9c838207d68764c05725c5842a6a831e7a892a402dfc2126cf53a"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_slotmachine1.dat": {
+        "size": 2027900,
+        "sha256": "3c9eb59f102a64604c4dd96ed22228e998158b0e20ba22076ed6c34deb0f0a35"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_snow.dat": {
+        "size": 2635644,
+        "sha256": "b0c3561a417440244d140ebc40b0134c80cf45fdc17ccadf0c5cacf8741f1b20"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_special_event.dat": {
+        "size": 16215052,
+        "sha256": "01281ef825f480ee8f3bd7ab2dff75c2776f26b5cc03839bdc9cb430cd6bddf0"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_swamp.dat": {
+        "size": 2033492,
+        "sha256": "2f74e3b692f13e31b95ddf0b414effb1946f10571182d0f1518a3d132c04ba2f"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_villagers0.dat": {
+        "size": 4135396,
+        "sha256": "5b5b6982c16086fdba4a5d0e5ef85d00df51329f529821ba7a57733740c677f0"
+      },
+      "data/TrialsMobile/TrialsTexturesDL_villagers1.dat": {
+        "size": 2439428,
+        "sha256": "22d2a7b85ed3d10fe59e9095ca5cc3d0a910424f4a47f1507c3edf49675e2f0a"
+      },
+      "data/TrialsMobile/content.dat": {
+        "size": 24397972,
+        "sha256": "bcfcc55cf6c4d4b1598afdc78f3983633185afae62bad7a4fc6716319a0a8d34"
+      },
+      "data/TrialsMobile/contentSFX.dat": {
+        "size": 5651152,
+        "sha256": "9c54d851330f705bd892e24a4a7c09376f25f6a8bd6bb5b82901589d0158babf"
+      },
+      "data/TrialsMobile/textures.dat": {
+        "size": 36153444,
+        "sha256": "ba1d4d572367a1a83bb8af55900da60df14f5d03e497a69ee62c5c9d318dbe85"
+      }
+    }
+  },
   "optional_groups": {
     "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group.",
     "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped.",

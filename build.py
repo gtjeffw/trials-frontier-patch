@@ -80,6 +80,34 @@ def macho_info(path):
     return cpu, None
 
 
+def check_packs(app, spec):
+    """Compare the app's content packs with the reference 7.9.0 app (spec app_packs): stop if a core pack is missing,
+    report other missing or different packs. Returns the names of the missing ones."""
+    info = spec.get("app_packs", {})
+    missing, different = [], []
+    for rel, ref in info.get("files", {}).items():
+        path = os.path.join(app, rel)
+        if not os.path.exists(path):
+            missing.append(rel)
+        elif os.path.getsize(path) != ref["size"] or hashlib.sha256(open(path, "rb").read()).hexdigest() != ref["sha256"]:
+            different.append(rel)
+    core = [m for m in missing if m in info.get("core", [])]
+    if core:
+        sys.exit(f"{app}: core content packs are missing: {', '.join(core)}. You'll need to find another source for "
+                 "them; without them the game cannot start.")
+    if missing:
+        print(f"WARNING: {len(missing)} content pack(s) missing from your copy of the app:\n  "
+              + "\n  ".join(missing) + "\nYou'll need to find another source for these packs (put them into the app "
+              "bundle at the paths above). The build goes on without them; parts of the game that use them (tracks, "
+              "bikes, sounds or artwork) may be missing or black.")
+    if different:
+        print(f"note: {len(different)} content pack(s) differ from the reference 7.9.0 app (another version, or "
+              f"modified): {', '.join(different)}. Content edits to them may fail.")
+    if not missing and not different:
+        print(f"content packs: all {len(info.get('files', {}))} present and identical to the reference")
+    return missing
+
+
 def check_executable(path, spec):
     cpu, uuid = macho_info(path)
     if isinstance(cpu, list):
@@ -155,6 +183,7 @@ def main():
 
     exe = os.path.join(app, spec["executable"])
     check_executable(decrypted or exe, spec)
+    check_packs(app, spec)
     patched = os.path.join(work, "TrialsFrontier.patched")
     cmd = PY + [os.path.join(ROOT, "scripts", "apply_patches.py"), SPEC]
     if decrypted:

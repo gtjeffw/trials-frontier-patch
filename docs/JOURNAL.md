@@ -1184,3 +1184,16 @@ later an in-app loopback server). Static analysis only.
   (same bundle id, same port), copied saves (server reads the profile from the save), a busy port (server cannot
   start, login fails, keep-account protects the save), iOS (suspended apps holding the port), external server
   (`--port` must match). To check in play: closing the window, Cmd+Q, two copies at once, clearing data.
+
+## 2026-10-14 — README for players first; content pack check; save import
+
+- README reordered for players: features, a four-step quick start, then Step 1 (protect the old device's data: don't
+  open the game, keep the app, no updates, back up, extract), Step 2 (game files; obtaining an unencrypted executable
+  stays generic), Step 3 (one recommended build: coins-for-gems and all bike unlocks, the community riders), Step 4
+  (fresh start or import), good-to-know, options; developer details (patch groups, verification, local services,
+  ports, tools) moved to the end, legal last.
+- `build.py` checks the app's 42 content packs against the reference (spec `app_packs`: size and sha256 of each):
+  a missing core pack (content, contentSFX, textures) stops the build, other missing or different packs are listed
+  with "you'll need to find another source". Tested with a complete copy, two packs removed, and a core pack removed.
+- `scripts/import_save.py <Documents>`: checks the save, moves the PlayCover copy's Documents aside, copies the save,
+  ghosts and opponents (not LocalServices, so the server's next start imports everything). Tested in a scratch home.
