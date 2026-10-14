@@ -47,30 +47,47 @@ static NSFileHandle *logHandle(NSString *path) {
     return h;
 }
 
-/// PlayCover (macOS) keeps an iOS app running when its window is closed, and then its server keeps the port: a later
-/// start of the same or another copy finds the port taken. When the last visible window has closed, let the game save
-/// (the delegate calls iOS makes when an app is put away and terminated) and exit. On iPhone/iPad no NSWindow exists
-/// and this never fires.
-static void quitWhenLastWindowCloses(void (^log)(NSString *)) {
-    Class nsApp = NSClassFromString(@"NSApplication");
-    if (!nsApp) return;
-    [NSNotificationCenter.defaultCenter addObserverForName:@"NSWindowWillCloseNotification" object:nil queue:NSOperationQueue.mainQueue
-                                                usingBlock:^(NSNotification *note) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            id app = ((id (*)(id, SEL))objc_msgSend)(nsApp, sel_registerName("sharedApplication"));
-            NSArray *windows = ((id (*)(id, SEL))objc_msgSend)(app, sel_registerName("windows"));
-            for (id w in windows)
-                if (((BOOL (*)(id, SEL))objc_msgSend)(w, sel_registerName("isVisible"))) return;  // e.g. a helper window closed
-            log(@"last window closed: saving and quitting (PlayCover would keep the game running)");
-            Class uiApp = NSClassFromString(@"UIApplication");
-            id ui = uiApp ? ((id (*)(id, SEL))objc_msgSend)(uiApp, sel_registerName("sharedApplication")) : nil;
-            id delegate = ui ? ((id (*)(id, SEL))objc_msgSend)(ui, sel_registerName("delegate")) : nil;
-            for (NSString *name in @[@"applicationWillResignActive:", @"applicationDidEnterBackground:", @"applicationWillTerminate:"]) {
-                SEL sel = NSSelectorFromString(name);
-                if ([delegate respondsToSelector:sel]) ((void (*)(id, SEL, id))objc_msgSend)(delegate, sel, ui);
-            }
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ exit(0); });
-        });
+/// PlayCover runs iOS apps on macOS and its close button does not end them: it hides the app and drops its Dock icon
+/// (activation policy "prohibited"), and the game's server keeps its port. Only inside PlayCover (its PlayTools
+/// framework is loaded into the app; on iPhone/iPad nothing here runs): when the app is hidden
+/// (NSApplicationDidHideNotification) without a Dock icon and without a visible window, that was the close button, so
+/// let the game save (the delegate calls iOS makes when an app is put away and terminated) and exit. Cmd+H keeps the Dock
+/// icon and minimising does not hide the app, so neither quits.
+static BOOL inPlayCover(void) {
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const char *name = _dyld_get_image_name(i);
+        if (name && strstr(name, "/PlayTools.framework/")) return YES;
+    }
+    return NO;
+}
+
+static void quitWhenClosedInPlayCover(void (^log)(NSString *)) {
+    [NSNotificationCenter.defaultCenter addObserverForName:@"NSApplicationDidHideNotification" object:nil
+                                                     queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+      // half a second later: PlayCover may hide the app and drop the Dock icon in either order
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        Class nsApp = NSClassFromString(@"NSApplication");
+        if (!nsApp || !inPlayCover()) return;
+        id app = ((id (*)(id, SEL))objc_msgSend)(nsApp, sel_registerName("sharedApplication"));
+        long policy = ((long (*)(id, SEL))objc_msgSend)(app, sel_registerName("activationPolicy"));  // 0 = Dock icon
+        NSUInteger visible = 0;
+        for (id w in ((id (*)(id, SEL))objc_msgSend)(app, sel_registerName("windows")))
+            if (((BOOL (*)(id, SEL))objc_msgSend)(w, sel_registerName("isVisible"))) visible++;
+        if (policy == 0 || visible) {
+            log([NSString stringWithFormat:@"PlayCover: app hidden (Dock icon %@, %lu visible window(s)): keep running",
+                 policy == 0 ? @"kept" : @"gone", (unsigned long)visible]);
+            return;
+        }
+        log(@"PlayCover: window closed (app hidden, no Dock icon): saving and quitting");
+        Class uiApp = NSClassFromString(@"UIApplication");
+        id ui = uiApp ? ((id (*)(id, SEL))objc_msgSend)(uiApp, sel_registerName("sharedApplication")) : nil;
+        id delegate = ui ? ((id (*)(id, SEL))objc_msgSend)(ui, sel_registerName("delegate")) : nil;
+        for (NSString *name in @[@"applicationWillResignActive:", @"applicationDidEnterBackground:", @"applicationWillTerminate:"]) {
+            SEL sel = NSSelectorFromString(name);
+            if ([delegate respondsToSelector:sel]) ((void (*)(id, SEL, id))objc_msgSend)(delegate, sel, ui);
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ exit(0); });
+      });
     }];
 }
 
@@ -110,6 +127,6 @@ __attribute__((constructor)) static void TFLocalServicesBoot(void) {
         };
         NSError *err = nil;
         if (!TFLocalServicesStart(c, &err)) c.log([NSString stringWithFormat:@"could not listen on 127.0.0.1:%u: %@", c.port, err]);
-        quitWhenLastWindowCloses(c.log);
+        quitWhenClosedInPlayCover(c.log);
     }
 }

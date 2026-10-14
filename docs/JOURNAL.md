@@ -1171,9 +1171,15 @@ later an in-app loopback server). Static analysis only.
   `TFLocalServicesPort`, which the in-app server reads. `build.py`: 7979 for the original bundle id, else
   7980 + sha256(bundle id) % 1000 (local.trialsfrontier.fresh -> 8588, .halloween -> 8922), or `--port`.
   `install_playcover.py --port` warns when another installed copy with embedded services uses the same port.
-- PlayCover keeps an iOS app running when its window closes (what kept Trials Fresh's server on the port). The in-app
-  library now watches `NSWindowWillCloseNotification`; half a second after a window closes, if no visible window is
-  left, it calls the app delegate's resign/background/terminate methods (the game saves) and exits. macOS only.
+- PlayCover keeps an iOS app running when its window is "closed" (what kept Trials Fresh's server on the port).
+  Measured in play (window state logged every 2 s): the red X closes nothing; PlayCover hides the app and sets its
+  activation policy to "prohibited" (no Dock icon). Cmd+H hides it with the Dock icon kept (policy 0); minimising
+  keeps it unhidden; switching apps changes nothing. A first try on NSWindowWillCloseNotification never fired (and
+  its "is this a Mac" check ran before AppKit was loaded). Final, event-driven: only when PlayTools.framework is
+  loaded, on NSApplicationDidHideNotification check half a second later; with no Dock icon and no visible window, call
+  the app delegate's resign/background/terminate methods (the game saves) and exit. Checked: the red X ended the
+  game, the save was written that second, no crash report. (A crash report at 17:56 was in Apple's PowerLog
+  framework while an older hidden copy was being killed: teardown, not this code.)
 - Use cases considered: clearing app data (port lives in the app; server makes a new profile), rebuild/reinstall
   (same bundle id, same port), copied saves (server reads the profile from the save), a busy port (server cannot
   start, login fails, keep-account protects the save), iOS (suspended apps holding the port), external server
