@@ -1237,3 +1237,25 @@ later an in-app loopback server). Static analysis only.
   the two import starts it writes every opponent the servers can serve (1341 files) the way the game names them;
   the second start must change nothing: PASS (the unfixed servers fail it).
 
+## 2026-10-14 — The friends leaderboard cache (lbstorage.bin)
+
+- Question: are other players' high scores anywhere? The game writes only one leaderboard file:
+  `Library/Caches/lbstorage.bin`, the **friends** tab of every leaderboard the player opened
+  (`tr::OnlineDataContainer::saveFriendLeaderBoardCacheToDevice`); global lists lived in memory only. Backups skip
+  Library/Caches, and the jailbroken iPad's copy (2026-10-09) had an empty Caches folder (purged in March), so no
+  real one is at hand. The format comes from the game's code, so the files our PlayCover copies write (their friends
+  list is only the player) have exactly the layout an old device's would. Possible places a real one survives:
+  Apple silicon Macs that ran the App Store version (same container path as PlayCover's main copy), jailbroken
+  devices. `clearFriendLeaderBoardCache` rewrites the file empty on logout/login reset, so: copy it before any start.
+- Format worked out from the code and checked on the three local caches (docs/FORMATS.md): default `SaveFile`
+  protection (no XOR; fletcher32 keyed 0xec51a7/0x2141), version 6, per board a timestamp and leaderboard id, per
+  entry profile id, name, rank, upgrades, faults, time, score, bike. `scripts/lbcache.py` show/export, a writer with
+  byte-identical round trips. The export swaps profile ids for game hash + profile sha256 (a raw id would let anyone
+  claim that rider in a community layer).
+- `community.py add <lbstorage.bin | export>`: source type `leaderboard-cache`; riders join their own bundle by
+  profile sha256, else the made-up id of their game hash, so a friend's entry names that rider's downloaded-opponent
+  ghosts (and the server's names register keeps the name). Parity test: a synthetic cache names an opponent known
+  only by hash, adds its time, skips the player's own entry: PASS in both servers.
+- Point 4 of the scenarios (an old, slower ghost of a rider next to the layer's newer one): kept by the developer's
+  choice: the store and the layer both stay, opponent picking may offer either.
+

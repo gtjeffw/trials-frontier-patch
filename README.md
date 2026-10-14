@@ -49,6 +49,12 @@ Your progress, best times and ghosts live only on the devices you played on. Pro
   The output's `Documents` folder holds what matters: `player.bin` (your progress and best times),
   `ghost_<id>_<track>.bin` (your own ghosts) and `robot_*` (the opponents the game downloaded). A backup does not
   contain the app itself or its download cache.
+- **Friends' times may survive in a cache.** The game kept the friends tab of every leaderboard you opened in
+  `Library/Caches/lbstorage.bin`: names and best times. Backups leave caches out, so this only helps where the old
+  game's data is still on disk, e.g. an Apple silicon Mac that ran the App Store version:
+  `~/Library/Containers/com.ubisoft.redlynx.trialsfrontier/Data/Library/Caches/lbstorage.bin`. Copy it before
+  starting any game there (PlayCover uses the same folder, and the game empties the file when its login resets),
+  then see *Other riders*.
 - **Ghosts stay on the device you rode them on.** If you played on several devices, back up each one. Even then you
   will likely find ghosts for only some of your best times: the game kept them as separate local files, not for
   every run.
@@ -200,11 +206,15 @@ python3 -I scripts/ghost_bundle.py update <bundle dir> [--documents <iPhone/iPad
 `scripts/community.py` brings other riders' bundles (and the 2019 world records from
 [dutscher/trialstrackmap](https://github.com/dutscher/trialstrackmap), MIT) into your game: a list of sources,
 fetched and checked into a local cache, merged into a *community layer* the game's server reads. Your own results
-are never changed by it, and running `update` again picks up new and revised bundles.
+are never changed by it, and running `update` again picks up new and revised bundles. A leaderboard cache (Step 1)
+adds your old friends' names and best times; its names also stick to their downloaded ghosts. To share one, export
+it first (`scripts/lbcache.py export <lbstorage.bin> <out.json>`): the export carries the same hashes as bundles
+instead of profile ids, and `community.py add` takes it too.
 
 ```
 python3 -I scripts/community.py disable world-records-2019     # if you don't want them (on by default)
 python3 -I scripts/community.py add <owner>/<repo>             # any published bundle; `discover` lists them
+python3 -I scripts/community.py add <lbstorage.bin>            # friends' names and times from a leaderboard cache
 python3 -I scripts/community.py update                         # fetch, check, build, install (game closed)
 ```
 
@@ -281,6 +291,7 @@ ones are marked `UNHANDLED`) and `python3 -I scripts/netwatch.py` (flags any non
 |---|---|
 | `scripts/decode_save.py`, `extract_scores.py`, `list_ghosts.py`, `build_report.py` | save, best times, ghosts, a report with track names and medals |
 | `scripts/import_save.py` | copy a save from a device or backup into the PlayCover game |
+| `scripts/lbcache.py` | the game's friends leaderboard cache (`lbstorage.bin`): show, export |
 | `scripts/level_audit.py` | which levels you have raced, own, or cannot reach any more |
 | `scripts/unpack_datapack.py`, `datapack.py`, `level_info.py` | content packs, build-time content edits, level files |
 | `scripts/make_keymap.py` | the PlayCover keymap (one virtual finger per thumb) |

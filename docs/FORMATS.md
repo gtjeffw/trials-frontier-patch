@@ -44,6 +44,30 @@ Payload v2: u32 time ms, u32 sample count, samples…; v3: u32 bike id, u32 time
 Samples are ~133 ms apart and encoded as small deltas (format not yet decoded).
 `robot_ghost-*.robot` (downloaded opponents) use the same container with version 3.
 
+## Friends leaderboard cache — `Library/Caches/lbstorage.bin` (`tr::OnlineDataContainer`)
+
+Written by `saveFriendLeaderBoardCacheToDevice` (0x10026283c) after each friends-leaderboard reply, read by
+`loadFriendLeaderBoardCacheFromDevice` (0x100261b84) at start, emptied (file rewritten empty) by
+`clearFriendLeaderBoardCache` (logout, login reset, profile conversion, batch sync). Only the friends tab is cached;
+global lists were kept in memory. A `SaveFile` with the default protection (`SaveFile(bool)`, constants at
+0x100aed960: XOR seed 0x97 / mult 0x1F49 unused because the cache opens unprotected; checksum seed 0xEC51A7, mult
+0x2141): header u32 version 6, u32 fletcher32 (uncompressed data), u32 size, u32 0; zlib body.
+
+u32 boards; per board: u32 time cached (Unix), u32 leaderboard id (0 = Hall of Fame), u32 (1 or 4), u32 0, u8 1,
+u32 entries; per entry (135 bytes, from `tr::LeaderboardPlayerItem` of 0x8c bytes):
+
+| offset | size | field |
+|---|---|---|
+| 0 | 41 | profile id (C string) |
+| 41 | 33 | name (C string) |
+| 74 | 4 | rank (`rank`, item +0x4c) |
+| 78 | 48 | `LeaderBoardData`: u32 upgrades[4] (`parseUpgrades`), faults (`data & 0xff`), drive time ms, score_value, bike (`data >> 8 & 0x3f`, 0 → 1), …, u32 at +0x2c `upgrades >> 6 & 0x3ff`; `extradata` bytes at +0x25 |
+| 126 | 4 | item +0x80 (low byte) |
+| 130 | 4 | item +0x84 (−1 unless set) |
+| 134 | 1 | item +0x88 |
+
+`scripts/lbcache.py` reads, writes (byte-identical round trips on three caches) and exports it.
+
 ## Datapacks — `data/TrialsMobile/*.dat` (`datapack::DataPack`)
 
 Header: u32 magic, u32 count, u32 entry size (12). Entries: u32 ?, u32 data offset, u32 name hash.

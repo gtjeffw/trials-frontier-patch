@@ -88,10 +88,41 @@ def claimed_id(sha):
     return str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_URL, "trials-frontier-rider:" + sha))
 
 
+CACHE_PID, CACHE_NAME, CACHE_TRACK, CACHE_MS = "5ca0e000-1111-4000-8000-0000000000cf", "Cache Friend", 65002, 23456
+
+
+def robot_id(h):
+    return str(__import__("uuid").uuid5(__import__("uuid").NAMESPACE_URL, "trials-frontier-robot:" + h))
+
+
+def make_cache(work, docs):
+    """A friends leaderboard cache (scripts/lbcache.py) naming a rider the save knows only by hash: an opponent file
+    for CACHE_PID's hash is added to the test Documents. The player's own entry on the board must be skipped."""
+    sys.path.insert(0, SCRIPTS)
+    import lbcache
+    from datapack import game_hash
+    from decode_save import decode
+    raw = decode(open(os.path.join(docs, "player.bin"), "rb").read())[1]
+    own_pid = raw[276:276 + 40].split(b"\0")[0].decode()
+    robot = next(f for f in sorted(os.listdir(docs)) if f.startswith("robot_ghost-"))
+    shutil.copy(os.path.join(docs, robot), os.path.join(docs, "robot_ghost-%08X-%s" % (game_hash(CACHE_PID), robot.rsplit("-", 1)[1])))
+    boards = [{"cached_at": 1500000000, "leaderboard": 0, "entries": [
+                  {"profile": CACHE_PID, "name": CACHE_NAME, "rank": 7, "time_ms": 99999, "score_value": 12345678}]},
+              {"cached_at": 1500000100, "leaderboard": CACHE_TRACK, "entries": [
+                  {"profile": own_pid, "name": "Own Entry", "rank": 1, "time_ms": 20000, "bike": 3},
+                  {"profile": CACHE_PID, "name": CACHE_NAME, "rank": 2, "time_ms": CACHE_MS, "faults": 1, "bike": 2}]}]
+    path = os.path.join(work, "friends-lbstorage.bin")
+    open(path, "wb").write(lbcache.write(boards))
+    assert lbcache.read(open(path, "rb").read())[1]["entries"][1]["name"] == CACHE_NAME
+    return path
+
+
 def make_layer(work, docs):
     """A community layer from four bundles of the test Documents: "Parity Rider" (made-up identity, avatar, all the
     downloaded opponents), "Parity Twin" (a different rider with the same 32-bit hash), "Player Hash Twin" (a
-    different rider whose hash equals the player's) and the player's own bundle (must be skipped)."""
+    different rider whose hash equals the player's) and the player's own bundle (must be skipped); plus a friends
+    leaderboard cache (make_cache)."""
+    cache = make_cache(work, docs)
     home = os.path.join(work, "community-home")
     env = dict(os.environ, TF_COMMUNITY_HOME=home)
     community = [sys.executable, "-I", os.path.join(SCRIPTS, "community.py")]
@@ -117,7 +148,7 @@ def make_layer(work, docs):
             m.pop("others", None)
         json.dump(m, open(os.path.join(b, "trials-frontier-bundle.json"), "w"))
         made[name] = claimed_id(sha)
-    for folder in ["bundle-own"] + list(variants):
+    for folder in ["bundle-own"] + list(variants) + [cache]:
         subprocess.run(community + ["add", os.path.join(work, folder)], env=env, check=True, stdout=subprocess.DEVNULL)
     subprocess.run(community + ["sync"], env=env, check=True, stdout=subprocess.DEVNULL)
     subprocess.run(community + ["build"], env=env, check=True, stdout=subprocess.DEVNULL)
@@ -287,6 +318,7 @@ def main():
         layer_json = json.load(open(os.path.join(layer, "community.json")))
         fake_cid, fake_ghost = next((c, g) for c, g in sorted(layer_json["ghosts"].items()) if g["profile"] == fake_rid)
         fake_track = fake_ghost["track_id"]
+        cache_rid = robot_id("%08X" % __import__("datapack").game_hash(CACHE_PID))
         steps = [
             ("GET", f"/public/playerstats/v1/ranking/track{fake_track}?range=1,50", None),
             ("GET", f"/v1/profiles/{fake_rid}", None),
@@ -364,6 +396,8 @@ def main():
             ("POST", "/public/liveevents/v1/weekly_track_system/basic_info", b'{"additional_retry":256}'),
             ("GET", "/public/gift/v1/gifts", None),
             ("GET", "/public/nothing/here", None),
+            ("GET", f"/v1/profiles/{cache_rid}", None),
+            ("GET", f"/public/playerstats/v1/ranking/track{CACHE_TRACK}?range=1,50", None),
         ]
         failures, new_id, robot_reply = 0, None, {}
         for method, path, body in steps:
@@ -380,6 +414,17 @@ def main():
                 failures += 1
                 print("   python:", str(normal(a[2]))[:300])
                 print("   native:", str(normal(b[2]))[:300])
+        # the friends leaderboard cache names the opponent known only by hash and adds its time; the player's own
+        # entry in the cache is not shown as someone else
+        name = json.loads(call(7982, "GET", f"/v1/profiles/{cache_rid}")[2]).get("nameOnPlatform")
+        board = json.loads(call(7982, "GET", f"/public/playerstats/v1/ranking/track{CACHE_TRACK}?range=1,50")[2])
+        store = json.load(open(os.path.join(work, "store-py", "store.json")))
+        h = "%08X" % __import__("datapack").game_hash(CACHE_PID)
+        ok = name == CACHE_NAME and str(CACHE_MS) in json.dumps(board) and "20000" not in json.dumps(board) \
+            and store["names"].get(h) == CACHE_NAME
+        print(f"{'ok  ' if ok else 'DIFF'} leaderboard cache: opponent {h} named {name!r}, its time on the board, own entry "
+              f"skipped, name remembered")
+        failures += not ok
         time_py = call(7982, "GET", "/profile/?epoch=1")[1].get("Server-Time")
         time_na = call(7983, "GET", "/profile/?epoch=1")[1].get("Server-Time")
         print(f"{'ok  ' if time_py and time_na else 'DIFF'} Server-Time header: {time_py} / {time_na}")

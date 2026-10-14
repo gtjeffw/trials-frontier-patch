@@ -115,3 +115,8 @@ config file.
   keep third-party data out of the repo unless included with attribution.
 - Decide whether the player also appears on FRIENDS when other riders are imported (user preference: yes, with the
   top five there and only the single best on GLOBAL, since GLOBAL auto-scrolls to the player's best).
+- **Friends leaderboard caches** (`scripts/lbcache.py`, a community source since 2026-10-14): no real one found yet.
+  Ask players with the App Store version on an Apple silicon Mac (or a jailbroken device) for a copy (export only).
+  Possible next steps: `ghost_bundle.py export --leaderboard-cache` so a bundle can carry its publisher's friends'
+  times; the Android version's cache location (same engine, probably the same file in its cache folder).
+

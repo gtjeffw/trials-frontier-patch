@@ -153,6 +153,13 @@ another account therefore never wins; a rider who never publishes could be claim
 their profile id (old saves hold some opponents' ids), which only evidence such as the player's own save, checked
 by a future server, could settle. Names from `others` only fill in riders nobody claimed.
 
+A third source type, `leaderboard-cache`, is a player's copy of the game's friends leaderboards
+(`Library/Caches/lbstorage.bin`, or its `scripts/lbcache.py export`; `community.py add <file>`). `sync` checks it and
+keeps only the export (game hash and profile sha256 instead of profile ids, names, best time per leaderboard). In
+`build` each of its riders joins the bundle that claims the same profile sha256, else the rider id of its game hash
+(the one hash-only opponent ghosts get), naming it if it has only a placeholder; its results count best-only like
+any other. No ghosts come from it.
+
 `install` copies the layer to `Documents/LocalServices/community` (game closed); `build.py --community` builds one
 into the app (used when the data has none: iPhone/iPad). Both servers overlay it when the store loads: riders merge
 with the store's own (by id, else by the game hash of a named opponent's real profile id), a layer result shows

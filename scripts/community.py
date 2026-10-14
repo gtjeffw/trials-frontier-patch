@@ -4,6 +4,7 @@ local cache, checked, and consolidated into a "community layer" that the local s
 Usage:
   python3 -I community.py list
   python3 -I community.py add <owner/repo | https://github.com/owner/repo | local bundle folder> [--unsigned-ok]
+  python3 -I community.py add <lbstorage.bin | leaderboard cache export .json>   friends' times (scripts/lbcache.py)
   python3 -I community.py remove <id>
   python3 -I community.py enable|disable <id>          e.g. disable world-records-2019
   python3 -I community.py discover [--add]             published bundles (GitHub topic) not in your list yet
@@ -17,7 +18,9 @@ Sources: the defaults in community/sources.json of this repository (the patch au
 records, on unless you disable them), plus your own list, which can add sources and override the defaults
 by id. A bundle from GitHub must be its publisher's: every commit made through GitHub by the account its manifest
 names (signed by GitHub; ghost_bundle.py publish does that). Local folders, and sources added with --unsigned-ok,
-are not checked that way.
+are not checked that way. A leaderboard cache (the game's friends leaderboards, scripts/lbcache.py) adds those riders'
+names and best times, no ghosts: by profile hash it joins the rider's own bundle, else the opponent with that game
+hash, whose name it then supplies.
 
 Robust and incremental: sync replaces a source's cached copy only with a newer copy that passes every check
 (validation as in ghost_bundle.py check, the publisher's GitHub-signed commits, pinned sha256 for the world
@@ -51,6 +54,7 @@ import uuid
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import ghost_bundle as gb  # noqa: E402
+import lbcache  # noqa: E402
 
 DEFAULT_SOURCES = os.path.join(HERE, "..", "community", "sources.json")
 HOME = os.environ.get("TF_COMMUNITY_HOME") or os.path.expanduser(
@@ -112,17 +116,33 @@ def parse_repo(text):
     return f"{m.group(1)}/{m.group(2)}" if m else None
 
 
+def local_id(path, prefix):
+    """The id ends up in the layer (and in apps built with it): never the local path."""
+    taken = {x["id"]: x.get("path") for x in sources()}
+    base = prefix + re.sub(r"[^A-Za-z0-9._-]+", "-", os.path.basename(path.rstrip("/")))
+    sid, n = base, 1
+    while sid in taken and taken[sid] != path:
+        n += 1
+        sid = f"{base}-{n}"
+    return sid
+
+
 def cmd_add(arg):
     unsigned = gb.opt("--unsigned-ok", True)
+    if os.path.isfile(arg):
+        path = os.path.abspath(arg)
+        try:
+            exp = lbcache.load_any(path)
+        except (lbcache.CacheError, OSError, ValueError) as e:
+            sys.exit(f"{arg}: not a leaderboard cache or its export ({e})")
+        sid = local_id(os.path.splitext(path)[0], "local/cache-")
+        set_user(sid, type="leaderboard-cache", path=path, enabled=True)
+        print(f"added leaderboard cache {path} as {sid}: {len(exp['riders'])} riders, "
+              f"{sum(len(r['results']) for r in exp['riders'])} results (run update to use it)")
+        return
     if os.path.isdir(arg):
         path = os.path.abspath(arg)
-        # the id ends up in the layer (and in apps built with it): never the local path
-        taken = {x["id"]: x.get("path") for x in sources()}
-        base = "local/" + re.sub(r"[^A-Za-z0-9._-]+", "-", os.path.basename(path.rstrip("/"))), 1
-        sid, n = base
-        while sid in taken and taken[sid] != path:
-            n += 1
-            sid = f"{base[0]}-{n}"
+        sid = local_id(path, "local/")
         set_user(sid, type="bundle", path=path, enabled=True, allow_unsigned=True)
         print(f"added local bundle {path} as {sid}")
         return
@@ -233,6 +253,19 @@ def sync_wr(s, dest):
     return {"commit": s["commit"], "fetched": now(), "signed_by": None, "license": s.get("license")}
 
 
+def sync_cache(s, dest):
+    """A leaderboard cache, kept as its export (hashes instead of profile ids)."""
+    os.makedirs(dest)
+    try:
+        exp = lbcache.load_any(s["path"])
+    except lbcache.CacheError as e:
+        raise gb.BundleError(str(e)) from None
+    write_json(os.path.join(dest, "export.json"), exp)
+    digest = hashlib.sha256(json.dumps(exp, sort_keys=True).encode()).hexdigest()
+    return {"commit": "local-" + digest[:12], "fetched": now(), "signed_by": None, "license": None,
+            "riders": len(exp["riders"])}
+
+
 def cmd_sync():
     cache = os.path.join(HOME, "cache")
     os.makedirs(cache, exist_ok=True)
@@ -247,6 +280,8 @@ def cmd_sync():
         try:
             if s["type"] == "bundle":
                 info = sync_bundle(s, new)
+            elif s["type"] == "leaderboard-cache":
+                info = sync_cache(s, new)
             elif s["type"] == "trialstrackmap-wr":
                 if st.get("good", {}).get("commit") == s["commit"] and all(
                         os.path.exists(os.path.join(target, os.path.basename(f))) for f in s["files"]):
@@ -264,7 +299,8 @@ def cmd_sync():
             st = {"good": info}
             print(f"ok   {sid}: {'updated to' if changed else 'unchanged'} {info['commit'][:10]}"
                   + (f", signed by GitHub for {info['signed_by']}" if info.get("signed_by") else
-                     ", sha256 pinned" if s["type"] == "trialstrackmap-wr" else ", not checked (local folder)"))
+                     ", sha256 pinned" if s["type"] == "trialstrackmap-wr" else
+                     ", checked (leaderboard cache)" if s["type"] == "leaderboard-cache" else ", not checked (local folder)"))
             ok += 1
         except (gb.BundleError, OSError, ValueError) as e:
             st["last_error"], st["last_attempt"] = str(e), now()
@@ -317,6 +353,7 @@ def cmd_build(out=None):
     riders, results, ghosts, used, conflicts = {}, {}, {}, [], []
     claims = {}   # profile sha256 -> [(sort key, source id, manifest, folder)]
     mentions = {}  # game hash -> [(source id, ghost entry, folder, name)]
+    cached = []    # (source id, rider from a leaderboard cache export)
 
     def better(new, old):
         return old is None or ((new["data"] & 0xFF), new["drivetime"]) < ((old["data"] & 0xFF), old["drivetime"])
@@ -346,6 +383,11 @@ def cmd_build(out=None):
                 used.append({"id": s["id"], "type": "bundle", "commit": st["commit"], "signed_by": st.get("signed_by"),
                              "rider": m["rider"]["name"], "game_hash": h, "license": m["license"],
                              "url": f"https://github.com/{s['repo']}" if s.get("repo") else None})
+            elif s["type"] == "leaderboard-cache":
+                exp = json.load(open(os.path.join(folder, "export.json")))
+                cached += [(s["id"], r) for r in exp["riders"]]
+                used.append({"id": s["id"], "type": s["type"], "commit": st["commit"], "riders": len(exp["riders"]),
+                             "license": None, "note": "the game's friends leaderboards, from a player's own copy"})
             elif s["type"] == "trialstrackmap-wr":
                 n = 0
                 for name, lb, faults, ms, bike in wr_results(folder):
@@ -398,6 +440,16 @@ def cmd_build(out=None):
         if len(ids) > 1:
             conflicts.append({"game_hash": h, "riders": sorted(ids), "note": "32-bit hash shared by different riders; "
                               "downloaded-opponent ghosts with this hash are kept apart"})
+    # leaderboard caches: by profile sha256 the rider's own bundle, else the rider known by that game hash
+    for sid, r in sorted(cached, key=lambda x: (x[0], x[1]["profile_sha256"])):
+        h = r["game_hash"]
+        rid = claimed_id(r["profile_sha256"]) if r["profile_sha256"] in claims else gb.rider_id(h)
+        if rid not in riders:
+            riders[rid] = {"name": "Rider " + h, "game_hash": h, "source": sid}
+        if rider_name_ok(r.get("name")) and riders[rid]["name"] == "Rider " + h:
+            riders[rid]["name"] = r["name"]
+        for e in r["results"]:
+            put_result(rid, e["leaderboard"], result_entry(e["faults"], e["time_ms"], e.get("bike") or 0, "community " + sid))
     for h in sorted(mentions):
         ids = claimed_by_hash.get(h, [])
         rid = ids[0] if len(ids) == 1 else gb.rider_id(h)
@@ -452,7 +504,7 @@ def write_notice(path, used):
              "the licence of every source below: some require credit or that their notice travels with the data.", ""]
     for u in used:
         who = f"rider {u['rider']}, published by github.com/{u['signed_by']}" if u.get("signed_by") else \
-            (f"rider {u['rider']} (local folder, publisher not checked)" if u.get("rider") else u.get("attribution") or "")
+            (f"rider {u['rider']} (local folder, publisher not checked)" if u.get("rider") else u.get("attribution") or u.get("note") or "")
         lines.append(f"- **{u['id']}** ({u['type']}): {who}; licence **{u.get('license') or 'unknown'}**"
                      + (f"; {u['url']}" if u.get("url") else "") + f"; commit {u['commit'][:12]}")
     for u in used:
