@@ -3,7 +3,8 @@
 Usage: python3 -I tests/test_parity.py <tfserver binary> <game Documents dir to copy (player.bin, ghost_*, robot_*)>
 
 Both servers get a copy of the same Documents and an empty store, receive the same scripted requests (login,
-leaderboards, result submit, ghost search/download/upload/refusal, avatars, quiet and unhandled routes), and must give
+leaderboards, result submit, ghost search/download/upload/refusal, avatars, quiet and unhandled routes, a login
+from another app refused), and must give
 the same status codes and bodies (JSON compared as data, timestamps ignored; binary byte for byte). At the end the two
 stores must be equal. A community layer (scripts/community.py build from a bundle of a made-up rider who also
 carries the downloaded opponents) is overlaid by both: its rider, results, ghosts and avatar must be served alike,
@@ -124,8 +125,11 @@ def make_layer(work, docs):
     return os.path.join(home, "layer"), made
 
 
+APP_ID = "local.parity.app"
+
+
 def start(tfserver, work, docs, layer=None):
-    extra = ["--community", layer] if layer else []
+    extra = (["--community", layer] if layer else []) + ["--app-id", APP_ID]
     procs = [subprocess.Popen([sys.executable, "-I", PY_SERVER, "--container", os.path.join(work, "Data"),
                                "--data", os.path.join(work, "store-py"), "--port", "7982"] + extra,
                               stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT),
@@ -322,6 +326,14 @@ def main():
         before = names[0][0]
         ok = names[0] == names[1] and names[0][1:] == ["Parity Name"] * 3 and before != "Parity Name"
         print(f"{'ok  ' if ok else 'DIFF'} change-name request adopted and kept: {names[0]} / {names[1]}")
+        failures += not ok
+        # another copy of the game (its own server could not start) must not log in here: the game would switch accounts
+        other = {**rename, "User-Agent": "local.other.copy;Other;7.9.0;(iOS;apple iPad;26.5)"}
+        own = {**plain, "User-Agent": APP_ID + ";Parity;7.9.0;(iOS;apple iPad;26.5)"}
+        got = [(call(port, "POST", "/v2/profiles/sessions", b"{}", other)[0],
+                json.loads(call(port, "POST", "/v2/profiles/sessions", b"{}", own)[2])["nameOnPlatform"]) for port in (7982, 7983)]
+        ok = got[0] == got[1] and got[0][0] == 403 and got[0][1] == "Parity Name"
+        print(f"{'ok  ' if ok else 'DIFF'} login from another app refused, own app's accepted, name unchanged: {got[0]} / {got[1]}")
         failures += not ok
         # generated avatars: every pattern x shape (and every skin tone on open faces) byte-identical in both servers
         want, ids = {(k, v) for k in range(12) for v in range(8)} | {("skin", t) for t in range(5)}, []

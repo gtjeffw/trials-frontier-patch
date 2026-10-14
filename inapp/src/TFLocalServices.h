@@ -11,6 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, nullable) NSString *communityDir;     // community layer; default <dataDir>/community
 @property(nonatomic, copy, nullable) NSString *profileId;        // default: from player.bin
 @property(nonatomic, copy, nullable) NSString *name;             // default: from player.bin
+@property(nonatomic, copy, nullable) NSString *appId;            // this game copy's bundle id: logins from other copies are refused
 @property(nonatomic, copy, nullable) void (^log)(NSString *line);
 /// Diagnostics: a description of the game's own state, logged before a request whenever it changed (TFEntry.m reads
 /// the player's name fields from the game's memory, only in the known 7.9.0 executable).

@@ -36,6 +36,7 @@ BOOL TFLocalServicesStart(TFLocalServicesConfig *config, NSError **error) {
     void (^log)(NSString *) = config.log ?: ^(NSString *line) {};
     TFServices *services = [[TFServices alloc] initWithDocuments:config.documentsDir dataDir:config.dataDir port:config.port
                                                        profileId:config.profileId name:config.name avatarsDir:config.avatarsDir log:log];
+    services.appId = config.appId;
     TFGatedRouter *router = [TFGatedRouter new];
     router.ready = dispatch_group_create();
     router.probe = config.probe;

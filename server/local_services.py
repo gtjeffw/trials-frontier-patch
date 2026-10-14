@@ -2,7 +2,7 @@
 
 Usage: python3 -I server/local_services.py [--container <app container Data dir>] [--port 7979]
                                            [--profile-id <uuid>] [--name <name>] [--avatars <dir>] [--log <file>]
-                                           [--data <dir>] [--community <layer dir>]
+                                           [--data <dir>] [--community <layer dir>] [--app-id <bundle id>]
 
 Listens on 127.0.0.1 only. The patched game sends every request here (see docs/JOURNAL.md, "Online services probe"):
   GET  /v1/applications/<appId>/configuration   app configuration; its sandbox "triag_ip_lnch61_a_ws" names the game server
@@ -204,6 +204,7 @@ def read_profile(container):
 
 
 class Services:
+    app_id = None  # the game copy this server belongs to (bundle id); logins from others are refused
     def __init__(self, container, port, profile_id, name, log_path, avatars=None):
         self.container, self.port, self.avatars = container, port, avatars
         self.base = f"http://127.0.0.1:{port}"
@@ -842,6 +843,14 @@ class Services:
             return 200, {"Server-Time": "%.3f" % time.time()}, {}
         if p in ("/v2/profiles/sessions", "/v1/profiles/sessions") and method in ("POST", "PUT"):
             self.note(f"   login request: {token_summary(headers)}; {headers.get('User-Agent') or '-'}")
+            ua = headers.get("User-Agent") or ""
+            client = ua.split(";")[0].strip() if ";" in ua else ""  # the game's: "<bundle id>;<name>;<version>;(...)"
+            if self.app_id and client and client != self.app_id:
+                # Another copy of the game (all use port 7979) reached this server because its own could not start.
+                # A login here would give it this player's profile, and the game then parks its own progress as
+                # player_<hash>.prgstore and starts a new player (ProgressSyncManager::switchLocalProgress).
+                self.note(f"   login refused: {client} is another app; this server belongs to {self.app_id}")
+                return 403, {}, {"errorCode": 403, "message": "this local server belongs to another app"}
             new = requested_name(headers)
             if new and not self.fixed_name:
                 with self.lock:
@@ -904,6 +913,8 @@ def main():
     container = opt("--container", DEFAULT_CONTAINER)
     port = int(opt("--port", "7979"))
     services = Services(container, port, opt("--profile-id"), opt("--name"), opt("--log"), opt("--avatars"))
+    m = re.search(r"/Containers/([^/]+)/Data/?$", os.path.abspath(container))
+    services.app_id = opt("--app-id") or (m.group(1) if m else None)  # refuse logins from other copies of the game
     data = opt("--data")
     if not data:  # same place as the in-app server: Documents/LocalServices (move a store left in Library once)
         data, old = os.path.join(container, "Documents", "LocalServices"), os.path.join(container, "Library", "LocalServices")

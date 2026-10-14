@@ -822,6 +822,16 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
         if (![q.method isEqualToString:@"POST"] && ![q.method isEqualToString:@"PUT"]) return nil;
         TFServices *s = w;
         [s note:[NSString stringWithFormat:@"   login request: %@; %@", tokenSummary(q), q.headers[@"user-agent"] ?: @"-"]];
+        NSString *ua = q.headers[@"user-agent"] ?: @"";   // the game's: "<bundle id>;<name>;<version>;(...)"
+        NSString *client = [ua containsString:@";"] ? [[[ua componentsSeparatedByString:@";"] firstObject]
+                            stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet] : @"";
+        if (s.appId.length && client.length && ![client isEqualToString:s.appId]) {
+            // Another copy of the game (all use port 7979) reached this server because its own could not start. A login
+            // here would give it this player's profile, and the game then parks its own progress as player_<hash>.prgstore
+            // and starts a new player (ProgressSyncManager::switchLocalProgress).
+            [s note:[NSString stringWithFormat:@"   login refused: %@ is another app; this server belongs to %@", client, s.appId]];
+            return [TFResponse json:@{@"errorCode": @403, @"message": @"this local server belongs to another app"} status:403];
+        }
         NSString *requested = requestedName(q);
         if (requested && !s->_fixedName) {
             [s.lock lock];

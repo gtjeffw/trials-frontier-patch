@@ -2,7 +2,7 @@
 // server/local_services.py where they overlap).
 // Usage: tfserver [--container <app container Data dir>] [--documents <dir>] [--data <dir>] [--port 7979]
 //                 [--profile-id <uuid>] [--name <name>] [--avatars <dir>] [--log <file>]
-//                 [--community <layer dir>]
+//                 [--community <layer dir>] [--app-id <bundle id>]
 #import <Foundation/Foundation.h>
 #import "TFLocalServices.h"
 
@@ -20,6 +20,7 @@ int main(int argc, const char *argv[]) {
         c.communityDir = o[@"--community"];
         c.profileId = o[@"--profile-id"];
         c.name = o[@"--name"];
+        c.appId = o[@"--app-id"];
         [NSFileManager.defaultManager createDirectoryAtPath:c.dataDir withIntermediateDirectories:YES attributes:nil error:nil];
         NSFileHandle *logFile = nil;
         if (o[@"--log"]) {

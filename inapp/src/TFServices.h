@@ -13,6 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface TFServices : NSObject
 @property(nonatomic, readonly, copy) NSString *profileId;
 @property(nonatomic, readonly, copy) NSString *name;
+@property(nonatomic, copy, nullable) NSString *appId;   // the game copy this server belongs to (bundle id)
 @property(nonatomic, readonly, copy) NSString *base;          // http://127.0.0.1:<port>
 @property(nonatomic, readonly, copy) NSString *documentsDir;  // the game's Documents (player.bin, ghost files)
 @property(nonatomic, readonly, copy) NSString *dataDir;       // store directory

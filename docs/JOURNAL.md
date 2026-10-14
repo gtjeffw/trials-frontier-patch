@@ -1140,3 +1140,25 @@ later an in-app loopback server). Static analysis only.
   leaves it, the character stays greyed out, the town and story continue. (Its duel buttons would check
   `getNetworkType`, left offline on purpose, and show "No Internet Connection".) Story: only mission 364 (`RANDOM_PVP_NAME`, a generated job: collect
   5 of item 28/2, which PvP results award) needs PvP, and no mission depends on it. README says so.
+
+## 2026-10-14 — Two copies reset to new players: the game's account switch
+
+- Trials Fresh was running when the main copy (jayuph) and Trials Halloween were started. Their servers could not
+  listen ("Address already in use", all copies use 127.0.0.1:7979), so both games logged in to Fresh's server, which
+  answered with Fresh's profile (and adopted the name "jayuph"). Both games then started as new players.
+- Cause in the game: `ProgressSyncManager::switchLocalProgress`, run after every login
+  (`OnlineCore::onAuthenticationComplete`), compares the logged-in profile with the save's owner (Player+0x4868 =
+  getHashCode of Player+0x110); if they differ it saves the progress as `player_<owner hash>.prgstore` (here
+  `player_402556195`, 402556195 = 0x17FE8523), resets the player and loads `player_<new hash>.prgstore` if any: the
+  game's multi-account support, not cheat detection. Nothing was lost.
+- Recovery: snapshot of all three copies first (recovery/backups/incident-20261014-*). The `.prgstore` files held the
+  full progress (222 and 223 best times) but already carried the new profile id at Player+0x110 (written after the
+  login), so a plain copy would switch again. Wrote them back as player.bin with jayuph's profile id, using a save
+  writer verified byte-for-byte on four real saves: SaveFile = 16-byte header (version 114, checksum, uncompressed
+  size, 0) + zlib level 9, XOR-scrambled (seed 0x9d, mult 0x20b9); the checksum is `SaveFile::fletcher32` over the
+  uncompressed data, each byte keyed by a stream (seed 0xec51ed, mult 0x24d7): s1/s2 start 0xffff, add
+  (k + k*b) & 0xff per byte, fold every 359 bytes. Fresh's store name set back to JBuzz. No results crossed over.
+- Fixes: both servers refuse a login whose User-Agent (`<bundle id>;<name>;<version>;(...)`) names another app (in-app:
+  NSBundle.mainBundle.bundleIdentifier; Python: --app-id or the container path; tfserver: --app-id); parity test
+  extended (PASS). Patch `local-services-keep-account` (b.ne -> nop at 0x1000cc8dc) so the game never switches
+  accounts. Recorded local-services hashes updated. README: one copy at a time, and why.

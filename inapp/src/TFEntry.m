@@ -64,6 +64,7 @@ __attribute__((constructor)) static void TFLocalServicesBoot(void) {
         c.documentsDir = docs;
         c.dataDir = data;
         c.port = 7979;
+        c.appId = NSBundle.mainBundle.bundleIdentifier;
         NSString *res = [[NSBundle.mainBundle resourcePath] stringByAppendingPathComponent:@"LocalServices"];
         // community layer: the one installed into the data (scripts/community.py install, updatable), else the one
         // built into the app (build.py --community)

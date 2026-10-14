@@ -10,11 +10,11 @@
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
     "patched_executable": "b4e3aa176a0d3515f87a9a52813283c0bf40d7716daaecaf3ec5ce6a3330941f",
     "patched_executable_with": {
-      "local-services": "360b66ccd095c89f53d3a732ce093b602cf4d01aec317120a89240e930cbd5c3",
-      "local-services,open-all-levels": "08d3f693ffdae1e298a76da712424e7a2707dfea378f1b3fb0ef57364d063c30",
-      "local-services,open-all-levels,orphan-levels": "bcca6637e2881beb22b57ff20fb9fe2cbed6a4b205d7699b43d4bed130750d7a",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "4723b7675109ac22691776fbfd600763e4b8fcc4329b28dff3999aaa45d6d7c0",
-      "embedded-server,local-services": "82fe11eaf38e5ecc7abd559f552db38b925baa05fba88b658393b95dc9aa3953"
+      "local-services": "74d128539cd54b33f757b9624712c520ef5e3839c98bcc156195f9b4dbfb2b1d",
+      "local-services,open-all-levels": "b307700d4073b5e3187ecd325d11125f0385e52e46540fc2ad4f08497a91a391",
+      "local-services,open-all-levels,orphan-levels": "1b23fe61b7600c8946cad86dd75265ed1cca6d125590f2f8a454185764ce31f8",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "9b89facd3744bf4d4dc986e31baf24df3947032cf1d274fad5024285a282081d",
+      "embedded-server,local-services": "5ecc67b618ab505f3d962fe520a2f7c20d6e6d6607a83653400f68a9a99ed44b"
     }
   },
   "encryption": {
@@ -1437,6 +1437,21 @@
       ],
       "function": "Gfx::TextureManager::bindTexture(Gfx::Texture*, int)",
       "reason": "Some texture slots are reserved but never set up because their pack (the downloadable TrialsTexturesDL.dat) is gone; e.g. tr::BgRenderer::renderBackDrop on tracks whose backdrop uses such textures (desert rocks etc.). bindTexture lazily loads via the Texture's vtable and crashed on the null vtable (KERN_INVALID_ADDRESS at 0, seen loading a level with the restored iPad profile). If the vtable is null, skip loading and still call TEXTURE_HW::bind on the empty hardware texture (binds nothing), so the object is just invisible. Cave in the Mach-O header padding after the gem caves."
+    },
+    {
+      "id": "local-services-keep-account",
+      "group": "local-services",
+      "vmaddr": "0x1000cc8dc",
+      "original": "61000054",
+      "replacement": "1f2003d5",
+      "original_asm": [
+        "b.ne 0x1000cc8e8"
+      ],
+      "replacement_asm": [
+        "nop"
+      ],
+      "function": "tr::ProgressSyncManager::switchLocalProgress()",
+      "reason": "After every login (OnlineCore::onAuthenticationComplete) the game compares the logged-in profile with the save's owner; if they differ it saves the current progress as player_<owner hash>.prgstore, resets the player and loads player_<new hash>.prgstore if there is one (multi-account support). With local services each game copy has exactly one account; a different profile only arrives by mistake, e.g. when two copies run at once and the second reaches the first one's server on port 7979 (seen 2026-10-14: two copies were reset to new players). Never switch: always take the same-account path and keep the save."
     },
     {
       "id": "local-services-loopback-only-cave",
