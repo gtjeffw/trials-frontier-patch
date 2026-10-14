@@ -4,7 +4,7 @@ Usage: python3 -I build_ipa.py <TrialsFrontier.app from device> <patched executa
        [--spec patches/trials-frontier-7.9.0.json] [--groups g,g] [--with g,g]
        [--inapp <dir with libTFLocalServices.dylib>] [--avatars <dir of <profileId>.png>]
        [--community <layer dir>] [--dlc-from <folder>]
-       [--bundle-id <id>] [--display-name <name>]
+       [--bundle-id <id>] [--display-name <name>] [--port N]
 
 With --spec, the spec's "plist_patches" (optionally limited to --groups) are applied to the bundle's plists;
 plists are re-serialised as sorted binary plists so the output stays reproducible. "content_patches" edit files
@@ -16,6 +16,8 @@ the app's LocalServices/ folder (read by the in-app server; never part of this r
 fills the app's DLC/ folder (where the dlc-folder-in-bundle patch makes the game look for downloaded packs) with the
 packs selected by scripts/dlcpacks.py, plus the player's own downloaded packs from --dlc-from. --bundle-id and
 --display-name change CFBundleIdentifier / CFBundleDisplayName (to install next to the original on a device).
+--port records the local services port the executable was patched for (apply_patches.py --port) in Info.plist
+(TFLocalServicesPort), where the in-app server reads it.
 
 The original bundle is copied unchanged except: SC_Info/ (per-account FairPlay data) and _CodeSignature/
 (Apple's signature, invalid once the executable changes; decryption tools differ in whether they keep it) are
@@ -48,6 +50,7 @@ spec_path, groups, extra = opt("--spec"), opt("--groups"), opt("--with")
 inapp, avatars, community = opt("--inapp"), opt("--avatars"), opt("--community")
 dlc_from = opt("--dlc-from")
 bundle_id, display_name = opt("--bundle-id"), opt("--display-name")
+port = opt("--port")  # the port patched into the executable (apply_patches.py --port); the in-app server reads it
 app_dir, exe_path, out = sys.argv[1:4]
 plist_edits, content_patches, extra_files = {}, {}, {}
 if spec_path:
@@ -97,6 +100,8 @@ if spec_path:
                 for name in sorted(names):
                     rel = os.path.relpath(os.path.join(root, name), community)
                     extra_files["LocalServices/community/" + rel] = (os.path.join(root, name), False)
+if port:
+    plist_edits.setdefault("Info.plist", {})["TFLocalServicesPort"] = int(port)
 if bundle_id or display_name:
     ident = plist_edits.setdefault("Info.plist", {})
     if bundle_id:

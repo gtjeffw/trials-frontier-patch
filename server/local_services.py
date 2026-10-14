@@ -846,7 +846,7 @@ class Services:
             ua = headers.get("User-Agent") or ""
             client = ua.split(";")[0].strip() if ";" in ua else ""  # the game's: "<bundle id>;<name>;<version>;(...)"
             if self.app_id and client and client != self.app_id:
-                # Another copy of the game (all use port 7979) reached this server because its own could not start.
+                # Another copy of the game on the same port (builds before per-copy ports all use 7979) reached this server because its own could not start.
                 # A login here would give it this player's profile, and the game then parks its own progress as
                 # player_<hash>.prgstore and starts a new player (ProgressSyncManager::switchLocalProgress).
                 self.note(f"   login refused: {client} is another app; this server belongs to {self.app_id}")

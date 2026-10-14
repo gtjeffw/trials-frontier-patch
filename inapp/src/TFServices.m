@@ -826,7 +826,8 @@ static BOOL better(NSDictionary *new, NSDictionary *old) {
         NSString *client = [ua containsString:@";"] ? [[[ua componentsSeparatedByString:@";"] firstObject]
                             stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet] : @"";
         if (s.appId.length && client.length && ![client isEqualToString:s.appId]) {
-            // Another copy of the game (all use port 7979) reached this server because its own could not start. A login
+            // Another copy of the game on the same port (builds before per-copy ports all use 7979) reached this server
+            // because its own could not start. A login
             // here would give it this player's profile, and the game then parks its own progress as player_<hash>.prgstore
             // and starts a new player (ProgressSyncManager::switchLocalProgress).
             [s note:[NSString stringWithFormat:@"   login refused: %@ is another app; this server belongs to %@", client, s.appId]];

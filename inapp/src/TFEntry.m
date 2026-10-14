@@ -2,6 +2,7 @@
 // the local services before the game's first request. Data lives in Documents/LocalServices (never purged, included
 // in device backups); a store left in Library/LocalServices by the development server is moved there once.
 #import <Foundation/Foundation.h>
+#import <objc/message.h>
 #import <mach-o/dyld.h>
 #import <mach-o/loader.h>
 #import <string.h>
@@ -46,6 +47,33 @@ static NSFileHandle *logHandle(NSString *path) {
     return h;
 }
 
+/// PlayCover (macOS) keeps an iOS app running when its window is closed, and then its server keeps the port: a later
+/// start of the same or another copy finds the port taken. When the last visible window has closed, let the game save
+/// (the delegate calls iOS makes when an app is put away and terminated) and exit. On iPhone/iPad no NSWindow exists
+/// and this never fires.
+static void quitWhenLastWindowCloses(void (^log)(NSString *)) {
+    Class nsApp = NSClassFromString(@"NSApplication");
+    if (!nsApp) return;
+    [NSNotificationCenter.defaultCenter addObserverForName:@"NSWindowWillCloseNotification" object:nil queue:NSOperationQueue.mainQueue
+                                                usingBlock:^(NSNotification *note) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            id app = ((id (*)(id, SEL))objc_msgSend)(nsApp, sel_registerName("sharedApplication"));
+            NSArray *windows = ((id (*)(id, SEL))objc_msgSend)(app, sel_registerName("windows"));
+            for (id w in windows)
+                if (((BOOL (*)(id, SEL))objc_msgSend)(w, sel_registerName("isVisible"))) return;  // e.g. a helper window closed
+            log(@"last window closed: saving and quitting (PlayCover would keep the game running)");
+            Class uiApp = NSClassFromString(@"UIApplication");
+            id ui = uiApp ? ((id (*)(id, SEL))objc_msgSend)(uiApp, sel_registerName("sharedApplication")) : nil;
+            id delegate = ui ? ((id (*)(id, SEL))objc_msgSend)(ui, sel_registerName("delegate")) : nil;
+            for (NSString *name in @[@"applicationWillResignActive:", @"applicationDidEnterBackground:", @"applicationWillTerminate:"]) {
+                SEL sel = NSSelectorFromString(name);
+                if ([delegate respondsToSelector:sel]) ((void (*)(id, SEL, id))objc_msgSend)(delegate, sel, ui);
+            }
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ exit(0); });
+        });
+    }];
+}
+
 __attribute__((constructor)) static void TFLocalServicesBoot(void) {
     @autoreleasepool {
         NSFileManager *fm = NSFileManager.defaultManager;
@@ -63,7 +91,9 @@ __attribute__((constructor)) static void TFLocalServicesBoot(void) {
         TFLocalServicesConfig *c = [TFLocalServicesConfig new];
         c.documentsDir = docs;
         c.dataDir = data;
-        c.port = 7979;
+        // the port the executable's service URLs were patched for (build.py --port); 7979 by default
+        NSInteger port = [[NSBundle.mainBundle objectForInfoDictionaryKey:@"TFLocalServicesPort"] integerValue];
+        c.port = (uint16_t)(port > 0 && port < 65536 ? port : 7979);
         c.appId = NSBundle.mainBundle.bundleIdentifier;
         NSString *res = [[NSBundle.mainBundle resourcePath] stringByAppendingPathComponent:@"LocalServices"];
         // community layer: the one installed into the data (scripts/community.py install, updatable), else the one
@@ -79,6 +109,7 @@ __attribute__((constructor)) static void TFLocalServicesBoot(void) {
             [lock unlock];
         };
         NSError *err = nil;
-        if (!TFLocalServicesStart(c, &err)) c.log([NSString stringWithFormat:@"could not listen on 127.0.0.1:7979: %@", err]);
+        if (!TFLocalServicesStart(c, &err)) c.log([NSString stringWithFormat:@"could not listen on 127.0.0.1:%u: %@", c.port, err]);
+        quitWhenLastWindowCloses(c.log);
     }
 }

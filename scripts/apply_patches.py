@@ -1,7 +1,7 @@
 """Apply the byte patches from a patch spec to the decrypted TrialsFrontier executable.
 
 Usage: python3 -I apply_patches.py <spec.json> <executable in> <executable out> [--only id,id] [--groups g,g]
-                                   [--with g,g]
+                                   [--with g,g] [--port N]
 
 By default every patch in the spec's "groups" is applied; patches in "optional_groups" (e.g. local-services) only
 with --with (on top of the default groups) or when named in --groups. The default build is checked against
@@ -33,9 +33,16 @@ def opt(name):
     return None
 
 
-only, groups, extra = opt("--only"), opt("--groups"), opt("--with")
+only, groups, extra, port = opt("--only"), opt("--groups"), opt("--with"), opt("--port")
 spec_path, src, dst = sys.argv[1:4]
 spec = json.load(open(spec_path))
+# --port: the local services port written into the game's service URLs ("http://127.0.0.1:7979..."), so that several
+# copies (each with its own server) never reach each other's server. Same number of digits, so no lengths change.
+default_port = int(spec.get("local_services_port", 7979))
+port = int(port) if port else default_port
+if not 1000 <= port <= 9999:
+    sys.exit("--port: a four-digit port (1000-9999)")
+port_from, port_to = b"127.0.0.1:%d" % default_port, b"127.0.0.1:%d" % port
 data = open(src, "rb").read()
 
 # some tools zero cryptoff/cryptsize along with cryptid; restore them so such a copy can match the reference
@@ -82,6 +89,7 @@ for p in spec["patches"]:
         continue
     off = int(p["vmaddr"], 16) - base
     old, new = bytes.fromhex(p["original"]), bytes.fromhex(p["replacement"])
+    new = new.replace(port_from, port_to)
     if p.get("original_asm") == ["(zero padding)"] and (any(old) or off + len(old) > text_start):
         sys.exit(f"{p['id']}: code cave is not inside the zero padding before __text")
     cur = bytes(out[off:off + len(old)])
@@ -99,6 +107,9 @@ digest = sha256(bytes(out))
 expected = spec["sha256"].get("patched_executable")
 if with_groups:
     expected = spec["sha256"].get("patched_executable_with", {}).get(",".join(sorted(with_groups)))
+if port != default_port:
+    expected = None  # the recorded hashes are for the default port
+    print(f"local services port {port} (recorded hashes are for {default_port})")
 print(f"wrote {dst} sha256={digest}")
 if reference and not selected and not selected_groups and expected and digest != expected:
     sys.exit(f"patched sha256 does not match the spec ({expected})")

@@ -1162,3 +1162,19 @@ later an in-app loopback server). Static analysis only.
   NSBundle.mainBundle.bundleIdentifier; Python: --app-id or the container path; tfserver: --app-id); parity test
   extended (PASS). Patch `local-services-keep-account` (b.ne -> nop at 0x1000cc8dc) so the game never switches
   accounts. Recorded local-services hashes updated. README: one copy at a time, and why.
+
+## 2026-10-14 — Per-copy ports; closing the window quits
+
+- macOS has one loopback for all apps, so separate PlayCover containers do not separate the copies' servers. Ports
+  per copy: the six service URLs carry "127.0.0.1:7979"; `apply_patches.py --port N` rewrites the four digits (24
+  bytes, checked; the recorded hashes stay those of 7979), `build_ipa.py --port` writes Info.plist
+  `TFLocalServicesPort`, which the in-app server reads. `build.py`: 7979 for the original bundle id, else
+  7980 + sha256(bundle id) % 1000 (local.trialsfrontier.fresh -> 8588, .halloween -> 8922), or `--port`.
+  `install_playcover.py --port` warns when another installed copy with embedded services uses the same port.
+- PlayCover keeps an iOS app running when its window closes (what kept Trials Fresh's server on the port). The in-app
+  library now watches `NSWindowWillCloseNotification`; half a second after a window closes, if no visible window is
+  left, it calls the app delegate's resign/background/terminate methods (the game saves) and exits. macOS only.
+- Use cases considered: clearing app data (port lives in the app; server makes a new profile), rebuild/reinstall
+  (same bundle id, same port), copied saves (server reads the profile from the save), a busy port (server cannot
+  start, login fails, keep-account protects the save), iOS (suspended apps holding the port), external server
+  (`--port` must match). To check in play: closing the window, Cmd+Q, two copies at once, clearing data.

@@ -5,7 +5,7 @@ Usage:
                       [--decrypted <unencrypted TrialsFrontier executable of your own copy>]
                       [--server embedded|external|none] [--with group,group,...]
                       [--avatars <dir>] [--community [<layer dir>]]
-                      [--bundle-id <id>] [--display-name <name>]
+                      [--bundle-id <id>] [--display-name <name>] [--port N]
                       [--install] [--keymap] [--dry-run]
 
 Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.json where they exist):
@@ -27,9 +27,12 @@ Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.
             scripts/community.py): the given layer folder, or the one `community.py update` made. Used when the
             game's data has no installed layer (`community.py install`, the way to update it later).
 --bundle-id / --display-name: a second copy next to the original app, with its own data: on iPhone/iPad (then sign
-            with scripts/sign_ios.py) or in PlayCover (e.g. a fresh game besides your own; run one at a time, both
-            serve on port 7979).
+            with scripts/sign_ios.py) or in PlayCover (e.g. a fresh game besides your own).
+--port:     the local services port (the game's server on 127.0.0.1, shared by all apps on the machine). Default:
+            7979 for the original app; for a --bundle-id copy one derived from the bundle id (7980-8979), so copies never
+            reach each other's server. With --server external, run the server with the same --port.
 """
+import hashlib
 import json
 import os
 import struct
@@ -125,6 +128,7 @@ def main():
         community = nxt if nxt and not nxt.startswith("--") else os.path.join(COMMUNITY_HOME, "layer")
         del sys.argv[i:i + (2 if nxt and not nxt.startswith("--") else 1)]
     bundle_id, display_name = opt("--bundle-id"), opt("--display-name")
+    port = opt("--port")
     install, keymap, dry = opt("--install", True), opt("--keymap", True), opt("--dry-run", True)
     if not app or not work or server not in ("embedded", "external", "none") or len(sys.argv) > 1:
         sys.exit(__doc__)
@@ -135,6 +139,16 @@ def main():
     if unknown:
         sys.exit(f"unknown option(s) for --with: {', '.join(unknown)} (choose from "
                  f"{', '.join(sorted(optional - {'local-services', 'embedded-server'}))})")
+    # Local services port: every copy serves itself on 127.0.0.1, which all apps on a Mac share. The original app keeps
+    # the spec's port (7979); a copy with its own --bundle-id gets its own port, derived from the bundle id, so two
+    # copies running at once never reach each other's server (a login there would make the game switch accounts).
+    if "local-services" in groups:
+        if port is None:
+            port = (spec["local_services_port"] if not bundle_id or bundle_id == spec["bundle_id"]
+                    else 7980 + int(hashlib.sha256(bundle_id.encode()).hexdigest(), 16) % 1000)
+        port = str(int(port))
+    elif port:
+        sys.exit("--port needs local services (--server embedded or external)")
     exe_groups = ",".join(sorted({g for g in groups if any(p.get("group") == g for p in spec["patches"])}))
     all_groups = ",".join(sorted(set(groups)))
     os.makedirs(work, exist_ok=True)
@@ -150,7 +164,7 @@ def main():
     else:
         sys.exit("the app's executable is encrypted (App Store copies are): give --decrypted <an unencrypted "
                  "executable of your own copy>; see the README, \"Getting the game files\"")
-    run(cmd + (["--with", exe_groups] if exe_groups else []), dry)
+    run(cmd + (["--with", exe_groups] if exe_groups else []) + (["--port", port] if port else []), dry)
 
     ipa_cmd = PY + [os.path.join(ROOT, "scripts", "build_ipa.py"), app, patched,
                     os.path.join(work, "TrialsFrontier-7.9.0-patched.ipa"), "--spec", SPEC]
@@ -166,6 +180,8 @@ def main():
             ipa_cmd += ["--community", community]
     if bundle_id:
         ipa_cmd += ["--bundle-id", bundle_id]
+    if port:
+        ipa_cmd += ["--port", port]
     if display_name:
         ipa_cmd += ["--display-name", display_name]
     run(ipa_cmd, dry)
@@ -177,8 +193,11 @@ def main():
             inst += ["--keymap", os.path.join(ROOT, "playcover", "trials-frontier-keymap.plist")]
         if bundle_id:
             inst += ["--bundle-id", bundle_id]
+        if port:
+            inst += ["--port", port]
         run(inst, dry)
-    print(f"done: {os.path.join(work, 'TrialsFrontier-7.9.0-patched.ipa')} (server: {server}; options: {', '.join(extra) or 'none'})")
+    print(f"done: {os.path.join(work, 'TrialsFrontier-7.9.0-patched.ipa')} (server: {server}"
+          + (f" on port {port}" if port else "") + f"; options: {', '.join(extra) or 'none'})")
 
 
 if __name__ == "__main__":

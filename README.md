@@ -100,16 +100,19 @@ the silent switch.
 | `--with orphan-levels` | gives the six levels without a map position a place in the main map's fogged east (PvP tracks keep "any bike") |
 | `--with dev-levels` | names and places six unfinished developer test levels that ship with the game |
 | `--with file-sharing` | shows the game's data (save, ghosts, server store) in Finder and the Files app — for iPhone/iPad |
-| `--bundle-id`, `--display-name` | a second copy next to the original with its own data (iPhone/iPad, or PlayCover: run one copy at a time, see below) |
+| `--bundle-id`, `--display-name` | a second copy next to the original with its own data and its own server port (see below) |
+| `--port N` | the local server's port; default 7979 for the original, one derived from the bundle id for a copy |
 | `--avatars <dir>` | `<profileId>.png` (146×146) pictures shown on the leaderboards, e.g. your own Ubisoft avatar |
 | `--community [<layer>]` | build other riders into the app (see *Other riders*; for iPhone/iPad, where `community.py install` cannot reach the data) |
 
-**Several copies in PlayCover: run one at a time.** Every copy serves itself on the same port (7979), so a second copy
-started while another runs cannot start its own server. Builds since 2026-10-14 protect the save in that case: a
-server refuses logins from another copy, and the game never switches accounts (`local-services-keep-account`).
-Older builds could log the second copy in with the first one's profile, and the game then set its own progress aside
-(as `Documents/player_<number>.prgstore`, recoverable) and started a new player. Quit one copy (`pkill -x
-TrialsFrontier`) before starting another.
+**Several copies, closing the window.** Each copy serves itself on its own port: 7979 for the original app, one
+derived from the bundle id (7980-8979) for a `--bundle-id` copy, so copies never reach each other's server even when
+they run at the same time. In PlayCover, closing the game's window quits it (PlayCover alone would keep it running in
+the background). As further safeguards, a server refuses logins from another copy and the game never switches
+accounts (`local-services-keep-account`). Copies built before 2026-10-14 all use 7979 and keep running after their
+window closes: run one at a time and quit with `pkill -x TrialsFrontier`. On such builds a second copy could log in
+with the first one's profile, and the game then set its own progress aside (as `Documents/player_<number>.prgstore`,
+recoverable) and started a new player.
 
 The always-on patch groups are `compat` (runs outside a team-signed install, without the dead content bucket),
 `privacy` (ads, cross-promotion, analytics SDKs off), `offline` (no Ubisoft/RedLynx services; the online code itself is
