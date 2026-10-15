@@ -38,11 +38,11 @@ python3 -I scripts/extract_app_domain.py <backup folder> <my trials data>
 python3 -I scripts/community.py sync
 python3 -I scripts/community.py build
 
-# Build (Step 3): patch your copy of the game (Step 2) with the recommended options and those riders, install it into PlayCover
+# Build (Step 3): patch your copy of the game with the recommended options and those riders, install it
 python3 -I build.py --app <TrialsFrontier.app> --work <work folder> --decrypted <unencrypted TrialsFrontier> \
     --with coins-for-gems --community --install --keymap
 
-# Your save (Step 4): start the game once in PlayCover and close it, then bring in your save (skip this for a fresh start)
+# Your save (Step 4): start the game once in PlayCover, close it, import your save (skip for a fresh start)
 python3 -I scripts/import_save.py <my trials data>/AppDomain-com.ubisoft.redlynx.trialsfrontier/Documents
 ```
 
