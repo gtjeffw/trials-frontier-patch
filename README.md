@@ -28,7 +28,23 @@ game files (see *Legal*).
 4. **Bring in your save**, or start fresh (*Step 4*).
 
 You need an Apple-silicon Mac with [PlayCover](https://playcover.io), Xcode (for its compiler) and Python 3.12. For
-iPhone/iPad instead of a Mac, see *iPhone / iPad*.
+iPhone/iPad instead of a Mac, see *iPhone / iPad*. In this repository's folder:
+
+```
+# 1. Your old data: take the game's files out of an unencrypted backup of your device
+python3 -I scripts/extract_app_domain.py <backup folder> <my trials data>
+
+# 2. Other riders: fetch the patch author's best times and ghosts and the 2019 world records, merge them
+python3 -I scripts/community.py sync
+python3 -I scripts/community.py build
+
+# 3. Patch your copy of the game (Step 2) with the recommended options and those riders, install it into PlayCover
+python3 -I build.py --app <TrialsFrontier.app> --work <work folder> --decrypted <unencrypted TrialsFrontier> \
+    --with coins-for-gems --community --install --keymap
+
+# 4. Start the game once in PlayCover and close it, then bring in your save (skip this for a fresh start)
+python3 -I scripts/import_save.py <my trials data>/AppDomain-com.ubisoft.redlynx.trialsfrontier/Documents
+```
 
 ## Step 1: keep your old game data safe
 
@@ -46,7 +62,7 @@ Your progress, best times and ghosts live only on the devices you played on. Pro
   python3 -I scripts/extract_app_domain.py <backup folder> <output folder>
   ```
 
-  The output's `Documents` folder holds what matters: `player.bin` (your progress and best times),
+  Its `AppDomain-com.ubisoft.redlynx.trialsfrontier/Documents` folder holds what matters: `player.bin` (your progress and best times),
   `ghost_<id>_<track>.bin` (your own ghosts) and `robot_*` (the opponents the game downloaded). A backup does not
   contain the app itself or its download cache.
 - **Friends' times may survive in a cache.** The game kept the friends tab of every leaderboard you opened in
@@ -86,11 +102,22 @@ downloaded (`TrialsContentDL.dat`, `TrialsContentDL2.dat`, `TrialsContentOfferDL
 In this repository's folder, with the game closed:
 
 ```
+# other riders: fetch the sources into a local cache (checked), then merge them into a community layer
 python3 -I scripts/community.py sync
 python3 -I scripts/community.py build
+# patch, package and install into PlayCover:
+#   --app        the app bundle from your copy (Step 2)
+#   --work       a folder for the build's files, outside this repository
+#   --decrypted  the unencrypted executable (Step 2)
+#   --with       options: coins-for-gems (buy coins with gems); see Options
+#   --community  build the layer from the line above into the game
+#   --install    hand the result to PlayCover;  --keymap  install the keyboard controls
 python3 -I build.py --app <TrialsFrontier.app> --work <work folder> --decrypted <unencrypted TrialsFrontier> \
     --with coins-for-gems --community --install --keymap
 ```
+
+Your save is not part of the build: it goes into the game's data folder, which PlayCover creates on the game's
+first start (*Step 4*).
 
 This is the recommended game: the whole story as designed, without the grind that once pushed players towards
 real-money purchases.
