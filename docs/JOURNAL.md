@@ -1275,3 +1275,17 @@ later an in-app loopback server). Static analysis only.
   stops at 0, so gems spent while unlimited come off the real balance and earned gems add to it. Switching to the
   game's own gems later starts from what is left (often 0).
 
+## 2026-10-14 — Why own ghosts are missing (nothing deletes them)
+
+- The player is certain they could always race their own best ghost online, yet the iPad has files for 102 of ~210
+  bests. Code reading (docs/FORMATS.md, ghost lifecycle): a `ghost_*` file is written only on the device that set
+  the best, at once and in place; online, the race ghost (own included) always came from Ubisoft's server, and
+  downloads were never saved as files; nothing in the game deletes `ghost_*.bin` (no limit, no cache handling); the
+  cloud progress restore refills the score table without ghosts. So bests set on other devices or installs reached
+  the iPad without files. All 102 iPad files carry the profile's own hash (17fe8523); the iPhone's two 2014 files
+  use prefix 0 (written before the profile had an id; the importers skip them, and they would lose to later bests).
+- For the patched game: nothing deletes own ghosts, and new bests are written locally and uploaded to the local
+  server's store. Caution for the future: neither server answers `playerprogress/v1/progress`; if one ever does, its
+  `highscores2` must never be worse than the save, or the game resets its table and a slower run would overwrite a
+  ghost file.
+

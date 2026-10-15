@@ -44,6 +44,17 @@ Payload v2: u32 time ms, u32 sample count, samples…; v3: u32 bike id, u32 time
 Samples are ~133 ms apart and encoded as small deltas (format not yet decoded).
 `robot_ghost-*.robot` (downloaded opponents) use the same container with version 3.
 
+Lifecycle (from the code, 2026-10-14): the only writer is `tr::PlayerEventManager::executeEventFinishedLevel`
+(0x1001eac5c), immediately when a run beats the local score table (`PlayerHighScores::updateScore`), in place
+(`fopen("wb")`), independent of any server. The file is read only to upload it (`OnlineGhostManager::submitGhostFile`
+0x1002d8784, after the server says "updated"). Racing a leaderboard ghost, the player's own included, always
+downloaded it (`OnlineGhostManager::getGhost` 0x1002d7ee0) into memory; downloads were never saved as `ghost_*`.
+Nothing deletes `ghost_*.bin` (removals handle `lvlcache/*.lvl`, `temp_mission_ghost-*.robo`, `*.robot`,
+`pvp_ghost_*`, prgstore backups, images, DLC). The cloud progress restore (`playerprogress/v1/progress` →
+`parseHighScores2` 0x1002abef4) resets and refills the score table without ghosts: bests from other devices arrive
+without files. The prefix is getHashCode of the profile id; files written before the game had an id use `0`.
+
+
 ## Friends leaderboard cache — `Library/Caches/lbstorage.bin` (`tr::OnlineDataContainer`)
 
 Written by `saveFriendLeaderBoardCacheToDevice` (0x10026283c) after each friends-leaderboard reply, read by
