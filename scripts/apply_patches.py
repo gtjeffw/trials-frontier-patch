@@ -1,11 +1,13 @@
 """Apply the byte patches from a patch spec to the decrypted TrialsFrontier executable.
 
 Usage: python3 -I apply_patches.py <spec.json> <executable in> <executable out> [--only id,id] [--groups g,g]
-                                   [--with g,g] [--port N]
+                                   [--with g,g] [--without g,g] [--port N]
 
 By default every patch in the spec's "groups" is applied; patches in "optional_groups" (e.g. local-services) only
 with --with (on top of the default groups) or when named in --groups. The default build is checked against
-sha256.patched_executable, a --with build against sha256.patched_executable_with["<sorted,groups>"].
+sha256.patched_executable, a --with build against sha256.patched_executable_with["<sorted,groups>"]. --without drops
+default groups the spec lists in "removable_groups" (unlimited-fuel, unlimited-gems: the game's own fuel and gems);
+their hashes are recorded under the same key with "-<group>" entries after the --with groups.
 
 Input: an unencrypted executable of your own copy of 7.9.0 (arm64). If it is byte-identical to the reference
 (sha256.decrypted_executable), the output is byte-for-byte reproducible and checked against the recorded hashes.
@@ -34,6 +36,7 @@ def opt(name):
 
 
 only, groups, extra, port = opt("--only"), opt("--groups"), opt("--with"), opt("--port")
+without = opt("--without")
 spec_path, src, dst = sys.argv[1:4]
 spec = json.load(open(spec_path))
 # --port: the local services port written into the game's service URLs ("http://127.0.0.1:7979..."), so that several
@@ -80,7 +83,13 @@ optional = set(spec.get("optional_groups", {}))
 with_groups = set(extra.split(",")) if extra else set()
 if with_groups - optional:
     sys.exit(f"--with: not an optional group: {', '.join(sorted(with_groups - optional))}")
+without_groups = set(without.split(",")) if without else set()
+if without_groups - set(spec.get("removable_groups", [])):
+    sys.exit(f"--without: not a removable group: {', '.join(sorted(without_groups - set(spec.get('removable_groups', []))))}"
+             f" (removable: {', '.join(spec.get('removable_groups', []))})")
 for p in spec["patches"]:
+    if p.get("group") in without_groups:
+        continue
     if p.get("group") in optional and p["group"] not in with_groups and not (selected_groups and p["group"] in selected_groups):
         continue
     if selected and p["id"] not in selected:
@@ -105,8 +114,9 @@ open(dst, "wb").write(out)
 os.chmod(dst, 0o755)
 digest = sha256(bytes(out))
 expected = spec["sha256"].get("patched_executable")
-if with_groups:
-    expected = spec["sha256"].get("patched_executable_with", {}).get(",".join(sorted(with_groups)))
+if with_groups or without_groups:
+    key = ",".join(sorted(with_groups) + ["-" + g for g in sorted(without_groups)])
+    expected = spec["sha256"].get("patched_executable_with", {}).get(key)
 if port != default_port:
     expected = None  # the recorded hashes are for the default port
     print(f"local services port {port} (recorded hashes are for {default_port})")

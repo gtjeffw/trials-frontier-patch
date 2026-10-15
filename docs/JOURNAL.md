@@ -1259,3 +1259,19 @@ later an in-app loopback server). Static analysis only.
 - Point 4 of the scenarios (an old, slower ghost of a rider next to the layer's newer one): kept by the developer's
   choice: the store and the layer both stay, opponent picking may offer either.
 
+## 2026-10-14 — Fuel and gems the game's own way (--without)
+
+- Asked: can fuel and gems work as designed, for players who want the original pace? From the code: fuel refills on
+  `PlayerTimers` (refill time = settings value x `CustomizationManager::m_fuelRefillTimeMultiplierCached`, 1.0, lower
+  with full rider outfits; all local), with the anti-cheat `removeCheatedFuel` only on clock changes; gems come from
+  missions, quests, levels and achievements (purchases, video ads and Facebook/Ubisoft bonuses are gone). Nothing of
+  that needs a server. Not yet tried in play.
+- The `economy` group is split into the default groups `unlimited-fuel` and `unlimited-gems`, which spec key
+  `removable_groups` lets `apply_patches.py`/`build.py --without` drop (no other default group can be dropped).
+  Default and existing builds are byte-identical (hashes unchanged); the three new combinations with the embedded
+  server are recorded (`patched_executable_with` keys with `-<group>` entries) and differ from the normal build only
+  at the five fuel/gem sites.
+- Gem balance: the patch only changes reads (9999); `PlayerItems::remove` subtracts from the real stored count and
+  stops at 0, so gems spent while unlimited come off the real balance and earned gems add to it. Switching to the
+  game's own gems later starts from what is left (often 0).
+

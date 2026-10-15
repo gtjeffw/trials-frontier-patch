@@ -14,7 +14,10 @@
       "local-services,open-all-levels": "b307700d4073b5e3187ecd325d11125f0385e52e46540fc2ad4f08497a91a391",
       "local-services,open-all-levels,orphan-levels": "1b23fe61b7600c8946cad86dd75265ed1cca6d125590f2f8a454185764ce31f8",
       "embedded-server,local-services,open-all-levels,orphan-levels": "9b89facd3744bf4d4dc986e31baf24df3947032cf1d274fad5024285a282081d",
-      "embedded-server,local-services": "5ecc67b618ab505f3d962fe520a2f7c20d6e6d6607a83653400f68a9a99ed44b"
+      "embedded-server,local-services": "5ecc67b618ab505f3d962fe520a2f7c20d6e6d6607a83653400f68a9a99ed44b",
+      "embedded-server,local-services,-unlimited-fuel": "0548dc2029309f383e015338c8ba2b14c561cb5b72cb30630d5f138098121fa2",
+      "embedded-server,local-services,-unlimited-gems": "d22525a99e222fd6f4dfad4fb6b4db75dfee598ba770c4fae38e41b2b2b20855",
+      "embedded-server,local-services,-unlimited-fuel,-unlimited-gems": "1f095bef15f713dcee7fa5fb1a9f5ad448f705c2f52e082d99637297e7c460e1"
     }
   },
   "encryption": {
@@ -26,8 +29,10 @@
     "compat": "Required to run outside a team-signed iPhone/iPad install (PlayCover/macOS) and without the dead content bucket.",
     "privacy": "Stops ad and cross-promotion SDKs (and their network traffic). Independent of any server.",
     "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears.",
-    "economy": "Optional gameplay changes for offline play: no fuel use, unlimited gems; coins unchanged."
+    "unlimited-fuel": "Races never use fuel. On by default; build.py --without unlimited-fuel keeps the game's own fuel and refill timer (works offline).",
+    "unlimited-gems": "Gems always read 9999 (spending lowers the real balance, never below 0; earned gems still add to it). On by default; --without unlimited-gems keeps the game's own gems."
   },
+  "removable_groups": ["unlimited-fuel", "unlimited-gems"],
   "patches": [
     {
       "id": "bundle-seed-id-constant",
@@ -251,7 +256,7 @@
     },
     {
       "id": "unlimited-fuel",
-      "group": "economy",
+      "group": "unlimited-fuel",
       "vmaddr": "0x100133534",
       "original": "f44fbea9fd7b01a9",
       "replacement": "20008052c0035fd6",
@@ -267,7 +272,7 @@
     },
     {
       "id": "unlimited-gems-cave-a",
-      "group": "economy",
+      "group": "unlimited-gems",
       "vmaddr": "0x100006e00",
       "original": "000000000000000000000000000000000000000000000000",
       "replacement": "1f0900716000005408d868b8a5d10714e0e18452c0035fd6",
@@ -287,7 +292,7 @@
     },
     {
       "id": "unlimited-gems-hook-a",
-      "group": "economy",
+      "group": "unlimited-gems",
       "vmaddr": "0x1001fb49c",
       "original": "08d868b8",
       "replacement": "592ef817",
@@ -302,7 +307,7 @@
     },
     {
       "id": "unlimited-gems-cave-b",
-      "group": "economy",
+      "group": "unlimited-gems",
       "vmaddr": "0x100006e20",
       "original": "000000000000000000000000000000000000000000000000",
       "replacement": "1f09007160000054085868b81fd90714e0e18452c0035fd6",
@@ -322,7 +327,7 @@
     },
     {
       "id": "unlimited-gems-hook-b",
-      "group": "economy",
+      "group": "unlimited-gems",
       "vmaddr": "0x1001fd2a4",
       "original": "085868b8",
       "replacement": "df26f817",

@@ -3,7 +3,7 @@
 Usage:
   python3 -I build.py --app <TrialsFrontier.app> --work <work dir>
                       [--decrypted <unencrypted TrialsFrontier executable of your own copy>]
-                      [--server embedded|external|none] [--with group,group,...]
+                      [--server embedded|external|none] [--with group,group,...] [--without group,...]
                       [--avatars <dir>] [--community [<layer dir>]]
                       [--bundle-id <id>] [--display-name <name>] [--port N]
                       [--install] [--keymap] [--dry-run]
@@ -11,7 +11,8 @@ Usage:
 Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.json where they exist):
   1. executable: --decrypted if given, else the app's own if it is not encrypted (cryptid 0); see the README,
      "Getting the game files";
-  2. scripts/apply_patches.py: the default groups (compat, privacy, offline, economy) plus the chosen options;
+  2. scripts/apply_patches.py: the default groups (compat, privacy, offline, unlimited-fuel, unlimited-gems) plus
+     the chosen options;
   3. with --server embedded: scripts/build_inapp.py builds libTFLocalServices.dylib (needs Xcode);
   4. scripts/build_ipa.py: a reproducible .ipa in --work;
   5. with --install: scripts/install_playcover.py hands it to PlayCover and copies the texture packs the game only
@@ -23,6 +24,8 @@ Steps (each verified against the sha256 values in patches/trials-frontier-7.9.0.
             none     = no local services (everything online stays off).
 --with:     optional extras: coins-for-gems, unlock-bikes, unlock-legendary-bikes, unlock-special-bikes,
             open-all-levels, orphan-levels, dev-levels, file-sharing (see README).
+--without:  unlimited-fuel and/or unlimited-gems: keep the game's own fuel (it refills over time) and gems (earned by
+            playing), as the game was designed; works offline.
 --community: build a community layer into the app (other riders' bundles, the 2019 world records; see
             scripts/community.py): the given layer folder, or the one `community.py update` made. Used when the
             game's data has no installed layer (`community.py install`, the way to update it later).
@@ -148,6 +151,7 @@ def main():
     decrypted = opt("--decrypted")
     server = opt("--server", default="embedded")
     extra = [g for g in (opt("--with", default="") or "").split(",") if g]
+    without = [g for g in (opt("--without", default="") or "").split(",") if g]
     avatars = opt("--avatars")
     community = None
     if "--community" in sys.argv:  # optional value: default the layer of scripts/community.py
@@ -167,6 +171,10 @@ def main():
     if unknown:
         sys.exit(f"unknown option(s) for --with: {', '.join(unknown)} (choose from "
                  f"{', '.join(sorted(optional - {'local-services', 'embedded-server'}))})")
+    removable = spec.get("removable_groups", [])
+    if set(without) - set(removable):
+        sys.exit(f"unknown group(s) for --without: {', '.join(sorted(set(without) - set(removable)))} "
+                 f"(choose from {', '.join(removable)})")
     # Local services port: every copy serves itself on 127.0.0.1, which all apps on a Mac share. The original app keeps
     # the spec's port (7979); a copy with its own --bundle-id gets its own port, derived from the bundle id, so two
     # copies running at once never reach each other's server (a login there would make the game switch accounts).
@@ -193,7 +201,8 @@ def main():
     else:
         sys.exit("the app's executable is encrypted (App Store copies are): give --decrypted <an unencrypted "
                  "executable of your own copy>; see the README, \"Getting the game files\"")
-    run(cmd + (["--with", exe_groups] if exe_groups else []) + (["--port", port] if port else []), dry)
+    run(cmd + (["--with", exe_groups] if exe_groups else []) + (["--without", ",".join(sorted(without))] if without else [])
+        + (["--port", port] if port else []), dry)
 
     ipa_cmd = PY + [os.path.join(ROOT, "scripts", "build_ipa.py"), app, patched,
                     os.path.join(work, "TrialsFrontier-7.9.0-patched.ipa"), "--spec", SPEC]
@@ -226,7 +235,8 @@ def main():
             inst += ["--port", port]
         run(inst, dry)
     print(f"done: {os.path.join(work, 'TrialsFrontier-7.9.0-patched.ipa')} (server: {server}"
-          + (f" on port {port}" if port else "") + f"; options: {', '.join(extra) or 'none'})")
+          + (f" on port {port}" if port else "") + f"; options: {', '.join(extra) or 'none'}"
+          + (f"; without: {', '.join(without)}" if without else "") + ")")
 
 
 if __name__ == "__main__":
