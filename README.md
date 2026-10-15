@@ -31,18 +31,18 @@ You need an Apple-silicon Mac with [PlayCover](https://playcover.io), Xcode (for
 iPhone/iPad instead of a Mac, see *iPhone / iPad*. In this repository's folder:
 
 ```
-# 1. Your old data: take the game's files out of an unencrypted backup of your device
+# Your old data (Step 1): take the game's files out of an unencrypted backup of your device
 python3 -I scripts/extract_app_domain.py <backup folder> <my trials data>
 
-# 2. Other riders: fetch the patch author's best times and ghosts and the 2019 world records, merge them
+# Other riders: fetch the patch author's best times and ghosts and the 2019 world records, merge them
 python3 -I scripts/community.py sync
 python3 -I scripts/community.py build
 
-# 3. Patch your copy of the game (Step 2) with the recommended options and those riders, install it into PlayCover
+# Build (Step 3): patch your copy of the game (Step 2) with the recommended options and those riders, install it into PlayCover
 python3 -I build.py --app <TrialsFrontier.app> --work <work folder> --decrypted <unencrypted TrialsFrontier> \
     --with coins-for-gems --community --install --keymap
 
-# 4. Start the game once in PlayCover and close it, then bring in your save (skip this for a fresh start)
+# Your save (Step 4): start the game once in PlayCover and close it, then bring in your save (skip this for a fresh start)
 python3 -I scripts/import_save.py <my trials data>/AppDomain-com.ubisoft.redlynx.trialsfrontier/Documents
 ```
 
