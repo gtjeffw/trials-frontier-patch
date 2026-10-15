@@ -180,6 +180,9 @@ def main():
         sys.exit("--port needs local services (--server embedded or external)")
     exe_groups = ",".join(sorted({g for g in groups if any(p.get("group") == g for p in spec["patches"])}))
     all_groups = ",".join(sorted(set(groups)))
+    if install and not dry and subprocess.run(["pgrep", "-x", spec["executable"]], capture_output=True).returncode == 0:
+        sys.exit("the game is running: close its window first (or: pkill -x TrialsFrontier); a reinstall replaces the "
+                 "app under it")
     os.makedirs(work, exist_ok=True)
 
     exe = os.path.join(app, spec["executable"])

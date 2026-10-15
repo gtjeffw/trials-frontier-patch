@@ -3,7 +3,8 @@
 Usage: python3 -I install_playcover.py <spec.json> <TrialsFrontier.app> [--ipa patched.ipa] [--keymap keymap.plist]
                                        [--bundle-id <id>] [--port N] [--caches-dlc [--dlc-from <folder>]] [--dry-run]
 
-  --ipa:        hand the .ipa to PlayCover (`open -a PlayCover`), which installs and re-signs it (game closed).
+  --ipa:        hand the .ipa to PlayCover (`open -a PlayCover`), which installs and re-signs it. Refused while the
+                game runs (a reinstall replaces the app under it): close its window first.
   --keymap:     install the PlayCover keymap (enable Keymapping for the app in PlayCover).
   --bundle-id:  the bundle id the .ipa was built with (build.py --bundle-id), for a second copy of the game with its
                 own data; default com.ubisoft.redlynx.trialsfrontier.
@@ -46,6 +47,8 @@ PORT = opt("--port")
 CONTAINER = os.path.join(HOME, "Library/Containers", BUNDLE_ID, "Data")
 spec_path, app_dir = sys.argv[1:3]
 spec = json.load(open(spec_path))
+if not dry and subprocess.run(["pgrep", "-x", spec["executable"]], capture_output=True).returncode == 0:
+    sys.exit("the game is running: close its window (or: pkill -x TrialsFrontier), then install again")
 copies, report = dlcpacks.plan(spec, app_dir, dlc_from) if caches else ([], [])
 
 if PORT:
