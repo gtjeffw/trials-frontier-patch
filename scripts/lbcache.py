@@ -1,7 +1,7 @@
 """The game's friends leaderboard cache, Library/Caches/lbstorage.bin: read, write, export.
 
 Usage: python3 -I lbcache.py show <lbstorage.bin>
-       python3 -I lbcache.py export <lbstorage.bin> <out.json>
+       python3 -I lbcache.py export <lbstorage.bin> <out.json> [--with-names]
 
 While the game was online it kept the friends tab of every leaderboard the player opened in this file (the global
 lists were never written to disk). Each entry is a friend's public leaderboard entry: real profile id, name, rank,
@@ -18,8 +18,10 @@ SaveFile::fletcher32 keyed 0xec51a7/0x2141 over the uncompressed data, zlib):
   u32 a, u32 b, u8 flag, u32 entries; per entry (tr::LeaderboardPlayerItem, 0x8c bytes in memory, 135 on disk):
   char[0x29] profile id, char[0x21] name, u32 rank, 0x30 bytes LeaderBoardData (u32 upgrades[4], faults,
   drive time ms, score_value, bike, ..., u32 at +0x2c: upgrades >> 6 & 0x3ff), u32 (low byte kept), i32, u8.
-The export keeps what the game showed (names, times, faults, bikes) and replaces profile ids with the hashes bundles
-use (game hash, profile sha256): a raw profile id is enough to claim someone's rider in the community layer.
+The export (for sharing) keeps the times, faults and bikes, replaces profile ids with the hashes bundles use (game
+hash, profile sha256: a raw profile id is enough to claim someone's rider in the community layer) and, like a
+bundle's other riders, leaves names out unless --with-names: a rider's name is theirs to publish in their own bundle,
+which the hashes then link to. community.py reading the cache file itself (your own game) keeps the names.
 """
 import json
 import os
@@ -100,7 +102,7 @@ def write(boards):
     return struct.pack("<4I", VERSION, fletcher32(body, CHECK_SEED, CHECK_MULT), len(body), 0) + zlib.compress(body, 9)
 
 
-def export(boards):
+def export(boards, names=True):
     """Riders by hash with their best entry per leaderboard (track boards only; Hall of Fame entries give names)."""
     riders = {}
     for bd in boards:
@@ -119,8 +121,11 @@ def export(boards):
                 r["results"][bd["leaderboard"]] = new
     out = []
     for sha in sorted(riders):
-        r = riders[sha]
-        out.append(dict(r, results=[r["results"][lb] for lb in sorted(r["results"])]))
+        r = dict(riders[sha])
+        r["results"] = [r["results"][lb] for lb in sorted(r["results"])]
+        if not names:
+            del r["name"]
+        out.append(r)
     return {"format": EXPORT_FORMAT, "format_version": 1, "boards": len(boards), "riders": out}
 
 
@@ -136,14 +141,18 @@ def load_any(path):
 
 
 def main():
+    with_names = "--with-names" in sys.argv
+    if with_names:
+        sys.argv.remove("--with-names")
     if len(sys.argv) < 3 or sys.argv[1] not in ("show", "export") or (sys.argv[1] == "export") != (len(sys.argv) == 4):
         sys.exit(__doc__)
     boards = read(open(sys.argv[2], "rb").read())
     if sys.argv[1] == "export":
-        exp = export(boards)
+        exp = export(boards, names=with_names)
         with open(sys.argv[3], "w") as f:
             json.dump(exp, f, indent=1, ensure_ascii=False)
-        print(f"{len(exp['riders'])} riders, {sum(len(r['results']) for r in exp['riders'])} results -> {sys.argv[3]}")
+        print(f"{len(exp['riders'])} riders, {sum(len(r['results']) for r in exp['riders'])} results"
+              f"{' with names' if with_names else ' by hash only (names: --with-names)'} -> {sys.argv[3]}")
         return
     for bd in boards:
         when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(bd["cached_at"]))

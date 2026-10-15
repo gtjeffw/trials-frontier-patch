@@ -208,8 +208,9 @@ python3 -I scripts/ghost_bundle.py update <bundle dir> [--documents <iPhone/iPad
 fetched and checked into a local cache, merged into a *community layer* the game's server reads. Your own results
 are never changed by it, and running `update` again picks up new and revised bundles. A leaderboard cache (Step 1)
 adds your old friends' names and best times; its names also stick to their downloaded ghosts. To share one, export
-it first (`scripts/lbcache.py export <lbstorage.bin> <out.json>`): the export carries the same hashes as bundles
-instead of profile ids, and `community.py add` takes it too.
+it first (`scripts/lbcache.py export <lbstorage.bin> <out.json>`): like a bundle's other riders, the export carries
+hashes instead of profile ids and no names (`--with-names` adds them); a friend's own bundle supplies the name once
+anyone has it. `community.py add` takes the export too.
 
 ```
 python3 -I scripts/community.py disable world-records-2019     # if you don't want them (on by default)
