@@ -1289,3 +1289,14 @@ later an in-app loopback server). Static analysis only.
   `highscores2` must never be worse than the save, or the game resets its table and a slower run would overwrite a
   ghost file.
 
+## 2026-10-14 — Unlimited fuel and gems become opt-in
+
+- Developer's decision: `unlimited-fuel` and `unlimited-gems` are ordinary optional groups (`--with`), so a build
+  without options plays with the game's own fuel and gems; the `--without`/`removable_groups` mechanism of the
+  previous entry is gone. The README recommends `--with unlimited-fuel,unlimited-gems,coins-for-gems`.
+- Recorded hashes recomputed: default ab99fd4f…, `embedded-server,local-services` 1f095bef… (equal to the earlier
+  "without both" build), `embedded-server,local-services,unlimited-fuel,unlimited-gems` 5ecc67b6… (equal to the old
+  default embedded build: same bytes, only the grouping changed), and the `local-services`/`open-all-levels`/
+  `orphan-levels` combinations.
+- Rebuilding an existing copy now needs `--with unlimited-fuel,unlimited-gems` to keep them.
+

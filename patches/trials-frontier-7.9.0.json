@@ -8,16 +8,14 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "b4e3aa176a0d3515f87a9a52813283c0bf40d7716daaecaf3ec5ce6a3330941f",
+    "patched_executable": "ab99fd4fc2a9692a6b8dde07004c49f5d8418566520f0edf5ce6b18455313630",
     "patched_executable_with": {
-      "local-services": "74d128539cd54b33f757b9624712c520ef5e3839c98bcc156195f9b4dbfb2b1d",
-      "local-services,open-all-levels": "b307700d4073b5e3187ecd325d11125f0385e52e46540fc2ad4f08497a91a391",
-      "local-services,open-all-levels,orphan-levels": "1b23fe61b7600c8946cad86dd75265ed1cca6d125590f2f8a454185764ce31f8",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "9b89facd3744bf4d4dc986e31baf24df3947032cf1d274fad5024285a282081d",
-      "embedded-server,local-services": "5ecc67b618ab505f3d962fe520a2f7c20d6e6d6607a83653400f68a9a99ed44b",
-      "embedded-server,local-services,-unlimited-fuel": "0548dc2029309f383e015338c8ba2b14c561cb5b72cb30630d5f138098121fa2",
-      "embedded-server,local-services,-unlimited-gems": "d22525a99e222fd6f4dfad4fb6b4db75dfee598ba770c4fae38e41b2b2b20855",
-      "embedded-server,local-services,-unlimited-fuel,-unlimited-gems": "1f095bef15f713dcee7fa5fb1a9f5ad448f705c2f52e082d99637297e7c460e1"
+      "local-services": "0fde4fc7b500e351f769d8c25fdb469bbd41d52d4e7b3ab0cbda1fc3c0721b69",
+      "local-services,open-all-levels": "477b82193e3a3121d9c81bd8984c77b18dc6c2aff7303b852b31bf84e2744c34",
+      "local-services,open-all-levels,orphan-levels": "5a38597ddd21c0e064134fbd1632b77ecb5900975b47c5f8dc936f2956460f0b",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "f4688aa33aa5426627bc9f119c1670eb1a2a226400d4de65134f2ad56f27120e",
+      "embedded-server,local-services": "1f095bef15f713dcee7fa5fb1a9f5ad448f705c2f52e082d99637297e7c460e1",
+      "embedded-server,local-services,unlimited-fuel,unlimited-gems": "5ecc67b618ab505f3d962fe520a2f7c20d6e6d6607a83653400f68a9a99ed44b"
     }
   },
   "encryption": {
@@ -28,11 +26,8 @@
   "groups": {
     "compat": "Required to run outside a team-signed iPhone/iPad install (PlayCover/macOS) and without the dead content bucket.",
     "privacy": "Stops ad and cross-promotion SDKs (and their network traffic). Independent of any server.",
-    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears.",
-    "unlimited-fuel": "Races never use fuel. On by default; build.py --without unlimited-fuel keeps the game's own fuel and refill timer (works offline).",
-    "unlimited-gems": "Gems always read 9999 (spending lowers the real balance, never below 0; earned gems still add to it). On by default; --without unlimited-gems keeps the game's own gems."
+    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears."
   },
-  "removable_groups": ["unlimited-fuel", "unlimited-gems"],
   "patches": [
     {
       "id": "bundle-seed-id-constant",
@@ -2218,6 +2213,8 @@
     }
   },
   "optional_groups": {
+    "unlimited-fuel": "Races never use fuel (tr::ConsumableManager::isUnlimitedFuel). Without it the game's own fuel and refill timer work offline.",
+    "unlimited-gems": "Gems always read 9999; spending lowers the real balance (never below 0) and earned gems still add to it. Without it the game's own gems.",
     "local-services": "Opt-in (build with --with local-services). Talks to a local game-services server on http://127.0.0.1:7979 for login, leaderboards and ghosts. The game's HTTP layer may only reach 127.0.0.1 and getaddrinfo resolves only 127.0.0.1, so nothing leaves the machine. Use together with the offline group.",
     "coins-for-gems": "Opt-in (build with --with coins-for-gems). The six coin packs are App Store purchases (com.ubisoft.redlynx.trialsfrontier.caps1-6) that cannot work any more; turn them into ordinary gem-priced shop items, priced like the gem pack of the same price tier (diamonds1-6). A content edit made at build time in the user's own content.dat; nothing from the game is shipped.",
     "unlock-bikes": "Opt-in (build with --with unlock-bikes). The regular bikes of tiers 1-3 (the game's tiers 0-2: Armadillo, Tango, Bronco, Jackal, Mantis, Marauder, Riptide, Berserker, Phantom, Bandito) count as unlocked, whatever blueprint parts the save has. The game's own garage check (UpgradeManager::checkForUnlockedBikes) records them in the save the first time the garage opens, with upgrades at level 0; upgrade them in the game. The three unlock groups are independent and can be combined.",
