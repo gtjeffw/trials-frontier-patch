@@ -1,8 +1,8 @@
-"""Build (and optionally install) a patched Trials Frontier 7.9.0 from your own copy of the app.
+"""Build (and optionally install) a patched Trials Frontier 7.9.0 from a copy of the app (preferably your own).
 
 Usage:
   python3 -I build.py --app <TrialsFrontier.app> --work <work dir>
-                      [--decrypted <unencrypted TrialsFrontier executable of your own copy>]
+                      [--decrypted <unencrypted TrialsFrontier executable of that copy>]
                       [--server embedded|external|none] [--with group,group,...]
                       [--avatars <dir>] [--community [<layer dir>]]
                       [--bundle-id <id>] [--display-name <name>] [--port N]
@@ -193,7 +193,7 @@ def main():
         cmd += [exe, patched]
     else:
         sys.exit("the app's executable is encrypted (App Store copies are): give --decrypted <an unencrypted "
-                 "executable of your own copy>; see the README, \"Getting the game files\"")
+                 "executable of that copy>; see the README, \"Getting the game files\"")
     run(cmd + (["--with", exe_groups] if exe_groups else []) + (["--port", port] if port else []), dry)
 
     ipa_cmd = PY + [os.path.join(ROOT, "scripts", "build_ipa.py"), app, patched,

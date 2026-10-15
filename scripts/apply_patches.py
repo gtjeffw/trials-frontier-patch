@@ -7,7 +7,7 @@ By default every patch in the spec's "groups" is applied; patches in "optional_g
 with --with (on top of the default groups) or when named in --groups. The default build is checked against
 sha256.patched_executable, a --with build against sha256.patched_executable_with["<sorted,groups>"].
 
-Input: an unencrypted executable of your own copy of 7.9.0 (arm64). If it is byte-identical to the reference
+Input: an unencrypted executable of 7.9.0 (arm64). If it is byte-identical to the reference
 (sha256.decrypted_executable), the output is byte-for-byte reproducible and checked against the recorded hashes.
 A copy whose cryptoff/cryptsize were zeroed along with cryptid gets them restored from the spec first, so it can
 still be byte-identical to the reference.
