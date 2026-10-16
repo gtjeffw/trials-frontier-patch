@@ -1324,3 +1324,22 @@ later an in-app loopback server). Static analysis only.
 - The README mentions only that new in-game text was machine-translated (by Claude) and lists the group neutrally;
   docs/MISSIONS.md uses mission 507 as its working example without describing it.
 
+## 2026-10-16 — Community registry; README for backing up, sharing and racing others
+
+- Developer's idea: publishers ping an aggregation account, and readers point `community.py` at one list.
+  Prepared locally, not yet on GitHub (launch checklist in docs/TODO.md): `scripts/registry.py` (issue requests,
+  incremental nightly crawl, check), the registry repository ~/Projects/trials-frontier-registry (registry.json,
+  issue template, Action pinned to a commit of this project), `ghost_bundle.verify_published` (the full check, shared
+  by `verify` and the registry), `publish`/`update` offering to open the registry issue, and `community.py`'s default
+  `registry` source (its bundles become ordinary sources, still verified locally).
+- Tested against the published jayuph bundle: issue accepted; a missing repository refused with the reason; a title
+  with shell text and an unrelated issue left alone (nothing executed); first crawl verified once, later crawls
+  skipped it by its push time without further requests; `community.py sync` with a test registry: listed bundle
+  fetched once (also a default source), a missing one failed without stopping the rest, a blocked one ignored.
+- The registry only points (repo, publisher, verified commit, manifest sha256); a shared merged layer was left for
+  later. Actions on public repositories cost nothing.
+- README: keep the original backup untouched (Finder's Archive, a read-only copy), the encrypted-backup snag,
+  backing up the patched game (ditto), sharing as steps (gh login, export choices, what is published, the registry,
+  updates and keeping the bundle folder), other riders (registry, list/disable/add, second copies, iPhone/iPad,
+  trust).
+

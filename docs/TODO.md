@@ -120,3 +120,14 @@ config file.
   Possible next steps: `ghost_bundle.py export --leaderboard-cache` so a bundle can carry its publisher's friends'
   times; the Android version's cache location (same engine, probably the same file in its cache folder).
 
+## Launch checklist: community registry (prepared 2026-10-16, not yet on GitHub)
+
+1. Publish this repository as gtjeffw/trials-frontier-patch (public): the registry's Action checks it out.
+2. Create gtjeffw/trials-frontier-registry (public) and push the local repository ~/Projects/trials-frontier-registry
+   (registry.json, issue template, `.github/workflows/registry.yml`, README, CC0 notice).
+3. In `registry.yml`, set `PATCH_REF` from `PIN-AT-LAUNCH` to the published commit of this repository; update the
+   pin when registry.py changes.
+4. Run the workflow once by hand (Actions → registry → Run workflow): the crawl lists the existing bundles.
+5. Test a request: open an issue `bundle: gtjeffw/trials-frontier-ghosts-jayuph`; the Action should reply
+   "re-verified" and close it.
+

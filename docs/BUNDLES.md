@@ -166,3 +166,30 @@ into the app (used when the data has none: iPhone/iPad). Both servers overlay it
 with the store's own (by id, else by the game hash of a named opponent's real profile id), a layer result shows
 only where it beats the stored one, the player's own rider is skipped (its avatar is used), and nothing of the
 layer is ever written to `store.json` (tests/test_parity.py checks this).
+
+## Community registry
+
+One list of every published bundle that passed verification: `registry.json` in the public repository
+gtjeffw/trials-frontier-registry, kept by a GitHub Action that runs `scripts/registry.py` of this project (pinned to
+a commit).
+
+- **Getting listed:** `ghost_bundle.py publish` and `update` offer to open an issue there titled
+  `bundle: <owner>/<repo>` (`--register` / `--no-register` answer in advance). The Action verifies the bundle at once
+  (`ghost_bundle.verify_published`: valid, every commit made through GitHub by the publisher the manifest names),
+  adds or updates the entry, replies and closes the issue. Issue text never reaches a shell: the script reads the
+  event file.
+- **Nightly crawl:** finds bundles by their topic (`trials-frontier-bundle`) and keeps listed ones current, doing
+  only new work: a repository whose last push is the one recorded is skipped without another request; otherwise its
+  newest commit is asked for, and only a new commit or a new bundle is downloaded and verified. A bundle that stops
+  verifying stays listed as `failing` (with the reason) and is retried when it gets a new commit; `blocked` lists
+  repositories the registry ignores.
+- **Entries:** repo, publisher, rider, game hash, profile sha256, licence, the verified commit and the manifest's
+  sha256, when it was added and verified, the last push seen. No bundle data: the registry only points.
+- **Readers:** `community.py` has a default source `registry` (type `registry`): `sync` fetches `registry.json` first,
+  then every listed bundle that is `ok` and not blocked becomes an ordinary bundle source (id `owner/repo`, so it can
+  be disabled on its own), fetched and verified like any other. A registry entry cannot vouch for data: whatever it
+  points to must pass the checks on the reader's machine.
+- **Cost:** Actions on a public repository are free; a quiet night is one search request.
+- **Later, a shared layer:** the same Action could run `community.py build` and attach the merged layer (with
+  NOTICE.md) to a release, so readers download one file. Not done: readers would then rely on the Action's merge.
+
