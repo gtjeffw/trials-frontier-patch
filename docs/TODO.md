@@ -120,14 +120,15 @@ config file.
   Possible next steps: `ghost_bundle.py export --leaderboard-cache` so a bundle can carry its publisher's friends'
   times; the Android version's cache location (same engine, probably the same file in its cache folder).
 
-## Launch checklist: community registry (prepared 2026-10-16, not yet on GitHub)
+## Launch checklist: community registry
 
-1. Publish this repository as gtjeffw/trials-frontier-patch (public): the registry's Action checks it out.
-2. Create gtjeffw/trials-frontier-registry (public) and push the local repository ~/Projects/trials-frontier-registry
-   (registry.json, issue template, `.github/workflows/registry.yml`, README, CC0 notice).
-3. In `registry.yml`, set `PATCH_REF` from `PIN-AT-LAUNCH` to the published commit of this repository; update the
-   pin when registry.py changes.
-4. Run the workflow once by hand (Actions → registry → Run workflow): the crawl lists the existing bundles.
-5. Test a request: open an issue `bundle: gtjeffw/trials-frontier-ghosts-jayuph`; the Action should reply
+Done 2026-10-16: gtjeffw/trials-frontier-registry is public, list only (seeded with a local `registry.py crawl`:
+jayuph's bundle); `community.py` reads it. Requests opened there are checked by hand (`registry.py issue` / `add`
+locally, then commit and push the list). The Action is parked in `automation/registry.yml` because it needs this
+repository, which stays private for now. When this repository goes public:
+
+1. In the registry, move `automation/registry.yml` to `.github/workflows/` and set `PATCH_REF` to the published
+   commit of this repository (update the pin when registry.py changes); update the registry README's "checked by hand".
+2. Run the workflow once by hand (Actions → registry → Run workflow): the crawl re-checks the listed bundles.
+3. Test a request: open an issue `bundle: gtjeffw/trials-frontier-ghosts-jayuph`; the Action should reply
    "re-verified" and close it.
-

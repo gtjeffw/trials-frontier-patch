@@ -1342,4 +1342,7 @@ later an in-app loopback server). Static analysis only.
   backing up the patched game (ditto), sharing as steps (gh login, export choices, what is published, the registry,
   updates and keeping the bundle folder), other riders (registry, list/disable/add, second copies, iPhone/iPad,
   trust).
+- Launched the same day as a list only (the developer keeps this repository private for now, and the Action needs
+  it): gtjeffw/trials-frontier-registry public with the seeded list, the workflow parked in `automation/`. A fresh
+  `community.py sync` read the live list and verified the listed bundle.
 
