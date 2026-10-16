@@ -4,6 +4,14 @@
  "comment": "Default community sources, used by scripts/community.py. Your own list (add/remove/enable/disable) overrides these by id.",
  "sources": [
   {
+   "id": "registry",
+   "type": "registry",
+   "repo": "gtjeffw/trials-frontier-registry",
+   "file": "registry.json",
+   "enabled": true,
+   "note": "every bundle listed in the community registry (each one still fetched and checked here); disable with community.py disable registry, or a single bundle by its id"
+  },
+  {
    "id": "gtjeffw/trials-frontier-ghosts-jayuph",
    "type": "bundle",
    "repo": "gtjeffw/trials-frontier-ghosts-jayuph",

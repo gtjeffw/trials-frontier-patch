@@ -8,7 +8,7 @@ Usage:
   python3 -I ghost_bundle.py check   <bundle dir>
   python3 -I ghost_bundle.py verify  <owner/repo>
   python3 -I ghost_bundle.py publish <bundle dir> [--repo <name>] [--i-agree [--share-names]]
-                                     [--dry-run [--preview-dir <dir>]]
+                                     [--register | --no-register] [--dry-run [--preview-dir <dir>]]
   python3 -I ghost_bundle.py search
 
 export   reads the save (player.bin), your ghost files and, if present, the local services store (newer runs from
@@ -36,7 +36,10 @@ publish  shows what will be published, asks you to agree, then (GitHub CLI `gh`,
          commit for your account: that is the proof the bundle is yours (a future fan server can rely on it), and
          there is no key to keep or lose. The manifest names you as publisher and states that the rider is you.
          --dry-run publishes nothing: it writes the files exactly as they would be published to
-         <bundle dir>-preview and prints what would be committed.
+         <bundle dir>-preview and prints what would be committed. Afterwards it offers to list the bundle in the
+         community registry (scripts/registry.py): an issue "bundle: <you>/<repo>" on gtjeffw/trials-frontier-registry,
+         checked there by a GitHub Action; --register / --no-register answer that question in advance. Without it the
+         registry's nightly search still finds the bundle by its topic.
 search   lists published bundles (GitHub topic trials-frontier-bundle).
 """
 import base64
@@ -677,6 +680,34 @@ def publish(bundle):
         shutil.rmtree(target, ignore_errors=True)
     verify_repo(full, login, head)
     print(f"published: https://github.com/{full} (every commit signed by GitHub for {login})")
+    register(full)
+
+
+REGISTRY = "gtjeffw/trials-frontier-registry"
+
+
+def register(full):
+    """Offer to list a published bundle in the community registry: open an issue there (the registry's Action checks
+    it and replies). Optional: the registry's nightly search finds bundles by their topic anyway."""
+    if opt("--no-register", True):
+        return
+    if not opt("--register", True):
+        if not sys.stdin.isatty():
+            print(f"not listed in the registry now (--register to do that); its nightly search will find {full}")
+            return
+        a = input(f"List it in the community registry, so other players' community.py finds it (opens an issue on "
+                  f"{REGISTRY})? [Y/n] ").strip().lower()
+        if a not in ("", "y", "yes"):
+            print(f"not listed now; the registry's nightly search will still find {full} by its topic")
+            return
+    r = subprocess.run(["gh", "issue", "create", "--repo", REGISTRY, "--title", f"bundle: {full}", "--body",
+                        f"Please list https://github.com/{full}\n\n(opened by scripts/ghost_bundle.py)"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"could not reach the registry ({(r.stderr or r.stdout).strip()[:150]}); its nightly search will find "
+              f"{full} by its topic")
+    else:
+        print(f"registry request opened: {r.stdout.strip()} (the reply there says whether it was listed)")
 
 
 def merge_previous(bundle, prev_dir, before):

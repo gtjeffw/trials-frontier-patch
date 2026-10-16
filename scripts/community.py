@@ -55,6 +55,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import ghost_bundle as gb  # noqa: E402
 import lbcache  # noqa: E402
+import registry as reglib  # noqa: E402
 
 DEFAULT_SOURCES = os.path.join(HERE, "..", "community", "sources.json")
 HOME = os.environ.get("TF_COMMUNITY_HOME") or os.path.expanduser(
@@ -93,10 +94,23 @@ def load_user():
 
 
 def sources():
-    """Defaults overridden by the user's entries (same id), in order: defaults first, then the user's additions."""
+    """Defaults overridden by the user's entries (same id), in order: defaults first, then the user's additions, then
+    the bundles of enabled registries (from their last good sync) that are not listed already. A registry's bundle
+    is an ordinary bundle source (id = owner/repo), so it can be disabled on its own."""
     out = {s["id"]: dict(s, origin="default") for s in json.load(open(DEFAULT_SOURCES))["sources"]}
     for s in load_user()["sources"]:
         out[s["id"]] = dict(out.get(s["id"], {}), **s, origin="default (changed)" if s["id"] in out else "yours")
+    for r in [s for s in out.values() if s["type"] == "registry" and s.get("enabled", True)]:
+        path = os.path.join(HOME, "cache", safe(r["id"]), "registry.json")
+        try:
+            reg = reglib.load(path) if os.path.exists(path) else {"bundles": [], "blocked": []}
+        except ValueError:
+            continue
+        blocked = {x.lower() for x in reg.get("blocked", [])}
+        for b in reg["bundles"]:
+            if b["status"] == "ok" and b["repo"].lower() not in blocked and b["repo"] not in out:
+                out[b["repo"]] = {"id": b["repo"], "type": "bundle", "repo": b["repo"], "enabled": True,
+                                  "origin": f"registry ({r['id']})"}
     return list(out.values())
 
 
@@ -266,13 +280,43 @@ def sync_cache(s, dest):
             "riders": len(exp["riders"])}
 
 
+def sync_registry(s, dest):
+    """A registry's list (registry.json), checked; its bundles become sources (see sources())."""
+    os.makedirs(dest)
+    if s.get("path"):  # a local copy (testing)
+        data = open(s["path"], "rb").read()
+    else:
+        url = f"https://raw.githubusercontent.com/{s['repo']}/HEAD/{s.get('file', 'registry.json')}"
+        with urllib.request.urlopen(url, timeout=60) as r:
+            data = r.read(5_000_000)
+    open(os.path.join(dest, "registry.json"), "wb").write(data)
+    try:
+        reg = reglib.load(os.path.join(dest, "registry.json"))
+    except (ValueError, KeyError, TypeError) as e:
+        raise gb.BundleError(f"not a usable registry ({e})") from None
+    return {"commit": "list-" + hashlib.sha256(data).hexdigest()[:12], "fetched": now(), "signed_by": None,
+            "license": "CC0-1.0", "bundles": sum(b["status"] == "ok" for b in reg["bundles"])}
+
+
+def _sync_order():
+    """Registries first; the rest is listed only after they were synced, so it includes the bundles they list."""
+    for s in sources():
+        if s["type"] == "registry":
+            yield s
+    for s in sources():
+        if s["type"] != "registry":
+            yield s
+
+
 def cmd_sync():
     cache = os.path.join(HOME, "cache")
     os.makedirs(cache, exist_ok=True)
     ok = failed = 0
-    for s in sources():
-        if not s.get("enabled", True):
+    done = set()
+    for s in _sync_order():
+        if not s.get("enabled", True) or s["id"] in done:
             continue
+        done.add(s["id"])
         sid, target = s["id"], os.path.join(cache, safe(s["id"]))
         st = status_of(sid)
         tmp = tempfile.mkdtemp(prefix="tf-sync-", dir=cache)
@@ -280,6 +324,8 @@ def cmd_sync():
         try:
             if s["type"] == "bundle":
                 info = sync_bundle(s, new)
+            elif s["type"] == "registry":
+                info = sync_registry(s, new)
             elif s["type"] == "leaderboard-cache":
                 info = sync_cache(s, new)
             elif s["type"] == "trialstrackmap-wr":
@@ -300,7 +346,8 @@ def cmd_sync():
             print(f"ok   {sid}: {'updated to' if changed else 'unchanged'} {info['commit'][:10]}"
                   + (f", signed by GitHub for {info['signed_by']}" if info.get("signed_by") else
                      ", sha256 pinned" if s["type"] == "trialstrackmap-wr" else
-                     ", checked (leaderboard cache)" if s["type"] == "leaderboard-cache" else ", not checked (local folder)"))
+                     ", checked (leaderboard cache)" if s["type"] == "leaderboard-cache" else
+                     f", {info.get('bundles')} bundles listed" if s["type"] == "registry" else ", not checked (local folder)"))
             ok += 1
         except (gb.BundleError, OSError, ValueError) as e:
             st["last_error"], st["last_attempt"] = str(e), now()
