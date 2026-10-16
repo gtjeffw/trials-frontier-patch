@@ -2764,32 +2764,200 @@
       ]
     },
     {
-      "id": "farewell-mission-strings",
+      "id": "farewell-mission-strings-english",
       "group": "farewell",
       "pack": "data/TrialsMobile/content.dat",
-      "files": [
-        "/gen/lang/english_strings.bin",
-        "/gen/lang/french_strings.bin",
-        "/gen/lang/german_strings.bin",
-        "/gen/lang/spanish_strings.bin",
-        "/gen/lang/italian_strings.bin",
-        "/gen/lang/russian_strings.bin",
-        "/gen/lang/japanese_strings.bin",
-        "/gen/lang/korean_strings.bin",
-        "/gen/lang/braz_portuguese_strings.bin",
-        "/gen/lang/simp_chinese_strings.bin",
-        "/gen/lang/trad_chinese_strings.bin"
-      ],
+      "file": "/gen/lang/english_strings.bin",
       "binary": true,
-      "reason": "Mission 507's texts (English) in every language table: the game finds DESC/MISSION/REW/FAIL by position after the NAME key, so they are appended as one run.",
+      "reason": "Mission 507's texts. The game finds DESC/MISSION/REW/FAIL by position after the NAME key, so they are appended as one run, in every language table. Translations follow the game's own terms in that language (Butch's voice, Rider, ghost, the bunions oath); every character occurs in the shipped table, so the font has it.",
       "edits": [
         {
           "op": "add_mission_strings",
           "key": "MISSION_507_NAME",
           "name": "BACK FROM THE DEAD",
-          "desc": "Well, well, well... look who's back!|Word is the whole {c1}Frontier{c0} went dark on {c1}June 30th, 2023.{c0} Servers off, lights out, everybody home.|I figured that was the end of the Age of Butch AND the Age of You.|But here you are, back from the dead. And here I am, still minding my own business... mostly.|I swear on my mother's bunions, I've got something for you. For old times' sake.",
+          "desc": "Well, well, well... look who's back!|The whole {c1}Frontier{c0} went dark on {c1}June 30th, 2023.{c0} Lights out. Nothing but a black void.|Funny thing is, it was kind of peaceful. Just... nothing. No races, no Rider, no Butch.|But now that I'm back, I never want to go to that place again.|And look at you, back from the dead too! Not much worse for wear...|But I bet you're rusty! Better hop on that bike and start practicing again!|Me? I'm still minding my own business... mostly.|I swear on my mother's bunions, I've got something for you. For old times' sake.",
           "mission": "Collect your reward from {c1}Butch!{c0}",
           "reward": "That's for the memories, Rider.|Now get out there and keep the {c1}Frontier{c0} alive!|And save a ghost or two for old Butch, would ya?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-french",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/french_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in french (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "REVENU D'ENTRE LES MORTS",
+          "desc": "Tiens, tiens, tiens... mais qui voilà !|Toute la {c1}Frontier{c0} s'est éteinte le {c1}30 juin 2023.{c0} Plus de lumière. Rien qu'un grand vide noir.|Le plus drôle, c'est que c'était plutôt paisible. Juste... rien. Pas de course, pas de pilote, pas de Butch.|Mais maintenant que je suis revenu, je ne veux plus jamais y retourner.|Et toi aussi, te voilà revenu d'entre les morts ! Pas trop abîmé, on dirait...|Mais je parie que tu es rouillé ! Remonte vite sur ta bécane et remets-toi à l'entraînement !|Moi ? Je m'occupe toujours de mes oignons... enfin, presque.|Je le jure sur les oignons de ma mère, j'ai quelque chose pour toi. En souvenir du bon vieux temps.",
+          "mission": "Récupère ta récompense auprès de {c1}Butch{c0} !",
+          "reward": "Ça, c'est pour les souvenirs, Pilote.|Maintenant file, et fais vivre la {c1}Frontier{c0} !|Et garde un fantôme ou deux pour le vieux Butch, d'accord ?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-german",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/german_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in german (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "ZURÜCK VON DEN TOTEN",
+          "desc": "Na sieh mal einer an ... wer ist denn da wieder aufgetaucht!|Die ganze {c1}Frontier{c0} ging am {c1}30. Juni 2023{c0} aus. Licht aus. Nichts als eine schwarze Leere.|Das Komische ist: Es war irgendwie friedlich. Einfach ... nichts. Keine Rennen, kein Fahrer, kein Butch.|Aber jetzt, wo ich zurück bin, will ich da nie wieder hin.|Und sieh dich an, auch zurück von den Toten! Kaum mitgenommen ...|Aber ich wette, du bist eingerostet! Schwing dich aufs Motorrad und fang wieder an zu üben!|Ich? Ich gehe immer noch nur meinen Geschäften nach ... meistens.|Ich schwöre bei den Hühneraugen meiner Mutter: Ich hab was für dich. Um der alten Zeiten willen.",
+          "mission": "Hol dir deine Belohnung bei {c1}Butch{c0} ab!",
+          "reward": "Das ist für die Erinnerungen, Fahrer.|Und jetzt raus mit dir und halte die {c1}Frontier{c0} am Leben!|Und heb ein, zwei Geister für den alten Butch auf, ja?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-spanish",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/spanish_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in spanish (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "DE VUELTA DEL MÁS ALLÁ",
+          "desc": "Vaya, vaya, vaya... ¡mira quién ha vuelto!|Toda la {c1}Frontier{c0} se apagó el {c1}30 de junio de 2023.{c0} Se apagaron las luces. Nada más que un vacío negro.|Lo curioso es que era bastante tranquilo. Solo... nada. Sin carreras, sin pilotos, sin Butch.|Pero ahora que he vuelto, no quiero volver a ese sitio nunca más.|¡Y mírate, tú también has vuelto del más allá! No estás tan mal...|¡Pero seguro que estás oxidado! ¡Súbete a la moto y ponte a practicar otra vez!|¿Yo? Sigo a lo mío... casi siempre.|Juro por los juanetes de mi madre que tengo algo para ti. Por los viejos tiempos.",
+          "mission": "¡Recoge tu recompensa de {c1}Butch!{c0}",
+          "reward": "Esto es por los recuerdos, piloto.|¡Ahora sal ahí fuera y mantén viva la {c1}Frontier{c0}!|Y guarda un fantasma o dos para el viejo Butch, ¿vale?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-italian",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/italian_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in italian (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "RITORNO DALL'ALDILÀ",
+          "desc": "Bene, bene, bene... guarda chi si rivede!|Tutta la {c1}Frontier{c0} si è spenta il {c1}30 giugno 2023.{c0} Luci spente. Nient'altro che un vuoto nero.|La cosa buffa è che era quasi rilassante. Solo... il nulla. Niente gare, niente piloti, niente Butch.|Ma ora che sono tornato, non voglio mai più finire in quel posto.|E guarda te, anche tu tornato dall'aldilà! Non sembri messo troppo male...|Ma scommetto che sei arrugginito! Salta in sella e ricomincia ad allenarti!|Io? Continuo a farmi i fatti miei... più o meno.|Giuro sui calli di mia madre che ho qualcosa per te. Per i vecchi tempi.",
+          "mission": "Ritira la tua ricompensa da {c1}Butch!{c0}",
+          "reward": "Questo è per i ricordi, pilota.|Ora vai là fuori e tieni in vita la {c1}Frontier{c0}!|E lascia un fantasma o due per il vecchio Butch, d'accordo?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-russian",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/russian_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in russian (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "ВОЗВРАЩЕНИЕ С ТОГО СВЕТА",
+          "desc": "Так-так-так... Смотри-ка, кто вернулся!|Весь {c1}Frontier{c0} погас {c1}30 июня 2023 года.{c0} Свет выключили. Ничего, кроме черной пустоты.|Самое забавное — там было даже спокойно. Просто... ничего. Ни гонок, ни мотоциклистов, ни Бутча.|Но теперь, когда я вернулся, я больше никогда не хочу туда попасть.|А вот и ты, тоже вернулся с того света! И почти не потрепан...|Но, спорим, ты заржавел! Прыгай на байк и начинай снова тренироваться!|Я? Я все так же занимаюсь своими делами... в основном.|Клянусь мозолями моей матери, у меня кое-что для тебя есть. В память о старых временах.",
+          "mission": "Забери свою награду у {c1}Бутча!{c0}",
+          "reward": "Это на память, мотоциклист.|А теперь вперед — не дай {c1}Frontier{c0} погаснуть!|И оставь пару призраков для старины Бутча, ладно?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-japanese",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/japanese_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in japanese (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "あの世からの復活",
+          "desc": "おやおやおや...誰かと思えば、お前じゃねえか！|{c1}2023年6月30日{c0}、{c1}フロンティア{c0}は丸ごと真っ暗になっちまった。明かりは消えて、真っ黒な虚無だけだ。|笑えるのはな、案外おだやかだったってことだ。ただ...何もねえ。レースもねえ、ライダーもいねえ、ブッチもいねえ。|だが戻ってきた今、二度とあんな所には行きたくねえ。|で、お前もあの世から戻ってきたってわけか！大して変わってねえな...|だが腕はなまってるだろ！さっさとバイクにまたがって、また練習を始めな！|俺か？相変わらず自分のことだけやってるさ...だいたいはな。|おふくろの魚の目に誓って言うが、お前に渡すもんがある。昔のよしみでな。",
+          "mission": "{c1}ブッチ{c0}から報酬を受け取れ！",
+          "reward": "思い出の分だ、ライダー。|さあ行って、{c1}フロンティア{c0}を生かし続けろ！|それと、ブッチのためにゴーストを一つ二つ残しといてくれよな？"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-korean",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/korean_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in korean (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "저승에서 돌아오다",
+          "desc": "이런, 이런, 이런... 이게 누구야!|{c1}2023년 6월 30일{c0}, {c1}Frontier{c0} 전체가 꺼져 버렸지. 불이 다 꺼지고. 그저 새카만 공허뿐이었어.|웃긴 건, 그게 꽤 평화로웠다는 거야. 그냥... 아무것도 없었어. 레이스도, 라이더도, 부치도.|그래도 이렇게 돌아왔으니, 다시는 그곳에 가고 싶지 않아.|그리고 너 좀 봐, 너도 저승에서 돌아왔잖아! 별로 상한 데도 없어 보이고...|그래도 장담하는데 감이 녹슬었을걸! 얼른 바이크에 올라타서 다시 연습해!|나? 난 여전히 내 일에만 신경 쓰고 있지... 대체로는.|우리 엄마 무좀에 대고 맹세하는데, 너한테 줄 게 있어. 옛정을 생각해서 말이야.",
+          "mission": "{c1}부치{c0}에게서 보상을 받아!",
+          "reward": "추억 값이야, 라이더.|이제 나가서 {c1}Frontier{c0}를 계속 살려 둬!|그리고 이 부치를 위해 유령 한두 개쯤은 남겨 두라고, 알았지?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-braz-portuguese",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/braz_portuguese_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in braz portuguese (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "DE VOLTA DOS MORTOS",
+          "desc": "Ora, ora, ora... olha só quem voltou!|A {c1}Frontier{c0} inteira apagou em {c1}30 de junho de 2023.{c0} Luzes apagadas. Nada além de um vazio escuro.|O engraçado é que era até tranquilo. Só... nada. Sem corridas, sem pilotos, sem Butch.|Mas agora que voltei, nunca mais quero ir para aquele lugar.|E olha só você, também de volta dos mortos! Nem parece tão estragado...|Mas aposto que está enferrujado! Sobe nessa moto e volta a treinar!|Eu? Continuo cuidando da minha vida... quase sempre.|Juro pelos joanetes da minha mãe que tenho uma coisa para você. Pelos velhos tempos.",
+          "mission": "Pegue sua recompensa com o {c1}Butch!{c0}",
+          "reward": "Isso é pelas lembranças, Piloto.|Agora vai lá e mantém a {c1}Frontier{c0} viva!|E guarda um ou dois fantasmas para o velho Butch, beleza?"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-simp-chinese",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/simp_chinese_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in simp chinese (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "死而复生",
+          "desc": "哟，哟，哟...看看谁回来了！|整个{c1}Frontier{c0}在{c1}2023年6月30日{c0}陷入了黑暗。灯全灭了。只剩一片漆黑的虚无。|好笑的是，那时还挺安宁的。就是...什么都没有。没有比赛，没有赛车手，也没有布奇。|但现在我回来了，我再也不想回到那个地方了。|再看看你，你也死而复生了！看起来也没怎么受损嘛...|不过我敢打赌你手生了！赶紧骑上摩托车，重新开始练习吧！|我？我还是在照料我自己的生意...大部分时候是。|我对我妈的鸡眼发誓，我有东西要给你。看在老交情的份上。",
+          "mission": "从{c1}布奇{c0}那里领取你的奖励！",
+          "reward": "这是为了那些回忆，赛车手。|现在出发吧，让{c1}Frontier{c0}继续活下去！|还有，给老布奇留一两个鬼影记录，好吗？"
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings-trad-chinese",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file": "/gen/lang/trad_chinese_strings.bin",
+      "binary": true,
+      "reason": "Mission 507's texts in trad chinese (see the English entry).",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "死而復生",
+          "desc": "喲，喲，喲...看看誰回來了！|整個{c1}Frontier{c0}在{c1}2023年6月30日{c0}陷入了黑暗。燈全滅了。只剩一片漆黑的虛無。|好笑的是，那時還挺安寧的。就是...什麼都沒有。沒有比賽，沒有賽車手，也沒有布奇。|但現在我回來了，我再也不想回到那個地方了。|再看看你，你也死而復生了！看起來也沒怎麼受損嘛...|不過我敢打賭你手生了！趕緊騎上摩托車，重新開始練習吧！|我？我還是在照料我自己的生意...大部分時候是。|我對我媽的雞眼發誓，我有東西要給你。看在老交情的份上。",
+          "mission": "從{c1}布奇{c0}那裡領取你的獎勵！",
+          "reward": "這是為了那些回憶，賽車手。|現在出發吧，讓{c1}Frontier{c0}繼續活下去！|還有，給老布奇留一兩個鬼影記錄，好嗎？"
         }
       ]
     }
