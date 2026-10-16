@@ -440,8 +440,8 @@ ones are marked `UNHANDLED`) and `python3 -I scripts/netwatch.py` (flags any non
 
 ### Environment
 
-- Python 3.12 (`.python-version`: pyenv-virtualenv `trials-frontier-patch-3.12`); `pip install -r requirements.txt`
-  only for the Frida tools.
+- Python 3.12 (`.python-version`); the scripts need only the standard library. `pip install -r requirements.txt`
+  (in a virtual environment) only for the Frida tools.
 - Xcode (clang, iOS SDK) for the in-app server.
 - Java 21 for Ghidra via SDKMAN (`.sdkmanrc`), only for analysis.
 - Keep work files (game files, saves, builds) in a separate private folder, never in this repository.
