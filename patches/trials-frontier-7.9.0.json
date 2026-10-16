@@ -8,14 +8,14 @@
     "encrypted_executable": "b92232381cf633dd5bb27b43fb1c51c500046efb77dbce683e7eed70bd1909af",
     "decrypted_page": "38bb4911d8430f34cfee9408e90f23c4bc687e506b6435bf87f505de6f65a2d9",
     "decrypted_executable": "0ae11f09b22f6bbbc9276ad56b7722d03a88b4f17509facdf3b4e6f93dce6a5d",
-    "patched_executable": "ab99fd4fc2a9692a6b8dde07004c49f5d8418566520f0edf5ce6b18455313630",
+    "patched_executable": "4c5de5faf228cc4c3ca176c41cdb996e5ed6baabe62f22f760b69b0deee6d84f",
     "patched_executable_with": {
-      "local-services": "0fde4fc7b500e351f769d8c25fdb469bbd41d52d4e7b3ab0cbda1fc3c0721b69",
-      "local-services,open-all-levels": "477b82193e3a3121d9c81bd8984c77b18dc6c2aff7303b852b31bf84e2744c34",
-      "local-services,open-all-levels,orphan-levels": "5a38597ddd21c0e064134fbd1632b77ecb5900975b47c5f8dc936f2956460f0b",
-      "embedded-server,local-services,open-all-levels,orphan-levels": "f4688aa33aa5426627bc9f119c1670eb1a2a226400d4de65134f2ad56f27120e",
-      "embedded-server,local-services": "1f095bef15f713dcee7fa5fb1a9f5ad448f705c2f52e082d99637297e7c460e1",
-      "embedded-server,local-services,unlimited-fuel,unlimited-gems": "5ecc67b618ab505f3d962fe520a2f7c20d6e6d6607a83653400f68a9a99ed44b"
+      "local-services": "414bb866e2def4d7d51e0d29ceff0c02e84aa163db3e44fb70fb34fa3cb18873",
+      "local-services,open-all-levels": "8061028ae317ec056e50a579cce7af1b5fa56070219929086d8298a9ed90b575",
+      "local-services,open-all-levels,orphan-levels": "dedd13576f263696a36b5518713da5c013c53ea9f37be9f72e28078a849be5e7",
+      "embedded-server,local-services,open-all-levels,orphan-levels": "77a47cb207777fec40e7b56ec6e1145aed66e1357838c2d75d16fe35090465aa",
+      "embedded-server,local-services": "34951636615d7edfc82131ebce51fa71ecd0be129425535bf8f3f894eb590bab",
+      "embedded-server,local-services,unlimited-fuel,unlimited-gems": "59013c73e13d19aedc4d4f7f8b4f53d30066757f67529ea854c5c0e3e9c117ba"
     }
   },
   "encryption": {
@@ -26,7 +26,8 @@
   "groups": {
     "compat": "Required to run outside a team-signed iPhone/iPad install (PlayCover/macOS) and without the dead content bucket.",
     "privacy": "Stops ad and cross-promotion SDKs (and their network traffic). Independent of any server.",
-    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears."
+    "offline": "Runs without Ubisoft/RedLynx services. Replace this group, not the others, if a fan server appears.",
+    "farewell": "Butch's farewell for story veterans: mission 507 in the Saloon, only for saves that had finished the story before meeting the patch. On by default: a build without it would crash the Saloon for a save that has the mission on offer."
   },
   "patches": [
     {
@@ -1981,6 +1982,55 @@
       ],
       "function": "tr::BikeUpgrade::getBikeStatus(unsigned int)",
       "reason": "tr::BikeUpgrade::getBikeStatus(bike) is the one place that decides whether a bike is unlocked (43 callers: garage, bike selection, rewards, slot machine): 0 (ready) when the blueprint-part counter, item (0x48 + bike) sub 4, has reached the bike's requirement (BikeUpgradeData+0x58, \"BP\" 4-50), -1 while collecting, -2 without parts. Here x8 = the bike's BikeUpgradeData (tier at +0x3b: 0-2, 0xff special, 0xfe = not in the bike data, e.g. the unused ids 20 and 21, left alone), w19 = the bike id. Legendary = the bikes whose garage text is M_GARAGE_BIKE_LEGENDARY_TIER1-3 in 7.9.0's bike data: ids 13, 14, 16, 17, 18 (mask 0x76000). The three unlock groups hook three consecutive instructions, each returning 0 for its own bikes and otherwise running the replaced instruction, so any combination works."
+    },
+    {
+      "id": "farewell-veteran-marker-cave",
+      "group": "farewell",
+      "vmaddr": "0x100006d60",
+      "original": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "replacement": "0060369169e652b9aa9e9a522a56a1723f010a6bc1010054886a8652696a6838aa8e9a522a56a172abbe9a522b56a1723f0100726a118a1a6ae612b988bc8d52696a683829010032696a2838c0180714",
+      "original_asm": [
+        "(zero padding)"
+      ],
+      "replacement_asm": [
+        "add x0, x0, #0xd98",
+        "ldr w9, [x19, #0x12e4]",
+        "mov w10, #0xd4f5",
+        "movk w10, #0xab1, lsl #16",
+        "cmp w9, w10",
+        "b.ne +0x38",
+        "mov w8, #0x3354",
+        "ldrb w9, [x19, x8]",
+        "mov w10, #0xd475",
+        "movk w10, #0xab1, lsl #16",
+        "mov w11, #0xd5f5",
+        "movk w11, #0xab1, lsl #16",
+        "tst w9, #1",
+        "csel w10, w11, w10, ne",
+        "str w10, [x19, #0x12e4]",
+        "mov w8, #0x6de4",
+        "ldrb w9, [x19, x8]",
+        "orr w9, w9, #1",
+        "strb w9, [x19, x8]",
+        "b 0x1001cd0ac"
+      ],
+      "function": "code cave for tr::Player::checkPlayerProfileVersion",
+      "reason": "Story veterans: a one-time marker, item 126 sub 0 (unused by the game, saved with all 280 items), set when the patched game first meets a save: 2 if Butch's finale (mission 212, solved flag Player+0x3280+212 bit 0) is already done, else 1. Runs at the single exit of Player::checkPlayerProfileVersion (every load, new players included, and main menu activations; x19 = Player); acts only while the marker is 0 (stored form rol(0,7)^0xab1d4f5), then sets the 'save needed' bit Player+0x6de4 as the game does after its own version write. Mission 507 requires marker >= 2, so only players who finished the story before meeting the patch see it."
+    },
+    {
+      "id": "farewell-veteran-marker-hook",
+      "group": "farewell",
+      "vmaddr": "0x1001cd0a8",
+      "original": "00603691",
+      "replacement": "2ee7f817",
+      "original_asm": [
+        "add x0, x0, #0xd98"
+      ],
+      "replacement_asm": [
+        "b 0x100006d60"
+      ],
+      "function": "tr::Player::checkPlayerProfileVersion",
+      "reason": "Story veterans: a one-time marker, item 126 sub 0 (unused by the game, saved with all 280 items), set when the patched game first meets a save: 2 if Butch's finale (mission 212, solved flag Player+0x3280+212 bit 0) is already done, else 1. Runs at the single exit of Player::checkPlayerProfileVersion (every load, new players included, and main menu activations; x19 = Player); acts only while the marker is 0 (stored form rol(0,7)^0xab1d4f5), then sets the 'save needed' bit Player+0x6de4 as the game does after its own version write. Mission 507 requires marker >= 2, so only players who finished the story before meeting the patch see it."
     }
   ],
   "plist_patches": [
@@ -2692,6 +2742,56 @@
         }
       ],
       "reason": "Map::cheatOpenAllLevels only reveals levels with LevelMetaData::hasNameLocalization; the test levels' name keys (their N, plain text) have no entry. Append one per level (LOCF: u32 count at offset 5, entries {u32 getHashCode(key), u16 length, text}; the table is unsorted)."
+    },
+    {
+      "id": "farewell-mission",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "file_hash": "c4125fdb",
+      "reason": "Mission 507 (free ids 507-511): villager 9 (Butch) in the Saloon; available when the veteran marker (item 126/0) is >= 2 and Butch's finale (212) is done; one task that is always satisfied (own >= 0 coins), so accepting completes it at once; rewards 1000 coins and 10 gems on completion. No a-line: the accept button just closes the bubble.",
+      "edits": [
+        {
+          "op": "add_mission",
+          "lines": [
+            "507,0,MISSION_507_NAME,9,0,0,0,0,0",
+            "t,5,0,0,0,0,1",
+            "u,3,2,126,0",
+            "u,1,212,0,0",
+            "r,0,0,1,1000,0,1",
+            "r,0,0,2,10,0,1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "farewell-mission-strings",
+      "group": "farewell",
+      "pack": "data/TrialsMobile/content.dat",
+      "files": [
+        "/gen/lang/english_strings.bin",
+        "/gen/lang/french_strings.bin",
+        "/gen/lang/german_strings.bin",
+        "/gen/lang/spanish_strings.bin",
+        "/gen/lang/italian_strings.bin",
+        "/gen/lang/russian_strings.bin",
+        "/gen/lang/japanese_strings.bin",
+        "/gen/lang/korean_strings.bin",
+        "/gen/lang/braz_portuguese_strings.bin",
+        "/gen/lang/simp_chinese_strings.bin",
+        "/gen/lang/trad_chinese_strings.bin"
+      ],
+      "binary": true,
+      "reason": "Mission 507's texts (English) in every language table: the game finds DESC/MISSION/REW/FAIL by position after the NAME key, so they are appended as one run.",
+      "edits": [
+        {
+          "op": "add_mission_strings",
+          "key": "MISSION_507_NAME",
+          "name": "BACK FROM THE DEAD",
+          "desc": "Well, well, well... look who's back!|Word is the whole {c1}Frontier{c0} went dark on {c1}June 30th, 2023.{c0} Servers off, lights out, everybody home.|I figured that was the end of the Age of Butch AND the Age of You.|But here you are, back from the dead. And here I am, still minding my own business... mostly.|I swear on my mother's bunions, I've got something for you. For old times' sake.",
+          "mission": "Collect your reward from {c1}Butch!{c0}",
+          "reward": "That's for the memories, Rider.|Now get out there and keep the {c1}Frontier{c0} alive!|And save a ghost or two for old Butch, would ya?"
+        }
+      ]
     }
   ],
   "bundle_files": [

@@ -235,6 +235,77 @@ def add_strings(data, strings):
     return bytes(out)
 
 
+def replace_strings(data, strings):
+    """Replace the text of existing entries of a /gen/lang/<language>_strings.bin table (layout: add_strings).
+    strings: (key, old, new); the entry's current text must be exactly `old`."""
+    if data[:4] != b"LOCF":
+        raise ValueError("not a LOCF string table")
+    want = {game_hash(key): (key, old, new) for key, old, new in strings}
+    count = struct.unpack_from("<I", data, 5)[0]
+    out, i, done = bytearray(data[:9]), 9, set()
+    for _ in range(count):
+        k, ln = struct.unpack_from("<IH", data, i)
+        raw = data[i + 6:i + 6 + ln]
+        if k in want:
+            key, old, new = want[k]
+            if raw[:-1].decode("utf-8") != old:
+                raise ValueError("string %r is %r, expected %r" % (key, raw[:-1].decode("utf-8", "replace"), old))
+            raw = new.encode("utf-8") + b"\0"
+            done.add(k)
+        out += struct.pack("<IH", k, len(raw)) + raw
+        i += 6 + ln
+    if i != len(data):
+        raise ValueError("unexpected string table layout")
+    missing = [want[k][0] for k in want if k not in done]
+    if missing:
+        raise ValueError("strings not found: %s" % ", ".join(missing))
+    return bytes(out)
+
+
+# Every /gen/lang table (tr::LocalizationManager); a mission's texts are found by position after its NAME key, so a
+# new mission needs its strings in all of them.
+LANGUAGES = ("english", "french", "german", "spanish", "italian", "russian", "japanese", "korean", "braz_portuguese",
+             "simp_chinese", "trad_chinese")
+# Per-mission capacity of the parser (MissionDBLoader::parseDataFile, Mission::add*: no bounds checks) and its fatal
+# limits (MissionDBLoader::addNewMission): ids 1..511, task type <= 29, reward type <= 1, unlock type <= 10.
+MISSION_TAGS = {"a": None, "b": None, "t": 6, "r": 8, "u": 4, "o": 8, "m": 4, "c": None, "z": None, "i": None,
+                "p": None, "x": None}
+
+
+def add_mission(text, lines):
+    """Mission file (content 0xc4125fdb): append one mission block. lines[0] is the header
+    `id,c,NAME_KEY,villager,d,0,0,0,0`; the rest are tagged lines (see docs/MISSIONS.md). Checked against the parser's
+    limits; written with the file's CRLF line ends (the parser skips line ends as two bytes)."""
+    head = lines[0].split(",")
+    if len(head) != 9 or not head[0].isdigit() or not 1 <= int(head[0]) <= 511:
+        raise ValueError("mission header %r: needs 9 fields and an id 1..511" % lines[0])
+    if re.search(r"(?m)^%s," % head[0], text):
+        raise ValueError("mission %s already exists" % head[0])
+    counts = {}
+    for line in lines[1:]:
+        tag = line.split(",")[0]
+        if tag not in MISSION_TAGS:
+            raise ValueError("mission %s: unknown line type %r (the parser would hang)" % (head[0], line))
+        counts[tag] = counts.get(tag, 0) + 1
+        if MISSION_TAGS[tag] is not None and counts[tag] > MISSION_TAGS[tag]:
+            raise ValueError("mission %s: more than %d %s-lines" % (head[0], MISSION_TAGS[tag], tag))
+        f = line.split(",")
+        if (tag == "t" and int(f[1]) > 29) or (tag == "r" and int(f[1]) > 1) or (tag == "u" and int(f[1]) > 10):
+            raise ValueError("mission %s: %r has a type the game rejects" % (head[0], line))
+    if not text.endswith("\r\n"):
+        raise ValueError("unexpected mission file ending")
+    return text + "\r\n".join(lines) + "\r\n"
+
+
+def add_mission_strings(data, name_key, name, desc, mission, reward, fail=""):
+    """A new mission's texts in a /gen/lang table: the game looks up only NAME by key and takes DESC (offered),
+    MISSION (in progress), REW (complete), FAIL and one spare from the next five positions, so all six are appended
+    as one run. Pages of a text are separated by '|'; {c1}...{c0} highlights."""
+    base = name_key[:-len("_NAME")] if name_key.endswith("_NAME") else name_key
+    return add_strings(data, [(name_key, name), (base + "_DESC", desc), (base + "_MISSION", mission),
+                              (base + "_REW", reward), (base + "_FAIL", fail), (base + "_SPARE", "")])
+
+
 def shift_mission_dates(text, missions, delta):
     """Mission file (content 0xc4125fdb): move the dated parts of the listed missions by delta seconds. Unlock
     windows `u,6,<f>,<start>,<end>` (0 stays 0: open-ended) and notification times `o,16,0,0,0,<time>,...`."""
@@ -268,12 +339,21 @@ def apply_content_patch(pack, patch):
             else:
                 raise ValueError("unknown texture edit %r" % edit["op"])
         return pack
+    if patch.get("files"):  # the same edits for several files of the pack (e.g. every language table)
+        for f in patch["files"]:
+            pack = apply_content_patch(pack, dict(patch, file=f, files=None))
+        return pack
     h = int(patch["file_hash"], 16) if patch.get("file_hash") else game_hash(patch["file"])
     if patch.get("binary"):
         data = read_file(pack, h)
         for edit in patch["edits"]:
             if edit["op"] == "add_strings":
                 data = add_strings(data, [(s["key"], s["text"]) for s in edit["strings"]])
+            elif edit["op"] == "add_mission_strings":
+                data = add_mission_strings(data, edit["key"], edit["name"], edit["desc"], edit["mission"], edit["reward"],
+                                           edit.get("fail", ""))
+            elif edit["op"] == "replace_strings":
+                data = replace_strings(data, [(s["key"], s["old"], s["text"]) for s in edit["strings"]])
             else:
                 raise ValueError("unknown binary content edit %r" % edit["op"])
         return replace_file(pack, h, data)
@@ -288,6 +368,8 @@ def apply_content_patch(pack, patch):
             text = shift_mission_dates(text, set(edit["missions"]), int(edit["to"]) - int(edit["from"]))
         elif edit["op"] == "level_bike_tier":
             text = level_bike_tier(text, edit["level_id"], edit["old"], edit["new"])
+        elif edit["op"] == "add_mission":
+            text = add_mission(text, edit["lines"])
         elif edit["op"] == "replace_mission_line":
             text = replace_mission_line(text, edit["mission"], edit["old"], edit["new"])
         elif edit["op"] == "override_custom_param":

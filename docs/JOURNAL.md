@@ -1300,3 +1300,27 @@ later an in-app loopback server). Static analysis only.
   `orphan-levels` combinations.
 - Rebuilding an existing copy now needs `--with unlimited-fuel,unlimited-gems` to keep them.
 
+## 2026-10-16 — Adding missions; mission 507 for story veterans
+
+- The developer wanted a small addition at the story's end (group `story-extras`, mission 507; its content is left
+  for players to find). The Lady's "THE END" card (mission 213) never completes and shows its MISSION text forever,
+  and its DESC is seen only once, so editing it was dropped in favour of a new mission in the Saloon, offered only to
+  players who had finished the story before meeting the patch.
+- Mission format and flow from the code, with the general recipe, in docs/MISSIONS.md: free ids 507-511, the header's
+  fourth field is the villager, texts by position after NAME (so every language table needs them), CRLF line ends,
+  parser limits, a count-0 collect task completes on accept, one card per villager.
+- Veteran marker: a cave at the single exit of `Player::checkPlayerProfileVersion` (hook 0x1001cd0a8 → 0x100006d60)
+  sets item 126/0 once: 2 if mission 212 is already solved, else 1. Mission 507 requires `u,3,2,126,0` and
+  `u,1,212`. Hook site, register (x19 = Player) and free padding checked in the disassembly; the cave assembled with
+  Xcode's clang matches the patched bytes; branches computed and cross-checked.
+- New datapack ops `add_mission`, `add_mission_strings` (all 11 `/gen/lang` tables), `replace_strings`; content
+  patches may name several `files`. The group is a default group: a build without it would crash the Saloon for a
+  save with the mission on offer. Build hashes re-recorded.
+- Worked in play on the first try (main copy, save backed up first). Its texts were written in English and
+  translated into the ten other languages, matching each table's own terms for the same characters and words.
+  Checks before building: every character occurs in that language's shipped table (a Japanese draft used three kanji
+  that do not, 穏 袋 還: reworded), highlights balanced, the same page count as the English, page length like the
+  game's own (English pages median 64, 90% under 106 characters). Straight apostrophes and "..." as in the game.
+- The README mentions only that new in-game text was machine-translated (by Claude) and lists the group neutrally;
+  docs/MISSIONS.md uses mission 507 as its working example without describing it.
+
