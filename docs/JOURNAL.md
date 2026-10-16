@@ -1346,3 +1346,11 @@ later an in-app loopback server). Static analysis only.
   it): gtjeffw/trials-frontier-registry public with the seeded list, the workflow parked in `automation/`. A fresh
   `community.py sync` read the live list and verified the listed bundle.
 
+## 2026-10-16 — Public release
+
+- Release audit: no game files, no decryption tools or links (tree and history), no secrets, no personal data; an
+  other player's name and the detailed account of mission 507 removed from the whole history (git filter-repo, backup
+  bundles in the private workspace); `.python-version` pins 3.12; the Legal section credits the screenshot's artwork.
+- This repository published (public), then the registry's Action switched on, pinned to it; a manual run and a test
+  request (issue #1) both worked.
+
