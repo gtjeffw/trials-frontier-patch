@@ -450,6 +450,34 @@ def verify_repo(full, publisher, head=None):
     return publisher
 
 
+REPO_RE = re.compile(r"[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}")
+
+
+def verify_published(full):
+    """Fetch a published bundle (newest commit) and check it completely: valid (check) and every commit made through
+    GitHub by the publisher its manifest names (verify_repo). Returns {manifest, publisher, commit, manifest_sha256};
+    BundleError otherwise. Used by `verify` and by scripts/registry.py."""
+    if not REPO_RE.fullmatch(full) or ".." in full:
+        raise BundleError(f"{full}: not owner/repo")
+    tmp = tempfile.mkdtemp(prefix="tf-verify-")
+    try:
+        r = subprocess.run(["git", "clone", "-q", "--depth", "1", "-c", "core.symlinks=false",
+                            f"https://github.com/{full}.git", tmp], capture_output=True, text=True,
+                           env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
+        if r.returncode != 0:
+            raise BundleError(f"could not fetch {full}: {r.stderr.strip()[:200]}")
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp, capture_output=True, text=True).stdout.strip()
+        m = check(tmp)
+        login = (m.get("publisher") or {}).get("github")
+        if not login:
+            raise BundleError(f"{full}: the manifest names no publisher")
+        verify_repo(full, login, head)
+        return {"manifest": m, "publisher": login, "commit": head,
+                "manifest_sha256": sha256(open(os.path.join(tmp, MANIFEST), "rb").read())}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def git_blob_sha(data):
     return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
 
@@ -771,21 +799,9 @@ def cli():
         update(sys.argv[2])
     elif cmd == "verify" and len(sys.argv) >= 3:
         full = sys.argv[2].removeprefix("https://github.com/").strip("/").removesuffix(".git")
-        tmp = tempfile.mkdtemp(prefix="tf-verify-")
-        try:
-            r = subprocess.run(["git", "clone", "-q", "--depth", "1", "-c", "core.symlinks=false",
-                                f"https://github.com/{full}.git", tmp], capture_output=True, text=True)
-            if r.returncode != 0:
-                sys.exit(f"could not fetch {full}: {r.stderr.strip()[:200]}")
-            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp, capture_output=True, text=True).stdout.strip()
-            m = check(tmp)
-            login = (m.get("publisher") or {}).get("github")
-            if not login:
-                sys.exit(f"{full}: the manifest names no publisher")
-            verify_repo(full, login, head)
-            print(f"ok: {full} is {m['rider']['name']}'s bundle, every commit signed by GitHub for {login}")
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
+        v = verify_published(full)
+        print(f"ok: {full} is {v['manifest']['rider']['name']}'s bundle, every commit signed by GitHub for "
+              f"{v['publisher']}")
     elif cmd == "check" and len(sys.argv) >= 3:
         m = check(sys.argv[2])
         print(f"ok: {m['rider']['name']} ({m['rider']['game_hash']}), {len(m['results'])} times, {len(m['ghosts'])} ghosts,"
